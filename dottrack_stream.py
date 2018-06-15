@@ -14,7 +14,7 @@ label.pack()
 ser = None
 tkimg = None
 # 270+ ms should be around the time it takes to capture another image.
-stream_loop_delay = 135
+stream_loop_delay = 0
 
 
 def stream_loop():
@@ -51,6 +51,9 @@ def stream_loop():
         print("Under {} bytes long ({} bytes). Aborting!".format(img_byte_len,
                                                                  len(data)))
         return
+
+    # Expand bytes to full range (0-255)
+    data = bytes([min(b * 2, 255) for b in data])
 
     # Create image
     img = Image.frombytes("L", imgsize, data)
