@@ -20,7 +20,7 @@ void setup()
   /*M5.setWakeupButton(BUTTON_A_PIN);*/
 
   /*Serial.begin(9600);*/
-  Serial.begin(2000000);
+  Serial.begin(1000000);
 
   if(DEBUG_LEVEL >= 2) Serial.println("setup()");
 
@@ -103,34 +103,34 @@ void loop()
 
   /*M5.update();*/
 
-  if(frameCapture)
-  {
-    // Send picture data
-    sendRawOverSerial();
-  }
-  else
-  {
-    // Send motion data
-    sendMotionBurst();
-  }
+  /*if(frameCapture)*/
+  /*{*/
+    /*// Send picture data*/
+    /*sendRawOverSerial();*/
+  /*}*/
+  /*else*/
+  /*{*/
+    /*// Send motion data*/
+    /*sendMotionBurst();*/
+  /*}*/
 
-  if(t_switch < millis())
-  {
-    t_switch = millis() + 5000;
-    if(frameCapture)
-    {
-      frameCapture = false;
-    }
-    else
-    {
-      frameCapture = true;
-      resetSPIPort();
-      resetDevice();
-      performSROMdownload();
-      configureRegisters();
-      delay(250);
-    }
-  }
+  /*if(t_switch < millis())*/
+  /*{*/
+    /*t_switch = millis() + 5000;*/
+    /*if(frameCapture)*/
+    /*{*/
+      /*frameCapture = false;*/
+    /*}*/
+    /*else*/
+    /*{*/
+      /*frameCapture = true;*/
+      /*resetSPIPort();*/
+      /*resetDevice();*/
+      /*performSROMdownload();*/
+      /*configureRegisters();*/
+      /*delay(250);*/
+    /*}*/
+  /*}*/
 
   // switch to frame capture mode when the sensor hits the ground
   /*if(!liftOff && prevLiftOff)*/
@@ -177,7 +177,7 @@ void loop()
   /*}*/
 
   /*unsigned long t = millis();*/
-  /*sendRawOverSerial();*/
+  sendRawOverSerial();
   /*Serial.println();*/
   /*Serial.print("sendRawOverSerial Delay in ms: ");*/
   /*Serial.println(millis() - t);*/
