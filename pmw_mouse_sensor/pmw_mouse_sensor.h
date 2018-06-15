@@ -2,13 +2,15 @@
 //#define DEBUG_LEVEL 2
 
 // ESP32 Pins (M5STACK)
+#define PIN3 3
 #define PIN21 21
-#define PIN22 22
+//#define PIN22 22
 #define PIN18 18 // SCK
 #define PIN19 19 // MISO
 #define PIN23 23 // MOSI
 // mapped to better pin names
-#define PIN_NCS PIN22
+//#define PIN_NCS PIN22
+#define PIN_NCS PIN3
 #define PIN_MOTION PIN21
 #define PIN_SCLK PIN18
 #define PIN_MISO PIN19
