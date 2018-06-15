@@ -7,7 +7,7 @@ imgsize = [36, 36]
 img_byte_len = imgsize[0] * imgsize[1]
 img_rsz_mltpl = 10
 root = tkinter.Tk()
-root.title("DotTrack - Capture Frame Streaming")
+root.title("DotTrack - Frame Capture Streaming")
 root.resizable = False
 label = tkinter.Label(root)
 label.pack()
