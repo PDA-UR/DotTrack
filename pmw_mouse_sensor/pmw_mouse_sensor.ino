@@ -1,16 +1,17 @@
 #include "SPI.h"
 #include "pmw_mouse_sensor.h"
-/*#include <M5Stack.h>*/
+#include "M5Stack.h"
 
 unsigned long t_switch;
 
 void setup()
 {
   // initialize the M5Stack object
-  /*M5.begin();*/
+  M5.begin();
 
-  // Mute speaker
-  /*M5.Speaker.mute();*/
+  // Turn off/disconnect speaker
+  // Source: https://twitter.com/Kongduino/status/980466157701423104
+  M5.Speaker.end();
 
   // Lcd display
   /*M5.Lcd.println("This is software power off demo");*/
@@ -20,7 +21,7 @@ void setup()
   /*M5.setWakeupButton(BUTTON_A_PIN);*/
 
   /*Serial.begin(9600);*/
-  Serial.begin(1000000);
+  Serial.begin(2000000);
 
   if(DEBUG_LEVEL >= 2) Serial.println("setup()");
 
@@ -87,7 +88,7 @@ void setup()
   // Delay for Frame Capture burst mode (only needed once after power up/reset)
   delay(250);
 
-  t_switch = millis() + 5000;
+  t_switch = millis() + 3000;
 
   // Capture single frame
   /*delay(1000);*/
@@ -103,20 +104,21 @@ void loop()
 
   /*M5.update();*/
 
-  /*if(frameCapture)*/
-  /*{*/
-    /*// Send picture data*/
-    /*sendRawOverSerial();*/
-  /*}*/
-  /*else*/
-  /*{*/
-    /*// Send motion data*/
-    /*sendMotionBurst();*/
-  /*}*/
+  if(frameCapture)
+  {
+    // Send picture data
+    sendRawOverSerial();
+  }
+  else
+  {
+    // Send motion data
+    sendMotionBurst();
+  }
 
+  // Switch between modes (absolute vs. relative) every 5 seconds
   /*if(t_switch < millis())*/
   /*{*/
-    /*t_switch = millis() + 5000;*/
+    /*t_switch = millis() + 3000;*/
     /*if(frameCapture)*/
     /*{*/
       /*frameCapture = false;*/
@@ -133,29 +135,28 @@ void loop()
   /*}*/
 
   // switch to frame capture mode when the sensor hits the ground
-  /*if(!liftOff && prevLiftOff)*/
-  /*{*/
-    /*frameCapture = true;*/
-    /*// Delay for Frame Capture burst mode (only needed once after power up/reset)*/
-    /*delay(250);*/
-    /*t_switch = millis() + 3000;*/
-    /*Serial.println();*/
-    /*Serial.println("FRAMECAPTURE TRUE");*/
-  /*}*/
+  if(!liftOff && prevLiftOff)
+  {
+    frameCapture = true;
+    // Delay for Frame Capture burst mode (only needed once after power up/reset)
+    t_switch = millis() + 3000;
+    Serial.println();
+    Serial.println("FRAMECAPTURE TRUE");
+  }
   /*// TODO liftOff is too sensitive for this task*/
-  /*prevLiftOff = liftOff;*/
+  prevLiftOff = liftOff;
 
-  /*if(t_switch < millis() && t_switch != 0)*/
-  /*{*/
-    /*frameCapture = false;*/
-    /*t_switch = 0;*/
-    /*resetSPIPort();*/
-    /*resetDevice();*/
-    /*performSROMdownload();*/
-    /*configureRegisters();*/
-    /*Serial.println();*/
-    /*Serial.println("FRAMECAPTURE FALSE");*/
-  /*}*/
+  if(t_switch < millis() && t_switch != 0)
+  {
+    frameCapture = false;
+    t_switch = 0;
+    resetSPIPort();
+    resetDevice();
+    performSROMdownload();
+    configureRegisters();
+    Serial.println();
+    Serial.println("FRAMECAPTURE FALSE");
+  }
 
   // Delays: T_BEXIT + "soonest to begin again" (Figure 23 / p.24) [SEEMS TO DESYNC BUT RUNS WELL]
   // Delays: "soonest to begin again" (Figure 23 / p.24)
@@ -177,7 +178,7 @@ void loop()
   /*}*/
 
   /*unsigned long t = millis();*/
-  sendRawOverSerial();
+  /*sendRawOverSerial();*/
   /*Serial.println();*/
   /*Serial.print("sendRawOverSerial Delay in ms: ");*/
   /*Serial.println(millis() - t);*/
@@ -357,6 +358,10 @@ void configureRegisters()
   // disable Rest mode
   /*writeRegister(REGISTER_CONFIG2, 0x00);*/
   /*if(DEBUG_LEVEL >= 2) Serial.println("disable Rest mode");*/
+
+  // Set lift detection height threshold
+  writeRegister(REGISTER_LIFT_CONFIG, 0x03); // 0x03 = nominal height + 3mm (default: 0x02 = nominal height + 2mm)
+  if(DEBUG_LEVEL >= 2) Serial.println("set lift detection");
 }
 
 // interrupt callback for motion pin
@@ -532,8 +537,9 @@ void sendMotionBurst()
 {
   uint8_t* rawResult = (uint8_t*) malloc(motbrLength * sizeof(uint8_t));
   readMotionBurst(rawResult, motbrLength);
-  // Read Motion register
-  uint8_t motion = readRegister(REGISTER_MOTION);
+
+  // Read Motion byte
+  uint8_t motion = rawResult[0];
 
   // Evaluate Lift_Stat bit
   liftOff = (bool)(motion & REG_MOTION_LIFT_STAT);
@@ -581,6 +587,12 @@ void sendMotionBurst()
     /*Serial.write(xyDelta[1]);*/
     /*Serial.write(0xFE);*/
   }
+
+  // Read Raw_Data_Sum byte
+  // The rawResult[7] element should be between 0-160 (0x00 - 0xA0)
+  // Therefore rawDataSum 0-126
+  uint8_t rawDataSum = rawResult[7] * 1024 / 1296;
+  if(DEBUG_LEVEL >= 1) Serial.println("RDS: " + String(rawDataSum));
 
   // Binary debug output
   if(DEBUG_LEVEL >= 3)

@@ -1,4 +1,4 @@
-#define DEBUG_LEVEL 0
+#define DEBUG_LEVEL 1
 //#define DEBUG_LEVEL 2
 
 // ESP32 Pins (M5STACK)
