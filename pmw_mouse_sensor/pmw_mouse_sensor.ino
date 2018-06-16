@@ -43,7 +43,7 @@ void setup()
   // One bit should take 500ns
   // One byte should take 8*500ns = 4µs
   // Two bytes should take 16*500ns = 8µs
-  SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE3));
+  /*SPI.beginTransaction(SPISettings(SPI_FREQ, MSBFIRST, SPI_MODE3));*/
 
   if(DEBUG_LEVEL >= 2) Serial.println("SPI initialized");
 
@@ -206,6 +206,7 @@ void writeRegister(uint8_t address, uint8_t data)
   if(readingMotion) readingMotion = false;
   address |= WRITE_MASK;
 
+  SPI.beginTransaction(SPISettings(SPI_FREQ, MSBFIRST, SPI_MODE3));
   digitalWrite(PIN_NCS, LOW);
   delayMicroseconds(T_NCS_SCLK);
 
@@ -213,6 +214,7 @@ void writeRegister(uint8_t address, uint8_t data)
 
   delayMicroseconds(T_SCLK_NCS_WRITE);
   digitalWrite(PIN_NCS, HIGH);
+  SPI.endTransaction();
 
   // TODO Maybe add delay (T_SWW/T_SWR) for next read/write operation (see
   // Figure 20 / p.21)
@@ -244,6 +246,7 @@ uint8_t readRegister(uint8_t address)
 
   address &= READ_MASK;
 
+  SPI.beginTransaction(SPISettings(SPI_FREQ, MSBFIRST, SPI_MODE3));
   digitalWrite(PIN_NCS, LOW);
   delayMicroseconds(T_NCS_SCLK);
 
@@ -258,6 +261,7 @@ uint8_t readRegister(uint8_t address)
 
   delayMicroseconds(T_SCLK_NCS_READ);
   digitalWrite(PIN_NCS, HIGH);
+  SPI.endTransaction();
 
   // TODO Maybe add delay (T_SRR/T_SRW) for next read/write operation (see
   // Figure 20 / p.21)
@@ -317,6 +321,7 @@ void performSROMdownload()
   writeRegister(REGISTER_SROM_ENABLE, 0x18);
 
   // Prepare burst mode
+  SPI.beginTransaction(SPISettings(SPI_FREQ, MSBFIRST, SPI_MODE3));
   digitalWrite(PIN_NCS, LOW);
   delayMicroseconds(T_NCS_SCLK);
 
@@ -337,6 +342,7 @@ void performSROMdownload()
   // Exit burst mode (exiting after NCS was high for T_BEXIT delay)
   delayMicroseconds(T_SCLK_NCS_WRITE);
   digitalWrite(PIN_NCS, HIGH);
+  SPI.endTransaction();
   delayMicroseconds(T_BEXIT);
 
   // Soonest to read REGISTER_SROM_ID (see Figure 22 / p.23)
@@ -449,6 +455,7 @@ void captureRawImage(uint8_t* result, int resultLength)
   delay(20);
 
   // Prepare burst mode
+  SPI.beginTransaction(SPISettings(SPI_FREQ, MSBFIRST, SPI_MODE3));
   digitalWrite(PIN_NCS, LOW);
   delayMicroseconds(T_NCS_SCLK);
 
@@ -468,6 +475,7 @@ void captureRawImage(uint8_t* result, int resultLength)
   // Exit burst mode (exiting after NCS was high for T_BEXIT delay)
   delayMicroseconds(T_SCLK_NCS_WRITE);
   digitalWrite(PIN_NCS, HIGH);
+  SPI.endTransaction();
   delayMicroseconds(T_BEXIT);
 
   // Soonest to begin again (see Figure 23 / p.24)
@@ -507,6 +515,7 @@ void readMotionBurst(uint8_t* result, int resultLength)
   writeRegister(REGISTER_MOTION_BURST, 0x01);
 
   // Prepare motion burst mode
+  SPI.beginTransaction(SPISettings(SPI_FREQ, MSBFIRST, SPI_MODE3));
   digitalWrite(PIN_NCS, LOW);
   delayMicroseconds(T_NCS_SCLK);
 
@@ -527,6 +536,7 @@ void readMotionBurst(uint8_t* result, int resultLength)
   // Exit burst mode (exiting after NCS was high for T_BEXIT delay)
   delayMicroseconds(T_SCLK_NCS_WRITE);
   digitalWrite(PIN_NCS, HIGH);
+  SPI.endTransaction();
   delayMicroseconds(T_BEXIT);
 
   // TODO NEEDED? Soonest to begin again (see Figure 23 / p.24)

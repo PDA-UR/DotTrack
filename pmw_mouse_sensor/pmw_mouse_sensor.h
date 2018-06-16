@@ -22,6 +22,9 @@
 //#define PIN_MISO D6
 //#define PIN_MOSI D7
 
+// SPI transaction settings
+#define SPI_FREQ 2000000
+
 // register addresses of pmw3360 (see p. 29)
 #define REGISTER_PRODUCT_ID       0x00
 #define REGISTER_REVISION_ID      0x01
