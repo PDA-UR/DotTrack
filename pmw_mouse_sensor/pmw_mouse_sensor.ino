@@ -21,7 +21,8 @@ void setup()
   /*M5.setWakeupButton(BUTTON_A_PIN);*/
 
   /*Serial.begin(9600);*/
-  Serial.begin(2000000);
+  Serial.begin(250000);
+  /*Serial.begin(2000000);*/
 
   if(DEBUG_LEVEL >= 2) Serial.println("setup()");
 
