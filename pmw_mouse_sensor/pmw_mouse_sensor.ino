@@ -490,6 +490,19 @@ void sendRawOverSerial()
   uint8_t* rawResult = (uint8_t*) malloc(rawDataLength * sizeof(uint8_t));
   captureRawImage(rawResult, rawDataLength);
 
+  // Print raw data picture data to M5Stack display
+  // M5Stack Display: 320x240
+  // drawBitmap(x, y, w, h, uint8_t* data)
+  for(int i = 0; i < 36; i++)
+  {
+    for(int j = 0; j < 36; j++)
+    {
+      uint8_t pixel = rawResult[i*36+j] << 1;
+      uint32_t color = (pixel >> 3) << 11 | (pixel >> 2) << 5 | (pixel >> 3);
+      M5.Lcd.fillRect(i*6, j*6, 6, 6, color);
+    }
+  }
+
   // Original approach
   /*Serial.write(0xFD);*/
   /*for(int i = 0; i < rawDataLength; i++)*/
@@ -504,9 +517,10 @@ void sendRawOverSerial()
   /*if(DEBUG_LEVEL >= 2) Serial.println("rawDataLength (expected bytes): " + String(rawDataLength));*/
   /*int bytesSent = Serial.write(rawResult, rawDataLength);*/
   /*if(DEBUG_LEVEL >= 2) Serial.println("\nbytesSent: " + String(bytesSent));*/
-  Serial.write(rawResult, rawDataLength);
-  // Paket termination byte TODO improve this (header terminate bytes)
-  Serial.write(0xFE);
+
+  /*Serial.write(rawResult, rawDataLength);*/
+  /*// Paket termination byte TODO improve this (header terminate bytes)*/
+  /*Serial.write(0xFE);*/
   free(rawResult);
 }
 
