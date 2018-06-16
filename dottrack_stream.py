@@ -70,7 +70,8 @@ def stream_loop():
 def main():
     global ser
     # Open serial port
-    ser = serial.Serial("/dev/ttyUSB0", 2000000, timeout=1)
+    # ser = serial.Serial("/dev/ttyUSB0", 2000000, timeout=1)
+    ser = serial.Serial("/dev/ttyUSB0", 250000, timeout=1)
 
     # Start stream loop and tkinter loop
     stream_loop()
