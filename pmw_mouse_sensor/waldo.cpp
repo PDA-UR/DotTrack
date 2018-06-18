@@ -3,9 +3,9 @@
 
 int16_t counter_waldo = 0;
 int scale = 1;
-int count = 0;
+int count = 5;
 
-uint8_t bitmap[320*240];// = new uint16_t[76800];
+uint16_t bitmap[320*240/2];// = new uint16_t[76800];
 
 void updateWaldo(int16_t x_pos, int16_t y_pos)
 {
@@ -23,10 +23,29 @@ void updateWaldo(int16_t x_pos, int16_t y_pos)
     }
   }
   */
-  for(auto i = 0; i < 240/2; ++i){
-    memmove(bitmap + i*320 * sizeof(uint16_t),cat_pixel_map + i*1000 * sizeof(uint16_t) + count * sizeof(uint16_t),320 * sizeof(uint16_t));
+  for(auto i = 0; i < 120; ++i){
+    //memmove(bitmap + i*320 * sizeof(uint16_t),cat_pixel_map + (i+60)*1000 * sizeof(uint16_t) + count * sizeof(uint16_t),320 * sizeof(uint16_t));
+      for(auto t = 0; t < 320; t+=1){
+        bitmap[320*i+t] = cat_pixel_map[count+t+i*1000];
+        bitmap[320*i+t+1] = cat_pixel_map[count+t+i*1000];
+        //memmove(bitmap + i*320 * sizeof(uint8_t),cat_pixel_map + i*1000 * sizeof(uint8_t) + count * sizeof(uint8_t) + (t+1) * sizeof(uint8_t),1 * sizeof(uint8_t));
+      }
   }
   M5.Lcd.drawBitmap(0, 0, 320, 120,bitmap);
+  for(auto i = 0; i < 120; ++i){
+    //memmove(bitmap + i*320 * sizeof(uint16_t),cat_pixel_map + (i+60)*1000 * sizeof(uint16_t) + count * sizeof(uint16_t),320 * sizeof(uint16_t));
+      for(auto t = 0; t < 320; t+=1){
+        bitmap[320*i+t] = cat_pixel_map[count+t+i*1000+120*1000];
+        bitmap[320*i+t+1] = cat_pixel_map[count+t+i*1000+120*1000];
+        //memmove(bitmap + i*320 * sizeof(uint8_t),cat_pixel_map + i*1000 * sizeof(uint8_t) + count * sizeof(uint8_t) + (t+1) * sizeof(uint8_t),1 * sizeof(uint8_t));
+      }
+  }
+  M5.Lcd.drawBitmap(0, 120, 320, 120,bitmap);
+/*
+  for(auto i = 0; i < 120; ++i){
+    memmove(bitmap + i*320 * sizeof(uint16_t),cat_pixel_map + (i+120)*1000 * sizeof(uint16_t) + count * sizeof(uint16_t),320 * sizeof(uint16_t));
+  }
+  M5.Lcd.drawBitmap(0, 120, 320, 120,bitmap);
   /*
   for(auto i = 0; i < 120; ++i){
     memmove(bitmap + (i+120)*320 * sizeof(uint16_t),cat_pixel_map + i*1000 * sizeof(uint16_t) + count * sizeof(uint16_t),320 * sizeof(uint16_t));
