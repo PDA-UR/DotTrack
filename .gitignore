@@ -32,3 +32,6 @@ Session.vim
 
 
 # End of https://www.gitignore.io/api/vim,tags
+
+# Mac
+.DS_Store
