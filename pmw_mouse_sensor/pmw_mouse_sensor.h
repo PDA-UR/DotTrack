@@ -2,7 +2,7 @@
 #include <M5Stack.h>
 #include "waldo.h"
 
-#define DEBUG_LEVEL 1
+#define DEBUG_LEVEL 3
 //#define DEBUG_LEVEL 2
 
 // ESP32 Pins (M5STACK)
@@ -78,12 +78,15 @@
 #define REGISTER_LIFT_CUTOFF_TUNE2  0x65
 
 // Register bit masks (and states) (see datasheet p. 30-56)
-// Motion Register (REGISTER_MOTION):
+// Motion Register (REGISTER_MOTION) (p. 30-31):
 #define REG_MOTION_MOT_BIT 0x80 // MOT bit (0 = no motion; 1 = motion)
 #define REG_MOTION_RDATA_1ST 0x10 // RData_1st bit
 #define REG_MOTION_LIFT_STAT 0x08 // Lift_Stat bit
 #define REG_MOTION_OP_MODE 0x06 // OP_Mode[1:0] bits
 #define REG_MOTION_FRAME_RDATA_1ST 0x01 // FRAME_RData_1st bit
+// Observation Register (REGISTER_OBSERVATION) (p. 46):
+#define REG_OBS_SROM_RUN 0x40
+
 
 // write commands have a 1 as MSB, read commands have a 0
 #define WRITE_MASK  0x80
@@ -144,24 +147,44 @@ const unsigned short motBrLength = 12;
 bool initComplete = false;
 // switch between frame capture and motion mode
 bool frameCapture = false;
+
+// SROM_RUN value (Observation byte/register)
+// true/1 = SROM running
+// false/0 = SROM NOT running
+bool sromRun = false;
+// SQUAL value
+uint8_t squal = 0;
+// Number of surface features (calculated from SQUAL value)
+uint16_t numFeatures = 0;
+// Raw_Data_Sum value
+uint8_t rawDataSum = 0;
+// Average Raw Data (calculated from Raw_Data_Sum value)
+uint8_t avgRawData = 0;
+// Maximum_Raw_Data value
+uint8_t maxRawData = 0;
+// Minimum_Raw_Data value
+uint8_t minRawData = 0;
+// Shutter value
+uint16_t shutter = 0;
+
 // TODO volatile not needed when not using interrupts
 // set true by the motion interrupt when new motion data is available, set false when motion data has been processed
-volatile bool hasMoved = false;
+bool hasMoved = false;
 // set to true when reading motion registers (motion & delta registers) was initialized (see datasheet p. 30)
-volatile bool readingMotion = false;
+bool readingMotion = false;
 // false when on ground, true when lift off ground (according to Lift_Stat bit in Motion register)
-volatile bool liftOff = false;
+bool liftOff = false;
 // LO state from previous loop
 bool prevLiftOff = false;
 // values between  (according to OP_Mode bit in Motion register)
-volatile uint8_t opMode = 0;
+uint8_t opMode = 0;
 
 // Raw data image data
 uint8_t rawData[IMG_SIZE];
 // Raw motion burst data
 uint8_t rawMotBr[motBrLength];
 // movement distance since last update, [0] = x, [1] = y, expected values: around -1 to 1 (but can be more extreme)
-volatile int16_t xyDelta[2];
+int16_t xyDelta[2];
 
 void writeRegister(uint8_t address, uint8_t data);
 uint8_t readRegister(uint8_t address);
@@ -174,6 +197,7 @@ void captureRawImage(uint8_t* result, int resultLength);
 void drawImageToDisplay();
 void sendRawOverSerial();
 void readMotionBurst(uint8_t* result, int resultLength);
+void updateMotBrValues();
 void sendMotBrOverSerial();
 
 // Firmware "PMW3360DM_srom_0x04"

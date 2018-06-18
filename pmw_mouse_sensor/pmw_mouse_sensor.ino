@@ -85,7 +85,7 @@ void setup()
   initComplete = true;
 
   // Start with frame capture burst mode
-  frameCapture = true;
+  frameCapture = false;
   // Delay for Frame Capture burst mode (only needed once after power up/reset)
   if(frameCapture) delay(250);
 
@@ -107,6 +107,7 @@ void loop()
   else
   {
     readMotionBurst(rawMotBr, motBrLength);
+    updateMotBrValues();
     sendMotBrOverSerial();
     updateWaldo(0, 0);
   }
@@ -176,7 +177,6 @@ uint8_t readRegister(uint8_t address)
      address != REGISTER_DELTA_Y_L &&
      address != REGISTER_DELTA_Y_H)
   {
-    Serial.println("reset readingMotion");
     readingMotion = false;
   }
 
@@ -276,10 +276,7 @@ void performSROMdownload()
   uint8_t i = readRegister(REGISTER_SROM_ID);
   // Success: "4" (current firmware version)
   // Failed: "0"
-  if(DEBUG_LEVEL >= 2) {
-    Serial.print("SROM_ID RETURN: ");
-    Serial.println(i);
-  }
+  if(DEBUG_LEVEL >= 2) Serial.println("SROM_ID RETURN: " + String(i));
 }
 
 void configureRegisters()
@@ -317,31 +314,10 @@ void onMovement()
     uint8_t motion = readRegister(REGISTER_MOTION);
 
     // Evaluate Lift_Stat bit
-    liftOff = (bool)(motion & REG_MOTION_LIFT_STAT);
-    if(DEBUG_LEVEL >= 3) { Serial.print("Lift_Stat: "); Serial.println(liftOff); }
+    liftOff = motion & REG_MOTION_LIFT_STAT;
 
     // Evaluate OP_Mode[1:0] bits
     opMode = (motion & REG_MOTION_OP_MODE) >> 1;
-    if(DEBUG_LEVEL >= 3)
-    {
-      switch(opMode)
-      {
-        case 0:
-          Serial.println("OP_Mode: Run mode");
-          break;
-        case 1:
-          Serial.println("OP_Mode: Rest 1");
-          break;
-        case 2:
-          Serial.println("OP_Mode: Rest 2");
-          break;
-        case 3:
-          Serial.println("OP_Mode: Rest 3");
-          break;
-        default:
-          Serial.println("OP_Mode evaluation error");
-      }
-    }
 
     // Read motion registers if MOT bit is set
     if(motion & REG_MOTION_MOT_BIT)
@@ -354,8 +330,12 @@ void onMovement()
 
       xyDelta[0] = (int16_t)((resultDeltaXH << 8) | resultDeltaXL);
       xyDelta[1] = (int16_t)((resultDeltaYH << 8) | resultDeltaYL);
-      if(DEBUG_LEVEL >= 1) Serial.println("X: " + String(xyDelta[0]));
-      if(DEBUG_LEVEL >= 1) Serial.println("Y: " + String(xyDelta[0]));
+    }
+    else
+    {
+      hasMoved = false;
+      xyDelta[0] = 0;
+      xyDelta[1] = 0;
     }
   }
 }
@@ -402,8 +382,6 @@ void captureRawImage(uint8_t* result, int resultLength)
 
 void drawImageToDisplay()
 {
-  // FIXME: black lines
-  // TODO: offset
   // Draw raw data image data to M5Stack display
   for(int32_t x = 0; x < W_IMG; x++)
   {
@@ -422,32 +400,12 @@ void drawImageToDisplay()
 }
 
 // send a 36x36px greyscale raw image with 8bit depth over Serial connection to the PC
-// use the included python script to view the image
+// use the included python script (dottrack_stream.py) to view the image
 void sendRawOverSerial()
 {
-  /*uint8_t* rawResult = (uint8_t*) malloc(rawDataLength * sizeof(uint8_t));*/
-  /*captureRawImage(rawResult, rawDataLength);*/
-
-
-  // Original approach
-  /*Serial.write(0xFD);*/
-  /*for(int i = 0; i < rawDataLength; i++)*/
-  /*{*/
-    /*Serial.write(rawResult[i]);*/
-    /*yield; // make sure WDT does not block*/
-  /*}*/
-  /*Serial.write(0xFE);*/
-  // New approach
-  // TODO The interrupt on onMovement() seems to interrupt the Serial.write()
-  // Look into: https://stackoverflow.com/a/10570704
-  /*if(DEBUG_LEVEL >= 2) Serial.println("rawDataLength (expected bytes): " + String(rawDataLength));*/
-  /*int bytesSent = Serial.write(rawResult, rawDataLength);*/
-  /*if(DEBUG_LEVEL >= 2) Serial.println("\nbytesSent: " + String(bytesSent));*/
-
   Serial.write(rawData, rawDataLength);
   // Paket termination byte TODO improve this (header terminate bytes)
   Serial.write(0xFE);
-  /*free(rawResult);*/
 }
 
 void readMotionBurst(uint8_t* result, int resultLength)
@@ -484,17 +442,88 @@ void readMotionBurst(uint8_t* result, int resultLength)
   delayMicroseconds(250);
 }
 
-void sendMotBrOverSerial()
+// Update needed motion burst values from raw motion burst data
+void updateMotBrValues()
 {
   // Read Motion byte
   uint8_t motion = rawMotBr[0];
-
+  // Evaluate MOT bit
+  if(motion & REG_MOTION_MOT_BIT)
+  {
+    hasMoved = true;
+    xyDelta[0] = (int16_t)((rawMotBr[3] << 8) | rawMotBr[2]);
+    xyDelta[1] = (int16_t)((rawMotBr[5] << 8) | rawMotBr[4]);
+  }
+  else
+  {
+    hasMoved = false;
+    xyDelta[0] = 0;
+    xyDelta[1] = 0;
+  }
+  // TODO Evaluate RData_1st Needed?
   // Evaluate Lift_Stat bit
-  liftOff = (bool)(motion & REG_MOTION_LIFT_STAT);
-  if(DEBUG_LEVEL >= 3) { Serial.print("Lift_Stat: "); Serial.println(liftOff); }
-
+  liftOff = motion & REG_MOTION_LIFT_STAT;
   // Evaluate OP_Mode[1:0] bits
   opMode = (motion & REG_MOTION_OP_MODE) >> 1;
+  // TODO Evaluate FRAME_RData_1st Needed?
+
+  // Read Observation byte
+  // Evaluate SROM_RUN bit
+  sromRun = rawMotBr[2] & REG_OBS_SROM_RUN;
+
+  // Read SQUAL byte
+  squal = rawMotBr[6];
+  numFeatures = squal * 8;
+
+  // Read Raw_Data_Sum byte
+  // The Raw_Data_Sum byte should be between 0-160 (0x00 - 0xA0)
+  rawDataSum = rawMotBr[7];
+  // Therefore avgRawData (after calculation) lays between 0-126
+  avgRawData = rawDataSum * 1024 / 1296;
+
+  // Read Maximum_Raw_Data byte
+  maxRawData = rawMotBr[8];
+
+  // Read Minimum_Raw_Data byte
+  minRawData = rawMotBr[9];
+
+  // Read Shutter bytes
+  shutter = rawMotBr[10] << 8 | rawMotBr[11];
+}
+
+// Send motion burst values over serial
+void sendMotBrOverSerial()
+{
+  // Send motion bit and registers if MOT bit is set
+  if(hasMoved)
+  {
+    if(DEBUG_LEVEL >= 3) Serial.println("MOT: Motion occurred");
+    if(DEBUG_LEVEL >= 1) Serial.println("X: " + String(xyDelta[0]));
+    if(DEBUG_LEVEL >= 1) Serial.println("Y: " + String(xyDelta[1]));
+
+    // TODO Figure out xyDelta sending
+    /*Serial.write(xyDelta[0]);*/
+    /*Serial.write(xyDelta[1]);*/
+    /*Serial.write(0xFE);*/
+  }
+  else
+  {
+    if(DEBUG_LEVEL >= 3) Serial.println("MOT: No motion");
+    if(DEBUG_LEVEL >= 1) Serial.println("X: 0");
+    if(DEBUG_LEVEL >= 1) Serial.println("Y: 0");
+  }
+
+  // Send Lift_Stat bit
+  if(liftOff)
+  {
+    if(DEBUG_LEVEL >= 2) Serial.println("Lift_Stat: Chip lifted");
+  }
+  else
+  {
+    if(DEBUG_LEVEL >= 2) Serial.println("Lift_Stat: Chip on surface");
+  }
+
+  // Send OP_Mode[1:0] bit
   if(DEBUG_LEVEL >= 3)
   {
     switch(opMode)
@@ -516,93 +545,33 @@ void sendMotBrOverSerial()
     }
   }
 
-  // Read motion registers if MOT bit is set
-  if(motion & REG_MOTION_MOT_BIT)
-  {
-    hasMoved = true;
-    /*uint8_t resultDeltaXL = rawMotBr[2];*/
-    /*uint8_t resultDeltaXH = rawMotBr[3];*/
-    /*uint8_t resultDeltaYL = rawMotBr[4];*/
-    /*uint8_t resultDeltaYH = rawMotBr[5];*/
-
-    xyDelta[0] = (int16_t)((rawMotBr[3] << 8) | rawMotBr[2]);
-    xyDelta[1] = (int16_t)((rawMotBr[5] << 8) | rawMotBr[4]);
-    if(DEBUG_LEVEL >= 1) Serial.println("X: " + String(xyDelta[0]));
-    if(DEBUG_LEVEL >= 1) Serial.println("Y: " + String(xyDelta[1]));
-
-    // TODO Figure out xyDelta sending
-    /*Serial.write(xyDelta[0]);*/
-    /*Serial.write(xyDelta[1]);*/
-    /*Serial.write(0xFE);*/
-  }
-
-  // Read Raw_Data_Sum byte
-  // The rawMotBr[7] element should be between 0-160 (0x00 - 0xA0)
-  // Therefore rawDataSum 0-126
-  uint8_t rawDataSum = rawMotBr[7] * 1024 / 1296;
-  if(DEBUG_LEVEL >= 1) Serial.println("RDS: " + String(rawDataSum));
-
-  // Binary debug output
+  // Send Observation/SROM_RUN value
   if(DEBUG_LEVEL >= 3)
   {
-    for(int i = 0; i < motBrLength; i++)
+    if(sromRun)
     {
-      switch(i)
-      {
-        case 0:
-          Serial.print("Motion: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 1:
-          Serial.print("Observation: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 2:
-          Serial.print("Delta_X_L: ");
-          Serial.println(rawMotBr[i], BIN);
-          /*Serial.println(rawMotBr[i]);*/
-          break;
-        case 3:
-          Serial.print("Delta_X_H: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 4:
-          Serial.print("Delta_Y_L: ");
-          Serial.println(rawMotBr[i], BIN);
-          /*Serial.println(rawMotBr[i]);*/
-          break;
-        case 5:
-          Serial.print("Delta_Y_H: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 6:
-          Serial.print("SQUAL: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 7:
-          Serial.print("Raw_Data_Sum: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 8:
-          Serial.print("Maximum_Raw_Data: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 9:
-          Serial.print("Minimum_Raw_Data: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 10:
-          Serial.print("Shutter_Upper: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 11:
-          Serial.print("Shutter_Lower: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        default:
-          Serial.print("Error: ");
-          Serial.println(rawMotBr[i], BIN);
-      }
+      Serial.println("SROM_RUN: SROM running");
+    }
+    else
+    {
+      Serial.println("SROM_RUN: SROM not running");
     }
   }
+
+  // Send SQUAL value / number of features
+  if(DEBUG_LEVEL >= 3) Serial.println("SQUAL: " + String(squal));
+  if(DEBUG_LEVEL >= 3) Serial.println("Number of Features: " + String(numFeatures));
+
+  // Send Raw_Data_Sum value
+  if(DEBUG_LEVEL >= 3) Serial.println("Raw_Data_Sum: " + String(rawDataSum));
+  if(DEBUG_LEVEL >= 2) Serial.println("Average Raw Data: " + String(avgRawData));
+
+  // Send Maximum_Raw_Data value
+  if(DEBUG_LEVEL >= 3) Serial.println("Maximum_Raw_Data: " + String(maxRawData));
+
+  // Send Minimum_Raw_Data value
+  if(DEBUG_LEVEL >= 3) Serial.println("Minimum_Raw_Data: " + String(minRawData));
+
+  // Send Shutter value
+  if(DEBUG_LEVEL >= 3) Serial.println("Shutter: " + String(shutter));
 }
