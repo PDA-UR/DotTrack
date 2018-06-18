@@ -19,6 +19,20 @@
 #define PIN_SCLK PIN18
 #define PIN_MISO PIN19
 #define PIN_MOSI PIN23
+
+// TODO Test pins asap for the MuC Demo
+//#define PIN0 0 // Motion
+//#define PIN5 5 // MOSI
+//#define PIN13 13 // SCLK
+//#define PIN17 17 // NCS
+//#define PIN22 22 // MISO
+//// mapped to better pin names
+//#define PIN_NCS PIN17
+//#define PIN_MOTION PIN0
+//#define PIN_SCLK PIN13
+//#define PIN_MISO PIN22
+//#define PIN_MOSI PIN5
+
 // OLD!! ESP8266 Pins OLD!! JUST A REFERENCE
 //#define PIN_NCS D1
 //#define PIN_MOTION D2
@@ -128,16 +142,6 @@
 #define X_OFFSET 52 // (W_DISP - W_IMG * PIX_RSZ) / 2 --> (320-36*6) / 2 = 52
 #define Y_OFFSET 12 // (H_DISP - H_IMG * PIX_RSZ) / 2 --> (240-36*6) / 2 = 12
 
-/*
-// deprecated
-// make sure these commands are aligned to 32 bit
-uint8_t commandMotion[2] __attribute__ ((aligned (4))) = {REGISTER_MOTION | 0x80, 0x00};
-uint8_t commandDeltaXL[2] __attribute__ ((aligned (4))) = {REGISTER_DELTA_X_L | 0x80, 0x01};
-uint8_t commandDeltaXH[2] __attribute__ ((aligned (4))) = {REGISTER_DELTA_X_H | 0x80, 0x01};
-uint8_t commandDeltaYL[2] __attribute__ ((aligned (4))) = {REGISTER_DELTA_Y_L | 0x80, 0x01};
-uint8_t commandDeltaYH[2] __attribute__ ((aligned (4))) = {REGISTER_DELTA_Y_H | 0x80, 0x01};
-*/
-
 const unsigned short firmwareLength = 4094;
 const unsigned short rawDataLength = IMG_SIZE;
 // Read motion burst mode
@@ -148,6 +152,14 @@ bool initComplete = false;
 // switch between frame capture and motion mode
 bool frameCapture = false;
 
+// set true by the motion interrupt when new motion data is available, set false when motion data has been processed
+bool hasMoved = false;
+// false when on ground, true when lift off ground (according to Lift_Stat bit in Motion register)
+bool liftOff = false;
+// LO state from previous loop
+bool prevLiftOff = false;
+// values between  (according to OP_Mode bit in Motion register)
+uint8_t opMode = 0;
 // SROM_RUN value (Observation byte/register)
 // true/1 = SROM running
 // false/0 = SROM NOT running
@@ -167,17 +179,9 @@ uint8_t minRawData = 0;
 // Shutter value
 uint16_t shutter = 0;
 
-// TODO volatile not needed when not using interrupts
-// set true by the motion interrupt when new motion data is available, set false when motion data has been processed
-bool hasMoved = false;
+// INFO: volatile not needed when using polling (and not using interrupts)
 // set to true when reading motion registers (motion & delta registers) was initialized (see datasheet p. 30)
-bool readingMotion = false;
-// false when on ground, true when lift off ground (according to Lift_Stat bit in Motion register)
-bool liftOff = false;
-// LO state from previous loop
-bool prevLiftOff = false;
-// values between  (according to OP_Mode bit in Motion register)
-uint8_t opMode = 0;
+volatile bool readingMotion = false;
 
 // Raw data image data
 uint8_t rawData[IMG_SIZE];

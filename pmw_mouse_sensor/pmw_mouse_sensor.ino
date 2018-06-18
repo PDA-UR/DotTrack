@@ -119,7 +119,7 @@ void loop()
     // Delay for Frame Capture burst mode (only needed once after power up/reset)
     t_switch = millis() + 3000;
   }
-  /*// TODO liftOff is too sensitive for this task*/
+  // TODO liftOff is too sensitive for this task
   prevLiftOff = liftOff;
 
   if(t_switch < millis() && t_switch != 0)
