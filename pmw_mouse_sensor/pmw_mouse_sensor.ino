@@ -89,9 +89,9 @@ void setup()
   // Start with frame capture burst mode
   frameCapture = true;
   // Delay for Frame Capture burst mode (only needed once after power up/reset)
-  delay(250);
+  if(frameCapture) delay(250);
 
-  t_switch = millis() + 3000;
+  /*t_switch = millis() + 3000;*/
 
   // Capture single frame
   /*delay(1000);*/
@@ -109,8 +109,9 @@ void loop()
 
   if(frameCapture)
   {
-    // Send picture data
-    sendRawOverSerial();
+    captureRawImage(rawData, rawDataLength);
+    drawToDisplay();
+    /*sendRawOverSerial();*/
   }
   else
   {
@@ -125,15 +126,14 @@ void loop()
     /*if(frameCapture)*/
     /*{*/
       /*frameCapture = false;*/
-    /*}*/
-    /*else*/
-    /*{*/
-      /*frameCapture = true;*/
       /*resetSPIPort();*/
       /*resetDevice();*/
       /*performSROMdownload();*/
       /*configureRegisters();*/
-      /*delay(250);*/
+    /*}*/
+    /*else*/
+    /*{*/
+      /*frameCapture = true;*/
     /*}*/
   /*}*/
 
@@ -157,6 +157,8 @@ void loop()
     resetDevice();
     performSROMdownload();
     configureRegisters();
+    // TODO Maybe build a timer for faster resets when FC is not needed yet
+    delay(250);
     Serial.println();
     Serial.println("FRAMECAPTURE FALSE");
   }
@@ -364,6 +366,7 @@ void configureRegisters()
   if(DEBUG_LEVEL >= 2) Serial.println("configureRegisters()");
 
   // TODO Configure registers (write to config registers)
+
   // disable Rest mode
   /*writeRegister(REGISTER_CONFIG2, 0x00);*/
   /*if(DEBUG_LEVEL >= 2) Serial.println("disable Rest mode");*/
@@ -436,19 +439,10 @@ void onMovement()
   }
 }
 
-/*int16_t convertToSigned(uint16_t n)*/
-/*{*/
-  /*int16_t result = (int16_t)n;*/
-  /*if(n & 0x8000)*/
-  /*{*/
-    /*result = -1 * ((n ^ 0xffff) + 1);*/
-  /*}*/
-  /*return result;*/
-/*}*/
-
 // see p. 24 of datasheet
 void captureRawImage(uint8_t* result, int resultLength)
 {
+  // TODO Implement timer for this
   // Setup burst mode (only needed once after power up/reset)
   /*delay(250);*/
   // disable Rest mode
@@ -485,25 +479,34 @@ void captureRawImage(uint8_t* result, int resultLength)
   delayMicroseconds(180);
 }
 
+void drawToDisplay()
+{
+  // FIXME: black lines
+  // TODO: offset
+  // Draw raw data image data to M5Stack display
+  for(int32_t x = 0; x < W_IMG; x++)
+  {
+    for(int32_t y = 0; y < H_IMG; y++)
+    {
+      // Read pixel data (multiply by 2 because the raw data values are between 0 and 127)
+      uint8_t pixel = rawData[x*H_IMG+y] << 1;
+      // Color needs to be encoded in 5,6,5 RGB bit format (16 bit)
+      uint32_t color = (pixel >> 3) << 11 | (pixel >> 2) << 5 | (pixel >> 3);
+      // Resize image pixel to use 6x6 rectangles
+      // INFO: y needs to be inverted to correlate with the displays x-/y-coordinates
+      // fillRect(int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color)
+      M5.Lcd.fillRect(x*PIX_RSZ + X_OFFSET, (H_IMG-y)*PIX_RSZ + Y_OFFSET, PIX_RSZ, PIX_RSZ, color);
+    }
+  }
+}
+
 // send a 36x36px greyscale raw image with 8bit depth over Serial connection to the PC
 // use the included python script to view the image
 void sendRawOverSerial()
 {
-  uint8_t* rawResult = (uint8_t*) malloc(rawDataLength * sizeof(uint8_t));
-  captureRawImage(rawResult, rawDataLength);
+  /*uint8_t* rawResult = (uint8_t*) malloc(rawDataLength * sizeof(uint8_t));*/
+  /*captureRawImage(rawResult, rawDataLength);*/
 
-  // Print raw data picture data to M5Stack display
-  // M5Stack Display: 320x240
-  // drawBitmap(x, y, w, h, uint8_t* data)
-  for(int i = 0; i < 36; i++)
-  {
-    for(int j = 0; j < 36; j++)
-    {
-      uint8_t pixel = rawResult[i*36+j] << 1;
-      uint32_t color = (pixel >> 3) << 11 | (pixel >> 2) << 5 | (pixel >> 3);
-      M5.Lcd.fillRect(i*6, j*6, 6, 6, color);
-    }
-  }
 
   // Original approach
   /*Serial.write(0xFD);*/
@@ -520,10 +523,10 @@ void sendRawOverSerial()
   /*int bytesSent = Serial.write(rawResult, rawDataLength);*/
   /*if(DEBUG_LEVEL >= 2) Serial.println("\nbytesSent: " + String(bytesSent));*/
 
-  /*Serial.write(rawResult, rawDataLength);*/
-  /*// Paket termination byte TODO improve this (header terminate bytes)*/
-  /*Serial.write(0xFE);*/
-  free(rawResult);
+  Serial.write(rawData, rawDataLength);
+  // Paket termination byte TODO improve this (header terminate bytes)
+  Serial.write(0xFE);
+  /*free(rawResult);*/
 }
 
 void readMotionBurst(uint8_t* result, int resultLength)

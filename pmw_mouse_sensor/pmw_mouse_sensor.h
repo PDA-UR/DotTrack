@@ -106,6 +106,21 @@
 #define SROM_ID_SUCCESS FIRMWARE_VERSION
 #define SROM_ID_FAIL 0x00
 
+// Frame capture data variables
+#define W_IMG 36
+#define H_IMG 36
+#define IMG_SIZE 1296 // W_IMG * H_IMG --> 36 * 36 = 1296
+
+// M5Stack
+// M5Stack Display: 320x240
+#define W_DISP 320
+#define H_DISP 240
+// Resize factor for every image pixel to maximize display size
+#define PIX_RSZ 6 // H_DISP / H_IMG --> 240 / 36 = 6
+// Offsets to center image on the display
+#define X_OFFSET 52 // (W_DISP - W_IMG * PIX_RSZ) / 2 --> (320-36*6) / 2 = 52
+#define Y_OFFSET 12 // (H_DISP - H_IMG * PIX_RSZ) / 2 --> (240-36*6) / 2 = 12
+
 /*
 // deprecated
 // make sure these commands are aligned to 32 bit
@@ -117,19 +132,30 @@ uint8_t commandDeltaYH[2] __attribute__ ((aligned (4))) = {REGISTER_DELTA_Y_H | 
 */
 
 const unsigned short firmwareLength = 4094;
-const unsigned short rawDataLength = 1296;
+const unsigned short rawDataLength = IMG_SIZE;
 // Read motion burst mode
 const unsigned short motbrLength = 12;
 
-bool initComplete = false; // true as soon as the startup sequence has been completed
-bool frameCapture = false; // switch between frame capture and motion mode
-volatile bool hasMoved = false;     // set true by the motion interrupt when new motion data is available, set false when motion data has been processed
-volatile bool readingMotion = false; // set to true when reading motion registers (motion & delta registers) was initialized (see datasheet p. 30)
-volatile bool liftOff = false; // false when on ground, true when lift off ground (according to Lift_Stat bit in Motion register)
-bool prevLiftOff = false; // LO state from previous loop
-volatile uint8_t opMode = 0; // values between  (according to OP_Mode bit in Motion register)
+// true as soon as the startup sequence has been completed
+bool initComplete = false;
+// switch between frame capture and motion mode
+bool frameCapture = false;
+// TODO volatile not needed when not using interrupts
+// set true by the motion interrupt when new motion data is available, set false when motion data has been processed
+volatile bool hasMoved = false;
+// set to true when reading motion registers (motion & delta registers) was initialized (see datasheet p. 30)
+volatile bool readingMotion = false;
+// false when on ground, true when lift off ground (according to Lift_Stat bit in Motion register)
+volatile bool liftOff = false;
+// LO state from previous loop
+bool prevLiftOff = false;
+// values between  (according to OP_Mode bit in Motion register)
+volatile uint8_t opMode = 0;
 
-volatile int16_t xyDelta[2];  // movement distance since last update, [0] = x, [1] = y, expected values: around -1 to 1 (but can be more extreme)
+// Raw data image data
+uint8_t rawData[IMG_SIZE];
+// movement distance since last update, [0] = x, [1] = y, expected values: around -1 to 1 (but can be more extreme)
+volatile int16_t xyDelta[2];
 
 void writeRegister(uint8_t address, uint8_t data);
 uint8_t readRegister(uint8_t address);
@@ -141,6 +167,7 @@ void configureRegisters();
 void onMovement();
 //int convertToSigned(int n);
 void captureRawImage(uint8_t* result, int resultLength);
+void drawToDisplay();
 void sendRawOverSerial();
 void readMotionBurst(uint8_t* result, int resultLength);
 void sendMotionBurst();
