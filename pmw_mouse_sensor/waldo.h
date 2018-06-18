@@ -1,4 +1,3 @@
-namespace waldo {
-  void updateWaldo(int16_t x, int16_t y);
-}
+#include <M5Stack.h>
 
+void updateWaldo(int16_t x, int16_t y);
