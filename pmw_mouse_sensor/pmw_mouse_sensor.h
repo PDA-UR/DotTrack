@@ -22,9 +22,6 @@
 //#define PIN_MISO D6
 //#define PIN_MOSI D7
 
-// SPI transaction settings
-#define SPI_FREQ 2000000
-
 // register addresses of pmw3360 (see p. 29)
 #define REGISTER_PRODUCT_ID       0x00
 #define REGISTER_REVISION_ID      0x01
@@ -87,6 +84,9 @@
 // write commands have a 1 as MSB, read commands have a 0
 #define WRITE_MASK  0x80
 #define READ_MASK   0x7F
+
+// SPI transaction settings (see p. 14 Table 3)
+#define F_SCLK 2000000
 
 // SPI delay times in microseconds (p. 15/16 of datasheet)
 #define T_SCLK_NCS_WRITE 35

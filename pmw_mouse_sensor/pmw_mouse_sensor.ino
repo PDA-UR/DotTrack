@@ -38,13 +38,13 @@ void setup()
 
   if(DEBUG_LEVEL >= 2) Serial.println("pins initialized");
 
-  // Setup SPI
+  // Initialize the SPI object
   SPI.begin();
   // SCLK when running on 2MHz / SPI.setFrequency(2000000L):
   // One bit should take 500ns
   // One byte should take 8*500ns = 4µs
   // Two bytes should take 16*500ns = 8µs
-  /*SPI.beginTransaction(SPISettings(SPI_FREQ, MSBFIRST, SPI_MODE3));*/
+  /*SPI.beginTransaction(SPISettings(F_SCLK, MSBFIRST, SPI_MODE3));*/
 
   if(DEBUG_LEVEL >= 2) Serial.println("SPI initialized");
 
@@ -207,7 +207,7 @@ void writeRegister(uint8_t address, uint8_t data)
   if(readingMotion) readingMotion = false;
   address |= WRITE_MASK;
 
-  SPI.beginTransaction(SPISettings(SPI_FREQ, MSBFIRST, SPI_MODE3));
+  SPI.beginTransaction(SPISettings(F_SCLK, MSBFIRST, SPI_MODE3));
   digitalWrite(PIN_NCS, LOW);
   delayMicroseconds(T_NCS_SCLK);
 
@@ -247,7 +247,7 @@ uint8_t readRegister(uint8_t address)
 
   address &= READ_MASK;
 
-  SPI.beginTransaction(SPISettings(SPI_FREQ, MSBFIRST, SPI_MODE3));
+  SPI.beginTransaction(SPISettings(F_SCLK, MSBFIRST, SPI_MODE3));
   digitalWrite(PIN_NCS, LOW);
   delayMicroseconds(T_NCS_SCLK);
 
@@ -322,7 +322,7 @@ void performSROMdownload()
   writeRegister(REGISTER_SROM_ENABLE, 0x18);
 
   // Prepare burst mode
-  SPI.beginTransaction(SPISettings(SPI_FREQ, MSBFIRST, SPI_MODE3));
+  SPI.beginTransaction(SPISettings(F_SCLK, MSBFIRST, SPI_MODE3));
   digitalWrite(PIN_NCS, LOW);
   delayMicroseconds(T_NCS_SCLK);
 
@@ -456,7 +456,7 @@ void captureRawImage(uint8_t* result, int resultLength)
   delay(20);
 
   // Prepare burst mode
-  SPI.beginTransaction(SPISettings(SPI_FREQ, MSBFIRST, SPI_MODE3));
+  SPI.beginTransaction(SPISettings(F_SCLK, MSBFIRST, SPI_MODE3));
   digitalWrite(PIN_NCS, LOW);
   delayMicroseconds(T_NCS_SCLK);
 
@@ -530,7 +530,7 @@ void readMotionBurst(uint8_t* result, int resultLength)
   writeRegister(REGISTER_MOTION_BURST, 0x01);
 
   // Prepare motion burst mode
-  SPI.beginTransaction(SPISettings(SPI_FREQ, MSBFIRST, SPI_MODE3));
+  SPI.beginTransaction(SPISettings(F_SCLK, MSBFIRST, SPI_MODE3));
   digitalWrite(PIN_NCS, LOW);
   delayMicroseconds(T_NCS_SCLK);
 
