@@ -6,7 +6,7 @@ unsigned long t_switch;
 
 void setup()
 {
-  // initialize the M5Stack object
+  // Initialize the M5Stack object
   M5.begin();
 
   // Turn off/disconnect speaker
@@ -21,7 +21,9 @@ void setup()
   /*M5.setWakeupButton(BUTTON_A_PIN);*/
 
   /*Serial.begin(9600);*/
-  Serial.begin(250000);
+  // 115200 is the baudrate used by the M5Stack library
+  Serial.begin(115200);
+  /*Serial.begin(250000);*/
   /*Serial.begin(2000000);*/
 
   if(DEBUG_LEVEL >= 2) Serial.println("setup()");
