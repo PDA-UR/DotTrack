@@ -1,6 +1,7 @@
 #include "SPI.h"
 #include "pmw_mouse_sensor.h"
 #include "M5Stack.h"
+#include "waldo.h"
 
 unsigned long t_switch;
 
@@ -110,6 +111,7 @@ void loop()
   {
     readMotionBurst(rawMotBr, motBrLength);
     sendMotBrOverSerial();
+    waldo::updateWaldo(0, 0);
   }
 
   // switch to frame capture mode when the sensor hits the ground
