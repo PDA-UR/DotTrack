@@ -85,7 +85,7 @@ void setup()
   initComplete = true;
 
   // Start with frame capture burst mode
-  frameCapture = true;
+  frameCapture = false;//true;
   // Delay for Frame Capture burst mode (only needed once after power up/reset)
   if(frameCapture) delay(250);
 
