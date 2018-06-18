@@ -1,6 +1,6 @@
-#include "SPI.h"
+#include <SPI.h>
+#include <M5Stack.h>
 #include "pmw_mouse_sensor.h"
-#include "M5Stack.h"
 #include "waldo.h"
 
 unsigned long t_switch;
