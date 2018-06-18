@@ -94,48 +94,23 @@ void setup()
   /*t_switch = millis() + 3000;*/
 
   // Capture single frame
-  /*delay(1000);*/
+  /*delay(250);*/
   /*sendRawOverSerial();*/
 }
 
 void loop()
 {
-  // M5Stack PowerOff
-  /*if(M5.BtnA.wasPressed()) {*/
-    /*M5.powerOFF();*/
-  /*}*/
-
-  /*M5.update();*/
-
   if(frameCapture)
   {
     captureRawImage(rawData, rawDataLength);
-    drawToDisplay();
+    drawImageToDisplay();
     /*sendRawOverSerial();*/
   }
   else
   {
-    // Send motion data
-    sendMotionBurst();
+    readMotionBurst(rawMotBr, motBrLength);
+    sendMotBrOverSerial();
   }
-
-  // Switch between modes (absolute vs. relative) every 5 seconds
-  /*if(t_switch < millis())*/
-  /*{*/
-    /*t_switch = millis() + 3000;*/
-    /*if(frameCapture)*/
-    /*{*/
-      /*frameCapture = false;*/
-      /*resetSPIPort();*/
-      /*resetDevice();*/
-      /*performSROMdownload();*/
-      /*configureRegisters();*/
-    /*}*/
-    /*else*/
-    /*{*/
-      /*frameCapture = true;*/
-    /*}*/
-  /*}*/
 
   // switch to frame capture mode when the sensor hits the ground
   if(!liftOff && prevLiftOff)
@@ -143,8 +118,6 @@ void loop()
     frameCapture = true;
     // Delay for Frame Capture burst mode (only needed once after power up/reset)
     t_switch = millis() + 3000;
-    Serial.println();
-    Serial.println("FRAMECAPTURE TRUE");
   }
   /*// TODO liftOff is too sensitive for this task*/
   prevLiftOff = liftOff;
@@ -159,46 +132,7 @@ void loop()
     configureRegisters();
     // TODO Maybe build a timer for faster resets when FC is not needed yet
     delay(250);
-    Serial.println();
-    Serial.println("FRAMECAPTURE FALSE");
   }
-
-  // Delays: T_BEXIT + "soonest to begin again" (Figure 23 / p.24) [SEEMS TO DESYNC BUT RUNS WELL]
-  // Delays: "soonest to begin again" (Figure 23 / p.24)
-  /*delayMicroseconds(180);*/
-  /*delay(200);*/
-
-
-  /*delay(100);*/
-  /*if(DEBUG_LEVEL >= 2) Serial.println("loop()");*/
-
-  /*if(hasMoved)*/
-  /*{*/
-    /*if(DEBUG_LEVEL >= 2) Serial.println("has moved!");*/
-
-    /*if(DEBUG_LEVEL >= 1) { Serial.print("X: "); Serial.println(xyDelta[0]); }*/
-    /*if(DEBUG_LEVEL >= 1) { Serial.print("Y: "); Serial.println(xyDelta[1]); }*/
-
-    /*hasMoved = false;*/
-  /*}*/
-
-  /*unsigned long t = millis();*/
-  /*sendRawOverSerial();*/
-  /*Serial.println();*/
-  /*Serial.print("sendRawOverSerial Delay in ms: ");*/
-  /*Serial.println(millis() - t);*/
-
-  /*unsigned long t = micros();*/
-  /*onMovement();*/
-  /*Serial.print("onMovement Delay in us: ");*/
-  /*Serial.println(micros() - t);*/
-  /*delay(500);*/
-
-  /*t = micros();*/
-  /*sendMotionBurst();*/
-  /*Serial.print("sendMotionBurst Delay in us: ");*/
-  /*Serial.println(micros() - t);*/
-  /*delay(500);*/
 }
 
 void writeRegister(uint8_t address, uint8_t data)
@@ -299,18 +233,6 @@ void resetDevice()
   readRegister(REGISTER_DELTA_X_H);
   readRegister(REGISTER_DELTA_Y_L);
   readRegister(REGISTER_DELTA_Y_H);
-}
-
-void readMotionData(uint16_t* result)
-{
-  uint8_t resultMotion = readRegister(REGISTER_MOTION);
-  uint8_t resultDeltaXL = readRegister(REGISTER_DELTA_X_L);
-  uint8_t resultDeltaXH = readRegister(REGISTER_DELTA_X_H);
-  uint8_t resultDeltaYL = readRegister(REGISTER_DELTA_Y_L);
-  uint8_t resultDeltaYH = readRegister(REGISTER_DELTA_Y_H);
-
-  result[0] = (uint16_t)((resultDeltaXH << 8) | resultDeltaXL);
-  result[1] = (uint16_t)((resultDeltaYH << 8) | resultDeltaYL);
 }
 
 void performSROMdownload()
@@ -479,7 +401,7 @@ void captureRawImage(uint8_t* result, int resultLength)
   delayMicroseconds(180);
 }
 
-void drawToDisplay()
+void drawImageToDisplay()
 {
   // FIXME: black lines
   // TODO: offset
@@ -546,7 +468,7 @@ void readMotionBurst(uint8_t* result, int resultLength)
   delayMicroseconds(T_SRAD_MOTBR);
 
   // Read bytes in burst mode
-  for(int i = 0; i < resultLength && i < motbrLength; i++)
+  for(int i = 0; i < resultLength && i < motBrLength; i++)
   {
     result[i] = SPI.transfer(0);
     // TODO NEEDED?
@@ -563,13 +485,10 @@ void readMotionBurst(uint8_t* result, int resultLength)
   delayMicroseconds(250);
 }
 
-void sendMotionBurst()
+void sendMotBrOverSerial()
 {
-  uint8_t* rawResult = (uint8_t*) malloc(motbrLength * sizeof(uint8_t));
-  readMotionBurst(rawResult, motbrLength);
-
   // Read Motion byte
-  uint8_t motion = rawResult[0];
+  uint8_t motion = rawMotBr[0];
 
   // Evaluate Lift_Stat bit
   liftOff = (bool)(motion & REG_MOTION_LIFT_STAT);
@@ -602,13 +521,13 @@ void sendMotionBurst()
   if(motion & REG_MOTION_MOT_BIT)
   {
     hasMoved = true;
-    uint8_t resultDeltaXL = rawResult[2];
-    uint8_t resultDeltaXH = rawResult[3];
-    uint8_t resultDeltaYL = rawResult[4];
-    uint8_t resultDeltaYH = rawResult[5];
+    /*uint8_t resultDeltaXL = rawMotBr[2];*/
+    /*uint8_t resultDeltaXH = rawMotBr[3];*/
+    /*uint8_t resultDeltaYL = rawMotBr[4];*/
+    /*uint8_t resultDeltaYH = rawMotBr[5];*/
 
-    xyDelta[0] = (int16_t)((rawResult[3] << 8) | rawResult[2]);
-    xyDelta[1] = (int16_t)((rawResult[5] << 8) | rawResult[4]);
+    xyDelta[0] = (int16_t)((rawMotBr[3] << 8) | rawMotBr[2]);
+    xyDelta[1] = (int16_t)((rawMotBr[5] << 8) | rawMotBr[4]);
     if(DEBUG_LEVEL >= 1) Serial.println("X: " + String(xyDelta[0]));
     if(DEBUG_LEVEL >= 1) Serial.println("Y: " + String(xyDelta[1]));
 
@@ -619,73 +538,72 @@ void sendMotionBurst()
   }
 
   // Read Raw_Data_Sum byte
-  // The rawResult[7] element should be between 0-160 (0x00 - 0xA0)
+  // The rawMotBr[7] element should be between 0-160 (0x00 - 0xA0)
   // Therefore rawDataSum 0-126
-  uint8_t rawDataSum = rawResult[7] * 1024 / 1296;
+  uint8_t rawDataSum = rawMotBr[7] * 1024 / 1296;
   if(DEBUG_LEVEL >= 1) Serial.println("RDS: " + String(rawDataSum));
 
   // Binary debug output
   if(DEBUG_LEVEL >= 3)
   {
-    for(int i = 0; i < motbrLength; i++)
+    for(int i = 0; i < motBrLength; i++)
     {
       switch(i)
       {
         case 0:
           Serial.print("Motion: ");
-          Serial.println(rawResult[i], BIN);
+          Serial.println(rawMotBr[i], BIN);
           break;
         case 1:
           Serial.print("Observation: ");
-          Serial.println(rawResult[i], BIN);
+          Serial.println(rawMotBr[i], BIN);
           break;
         case 2:
           Serial.print("Delta_X_L: ");
-          Serial.println(rawResult[i], BIN);
-          /*Serial.println(rawResult[i]);*/
+          Serial.println(rawMotBr[i], BIN);
+          /*Serial.println(rawMotBr[i]);*/
           break;
         case 3:
           Serial.print("Delta_X_H: ");
-          Serial.println(rawResult[i], BIN);
+          Serial.println(rawMotBr[i], BIN);
           break;
         case 4:
           Serial.print("Delta_Y_L: ");
-          Serial.println(rawResult[i], BIN);
-          /*Serial.println(rawResult[i]);*/
+          Serial.println(rawMotBr[i], BIN);
+          /*Serial.println(rawMotBr[i]);*/
           break;
         case 5:
           Serial.print("Delta_Y_H: ");
-          Serial.println(rawResult[i], BIN);
+          Serial.println(rawMotBr[i], BIN);
           break;
         case 6:
           Serial.print("SQUAL: ");
-          Serial.println(rawResult[i], BIN);
+          Serial.println(rawMotBr[i], BIN);
           break;
         case 7:
           Serial.print("Raw_Data_Sum: ");
-          Serial.println(rawResult[i], BIN);
+          Serial.println(rawMotBr[i], BIN);
           break;
         case 8:
           Serial.print("Maximum_Raw_Data: ");
-          Serial.println(rawResult[i], BIN);
+          Serial.println(rawMotBr[i], BIN);
           break;
         case 9:
           Serial.print("Minimum_Raw_Data: ");
-          Serial.println(rawResult[i], BIN);
+          Serial.println(rawMotBr[i], BIN);
           break;
         case 10:
           Serial.print("Shutter_Upper: ");
-          Serial.println(rawResult[i], BIN);
+          Serial.println(rawMotBr[i], BIN);
           break;
         case 11:
           Serial.print("Shutter_Lower: ");
-          Serial.println(rawResult[i], BIN);
+          Serial.println(rawMotBr[i], BIN);
           break;
         default:
           Serial.print("Error: ");
-          Serial.println(rawResult[i], BIN);
+          Serial.println(rawMotBr[i], BIN);
       }
     }
   }
-  free(rawResult);
 }

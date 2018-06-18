@@ -134,7 +134,7 @@ uint8_t commandDeltaYH[2] __attribute__ ((aligned (4))) = {REGISTER_DELTA_Y_H | 
 const unsigned short firmwareLength = 4094;
 const unsigned short rawDataLength = IMG_SIZE;
 // Read motion burst mode
-const unsigned short motbrLength = 12;
+const unsigned short motBrLength = 12;
 
 // true as soon as the startup sequence has been completed
 bool initComplete = false;
@@ -154,6 +154,8 @@ volatile uint8_t opMode = 0;
 
 // Raw data image data
 uint8_t rawData[IMG_SIZE];
+// Raw motion burst data
+uint8_t rawMotBr[motBrLength];
 // movement distance since last update, [0] = x, [1] = y, expected values: around -1 to 1 (but can be more extreme)
 volatile int16_t xyDelta[2];
 
@@ -161,16 +163,14 @@ void writeRegister(uint8_t address, uint8_t data);
 uint8_t readRegister(uint8_t address);
 void resetSPIPort();
 void resetDevice();
-void readMotionData(uint16_t* result);
 void performSROMdownload();
 void configureRegisters();
 void onMovement();
-//int convertToSigned(int n);
 void captureRawImage(uint8_t* result, int resultLength);
-void drawToDisplay();
+void drawImageToDisplay();
 void sendRawOverSerial();
 void readMotionBurst(uint8_t* result, int resultLength);
-void sendMotionBurst();
+void sendMotBrOverSerial();
 
 // Firmware "PMW3360DM_srom_0x04"
 const uint8_t firmwareData[] = {
