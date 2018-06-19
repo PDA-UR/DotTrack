@@ -47,7 +47,7 @@ void updateWaldo(int32_t x, int32_t y)
           pos = 0;
         }
         uint8_t pixel = wimmel_pixel_map[pos];
-        uint16_t color = get16from8(pixel);
+        uint16_t color = Tools::get16from8(pixel);
         bitmap[320*i+t] = color;
       }
   }
@@ -62,7 +62,7 @@ void updateWaldo(int32_t x, int32_t y)
           pos = 0;
         }
         uint8_t pixel = wimmel_pixel_map[pos];
-        bitmap[320*i+t] = get16from8(pixel);
+        bitmap[320*i+t] = Tools::get16from8(pixel);
         }
   }
   M5.Lcd.drawBitmap(0, 120, 320, 120,bitmap);
@@ -80,17 +80,6 @@ void initWaldo()
   pinMode(22, INPUT);
   pinMode(3, INPUT);
   
-}
-
-uint16_t get16from8(uint8_t color){
-  uint8_t red = color >> 5;
-  uint8_t green = (color << 3) >> 5;
-  uint8_t blue = (color << 6) >> 6;
-  uint8_t red_16 = red << 2; // from 3bit to 5 bit
-  uint8_t green_16 = green << 3; // from 3bit to 6 bit
-  uint8_t blue_16 = blue << 3; // from 2bit to 5 bit
-  uint16_t color_16 = (red_16 << 11) | (green_16 << 5) | blue_16;
-  return color_16;
 }
 
 }

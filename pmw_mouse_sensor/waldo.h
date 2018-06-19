@@ -2,6 +2,7 @@
 #define __waldo__
 
 #include <M5Stack.h>
+#include "tools.h"
 
 namespace Waldo {
 

@@ -110,7 +110,8 @@ void loop()
   {
     readMotionBurst(rawMotBr, motBrLength);
     sendMotBrOverSerial();
-    Waldo::updateWaldo(0, 0);
+    //Waldo::updateWaldo(0, 0);
+    Select::updateSelect(0,0);
   }
 
   return; //TODO: REMOVE !!!

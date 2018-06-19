@@ -1,6 +1,7 @@
 #include <SPI.h>
 #include <M5Stack.h>
 #include "waldo.h"
+#include "select.h"
 
 #define DEBUG_LEVEL 1
 //#define DEBUG_LEVEL 2
