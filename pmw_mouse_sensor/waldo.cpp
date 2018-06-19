@@ -18,20 +18,20 @@ void updateWaldo(int32_t x, int32_t y)
 {
   initWaldo();
 
-  /*
+  
 
   if(digitalRead(19) > 0){
-    y+=3;;
+    y+=7;
   }
   if(digitalRead(21) > 0){
-    x+=3;;
+    x+=3;
   }
    if(digitalRead(22) > 0){
-    x-=3;;
+    x-=3;
   }
-  /*if(digitalRead(1) > 0){
-    y-=3;;
-  }*/
+  if(digitalRead(3) > 0){
+    y-=7;
+  }
   x_pos += x;
   y_pos += y;
 
@@ -72,19 +72,18 @@ void initWaldo()
 {
   if(initialized){return;}
   initialized = true;
-  /*
+  
   pinMode(19, INPUT);
   pinMode(21, INPUT);
   pinMode(22, INPUT);
-  pinMode(1, INPUT);
-  */
+  pinMode(3, INPUT);
+  
 }
 
 uint16_t get16from8(uint8_t color){
   uint8_t red = color >> 5;
   uint8_t green = (color << 3) >> 5;
   uint8_t blue = (color << 6) >> 6;
-  //uint8_t grey = (red + green + blue) / 3;
   uint8_t red_16 = red << 2; // from 3bit to 5 bit
   uint8_t green_16 = green << 3; // from 3bit to 6 bit
   uint8_t blue_16 = blue << 3; // from 2bit to 5 bit
