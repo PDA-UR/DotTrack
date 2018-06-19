@@ -1,6 +1,8 @@
 #include "waldo.h"
 #include "wimmel.h"
 
+namespace Waldo {
+
 int16_t counter_waldo = 0;
 int scale = 4;
 uint32_t count = 3;
@@ -89,5 +91,7 @@ uint16_t get16from8(uint8_t color){
   uint8_t blue_16 = blue << 3; // from 2bit to 5 bit
   uint16_t color_16 = (red_16 << 11) | (green_16 << 5) | blue_16;
   return color_16;
+}
+
 }
 
