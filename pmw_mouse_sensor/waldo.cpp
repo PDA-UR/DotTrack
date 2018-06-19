@@ -26,8 +26,10 @@ void updateWaldo(int16_t x_pos, int16_t y_pos)
   for(auto i = 0; i < 120; ++i){
     //memmove(bitmap + i*320 * sizeof(uint16_t),cat_pixel_map + (i+60)*1000 * sizeof(uint16_t) + count * sizeof(uint16_t),320 * sizeof(uint16_t));
       for(auto t = 0; t < 320; t+=1){
-        bitmap[320*i+t] = cat_pixel_map[count+t+i*1000];
-        bitmap[320*i+t+1] = cat_pixel_map[count+t+i*1000];
+        uint8_t pixel = cat_pixel_map[count+t/scale+(i/scale)*1000];
+        uint16_t color = get16from8(pixel);
+        bitmap[320*i+t] = color;
+        //bitmap[320*i+t+1] = color;
         //memmove(bitmap + i*320 * sizeof(uint8_t),cat_pixel_map + i*1000 * sizeof(uint8_t) + count * sizeof(uint8_t) + (t+1) * sizeof(uint8_t),1 * sizeof(uint8_t));
       }
   }
@@ -35,8 +37,9 @@ void updateWaldo(int16_t x_pos, int16_t y_pos)
   for(auto i = 0; i < 120; ++i){
     //memmove(bitmap + i*320 * sizeof(uint16_t),cat_pixel_map + (i+60)*1000 * sizeof(uint16_t) + count * sizeof(uint16_t),320 * sizeof(uint16_t));
       for(auto t = 0; t < 320; t+=1){
-        bitmap[320*i+t] = cat_pixel_map[count+t+i*1000+120*1000];
-        bitmap[320*i+t+1] = cat_pixel_map[count+t+i*1000+120*1000];
+        uint8_t pixel = cat_pixel_map[count+t/scale+((i+120)/scale)*1000];
+        bitmap[320*i+t] = get16from8(pixel);
+        //bitmap[320*i+t+1] = cat_pixel_map[count+t/scale+((i+120)/scale)*1000];
         //memmove(bitmap + i*320 * sizeof(uint8_t),cat_pixel_map + i*1000 * sizeof(uint8_t) + count * sizeof(uint8_t) + (t+1) * sizeof(uint8_t),1 * sizeof(uint8_t));
       }
   }
@@ -52,7 +55,7 @@ void updateWaldo(int16_t x_pos, int16_t y_pos)
   }
   M5.Lcd.drawBitmap(120, 0, 320, 120,bitmap); 
 */
-  count++;
+  count+=2;
 }
 
 /*
@@ -67,5 +70,17 @@ memmove(array2, array1 + 5 * sizeof(int), 5 * sizeof(int));
 void initWaldo()
 {
   
+}
+
+uint16_t get16from8(uint8_t color){
+  uint8_t red = color >> 5;
+  uint8_t green = (color << 3) >> 5;
+  uint8_t blue = (color << 6) >> 6;
+  //uint8_t grey = (red + green + blue) / 3;
+  uint8_t red_16 = red << 2; // from 3bit to 5 bit
+  uint8_t green_16 = green << 3; // from 3bit to 6 bit
+  uint8_t blue_16 = blue << 3; // from 2bit to 5 bit
+  uint16_t color_16 = (red_16 << 11) | (green_16 << 5) | blue_16;
+  return color_16;
 }
 
