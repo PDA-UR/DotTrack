@@ -24,6 +24,8 @@ void setup()
   /*Serial.begin(250000);*/
   /*Serial.begin(2000000);*/
 
+  return; //TODO: REMOVE !!!
+
   if(DEBUG_LEVEL >= 2) Serial.println("setup()");
 
   // setup pins
@@ -32,7 +34,7 @@ void setup()
   // > The motion pin is an active low output (datasheet p.18)
   digitalWrite(PIN_MOTION, HIGH);
   pinMode(PIN_SCLK, OUTPUT);
-  pinMode(PIN_MISO, INPUT);
+  pinMode(PIN_SCLK, OUTPUT);
   pinMode(PIN_MOSI, OUTPUT);
   /*attachInterrupt(digitalPinToInterrupt(PIN_MOTION), onMovement, FALLING);*/
 
@@ -110,6 +112,8 @@ void loop()
     sendMotBrOverSerial();
     updateWaldo(0, 0);
   }
+
+  return; //TODO: REMOVE !!!
 
   // switch to frame capture mode when the sensor hits the ground
   if(!liftOff && prevLiftOff)

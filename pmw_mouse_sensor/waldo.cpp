@@ -1,75 +1,83 @@
 #include "waldo.h"
-#include "cat.h"
+#include "wimmel.h"
 
 int16_t counter_waldo = 0;
-int scale = 1;
-int count = 5;
+int scale = 4;
+uint32_t count = 3;
 
-uint16_t bitmap[320*240/2];// = new uint16_t[76800];
+int16_t x_pos = 50;
+int16_t y_pos = 50;
 
-void updateWaldo(int16_t x_pos, int16_t y_pos)
+bool initialized = false;
+
+uint16_t bitmap[320*240/2];
+
+auto IMAGE_SIZE = sizeof(wimmel_pixel_map);
+
+void updateWaldo(int32_t x, int32_t y)
 {
+  initWaldo();
+
   /*
-  x_pos += counter_waldo;
-  counter_waldo+=5;
-  //M5.Lcd.fillScreen(GREEN);
-  for(auto x = 0; x < 320; x+=scale){
-    for(auto y = 0; y < 240; y+=scale){
-      for(auto x_scale = 0; x_scale < scale; ++x_scale){
-        for(auto y_scale = 0; y_scale < scale; ++y_scale){
-          M5.Lcd.drawPixel(x+x_scale, y+y_scale, cat_pixel_map[(x/scale+x_pos)+(y/scale+y_pos)*500]);
-        }
-      }
-    }
+
+  if(digitalRead(19) > 0){
+    y+=3;;
   }
-  */
+  if(digitalRead(21) > 0){
+    x+=3;;
+  }
+   if(digitalRead(22) > 0){
+    x-=3;;
+  }
+  /*if(digitalRead(1) > 0){
+    y-=3;;
+  }*/
+  x_pos += x;
+  y_pos += y;
+
   for(auto i = 0; i < 120; ++i){
-    //memmove(bitmap + i*320 * sizeof(uint16_t),cat_pixel_map + (i+60)*1000 * sizeof(uint16_t) + count * sizeof(uint16_t),320 * sizeof(uint16_t));
       for(auto t = 0; t < 320; t+=1){
-        uint8_t pixel = cat_pixel_map[count+t/scale+(i/scale)*1000];
+        auto pos = x_pos+t/scale+((i+y_pos)/scale)*1000;
+        if (pos >= IMAGE_SIZE){
+          pos = 0;
+        }
+        if(pos < 0){
+          pos = 0;
+        }
+        uint8_t pixel = wimmel_pixel_map[pos];
         uint16_t color = get16from8(pixel);
         bitmap[320*i+t] = color;
-        //bitmap[320*i+t+1] = color;
-        //memmove(bitmap + i*320 * sizeof(uint8_t),cat_pixel_map + i*1000 * sizeof(uint8_t) + count * sizeof(uint8_t) + (t+1) * sizeof(uint8_t),1 * sizeof(uint8_t));
       }
   }
   M5.Lcd.drawBitmap(0, 0, 320, 120,bitmap);
   for(auto i = 0; i < 120; ++i){
-    //memmove(bitmap + i*320 * sizeof(uint16_t),cat_pixel_map + (i+60)*1000 * sizeof(uint16_t) + count * sizeof(uint16_t),320 * sizeof(uint16_t));
       for(auto t = 0; t < 320; t+=1){
-        uint8_t pixel = cat_pixel_map[count+t/scale+((i+120)/scale)*1000];
+        auto pos = x_pos+t/scale+((i+y_pos+120)/scale)*1000;
+        if (pos >= IMAGE_SIZE){
+          pos = 0;
+        }
+        if(pos < 0){
+          pos = 0;
+        }
+        uint8_t pixel = wimmel_pixel_map[pos];
         bitmap[320*i+t] = get16from8(pixel);
-        //bitmap[320*i+t+1] = cat_pixel_map[count+t/scale+((i+120)/scale)*1000];
-        //memmove(bitmap + i*320 * sizeof(uint8_t),cat_pixel_map + i*1000 * sizeof(uint8_t) + count * sizeof(uint8_t) + (t+1) * sizeof(uint8_t),1 * sizeof(uint8_t));
-      }
+        }
   }
   M5.Lcd.drawBitmap(0, 120, 320, 120,bitmap);
-/*
-  for(auto i = 0; i < 120; ++i){
-    memmove(bitmap + i*320 * sizeof(uint16_t),cat_pixel_map + (i+120)*1000 * sizeof(uint16_t) + count * sizeof(uint16_t),320 * sizeof(uint16_t));
-  }
-  M5.Lcd.drawBitmap(0, 120, 320, 120,bitmap);
-  /*
-  for(auto i = 0; i < 120; ++i){
-    memmove(bitmap + (i+120)*320 * sizeof(uint16_t),cat_pixel_map + i*1000 * sizeof(uint16_t) + count * sizeof(uint16_t),320 * sizeof(uint16_t));
-  }
-  M5.Lcd.drawBitmap(120, 0, 320, 120,bitmap); 
-*/
+
   count+=2;
 }
 
-/*
- * 
- * int array1[10] = {0,1,2,3,4,5,6,7,8,9};
-int array2[5] = {0,0,0,0,0};
-
-memmove(array2, array1 + 5 * sizeof(int), 5 * sizeof(int));
- * 
- */
-
 void initWaldo()
 {
-  
+  if(initialized){return;}
+  initialized = true;
+  /*
+  pinMode(19, INPUT);
+  pinMode(21, INPUT);
+  pinMode(22, INPUT);
+  pinMode(1, INPUT);
+  */
 }
 
 uint16_t get16from8(uint8_t color){
