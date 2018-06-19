@@ -24,7 +24,7 @@ void setup()
   /*Serial.begin(250000);*/
   /*Serial.begin(2000000);*/
 
-  return; //TODO: REMOVE !!!
+  if(SIMULATE_INPUT == 1){ return;}
 
   if(DEBUG_LEVEL >= 2) Serial.println("setup()");
 
@@ -108,13 +108,18 @@ void loop()
   }
   else
   {
-    readMotionBurst(rawMotBr, motBrLength);
-    sendMotBrOverSerial();
-    //Waldo::updateWaldo(0, 0);
-    Select::updateSelect(0,0);
+    if(SIMULATE_INPUT == 0){
+      readMotionBurst(rawMotBr, motBrLength);
+      sendMotBrOverSerial();
+    }
+    Simulator::update();
+    int16_t x = Simulator::get_x();
+    int16_t y = Simulator::get_y();
+    Waldo::updateWaldo(x, y);
+    //Select::updateSelect(x,y);
   }
 
-  return; //TODO: REMOVE !!!
+  if(SIMULATE_INPUT == 1){ return;}
 
   // switch to frame capture mode when the sensor hits the ground
   if(!liftOff && prevLiftOff)

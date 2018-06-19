@@ -20,20 +20,8 @@ void updateWaldo(int32_t x, int32_t y)
 {
   initWaldo();
 
-  
-
-  if(digitalRead(19) > 0){
-    y+=7;
-  }
-  if(digitalRead(21) > 0){
-    x+=3;
-  }
-   if(digitalRead(22) > 0){
-    x-=3;
-  }
-  if(digitalRead(3) > 0){
-    y-=7;
-  }
+  y *= 7;
+  x *= 3;
   x_pos += x;
   y_pos += y;
 
@@ -74,12 +62,6 @@ void initWaldo()
 {
   if(initialized){return;}
   initialized = true;
-  
-  pinMode(19, INPUT);
-  pinMode(21, INPUT);
-  pinMode(22, INPUT);
-  pinMode(3, INPUT);
-  
 }
 
 }

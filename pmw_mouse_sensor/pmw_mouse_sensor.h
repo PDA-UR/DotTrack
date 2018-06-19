@@ -2,6 +2,9 @@
 #include <M5Stack.h>
 #include "waldo.h"
 #include "select.h"
+#include "simulator.h"
+
+#define SIMULATE_INPUT 1
 
 #define DEBUG_LEVEL 1
 //#define DEBUG_LEVEL 2
