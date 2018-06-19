@@ -115,8 +115,8 @@ void loop()
     Simulator::update();
     int16_t x = Simulator::get_x();
     int16_t y = Simulator::get_y();
-    Waldo::updateWaldo(x, y);
-    //Select::updateSelect(x,y);
+    //Waldo::updateWaldo(x, y);
+    Select::updateSelect(x,y);
   }
 
   if(SIMULATE_INPUT == 1){ return;}

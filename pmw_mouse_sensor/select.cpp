@@ -1,7 +1,6 @@
 #include "select.h"
 
 namespace Select {
-
   bool initialized = false;
 
   double h = 0;
@@ -55,10 +54,18 @@ void updateSelect(int32_t x, int32_t y){
 
   uint16_t color_text = Tools::get_rgb(rgb_text);
   
-  M5.Lcd.fillScreen(color);
+  //M5.Lcd.fillScreen(color); //flickers
 
-  M5.Lcd.drawChar(10, 50,c, color_text,color,20);
-  M5.Lcd.drawChar(120, 50,num, color_text,color,20);
+  M5.Lcd.fillRect(0, 0, 320, 50, color); //top
+  
+  M5.Lcd.fillRect(0, 50, 50, 160, color); //left
+  M5.Lcd.fillRect(280, 50, 40, 160, color); //right
+  
+  M5.Lcd.fillRect(0, 210, 320, 40, color);// bottom
+  
+
+  M5.Lcd.drawChar(50, 50,c, color_text,color,20);
+  M5.Lcd.drawChar(160, 50,num, color_text,color,20);
 }
 
 void initSelect(){
