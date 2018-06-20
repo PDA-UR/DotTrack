@@ -577,3 +577,25 @@ void sendMotBrOverSerial()
   // Send Shutter value
   if(DEBUG_LEVEL >= 3) Serial.println("Shutter: " + String(shutter));
 }
+
+void findAppPosition()
+{
+  if(!liftOff)
+  {
+    if(avgRawData >= 18 && avgRawData <= 20)
+    {
+      prevApp = app;
+      app = 1;
+    }
+    else if(avgRawData >= 28 && avgRawData <= 30)
+    {
+      prevApp = app;
+      app = 2;
+    }
+    else if(avgRawData >= 38 && avgRawData <= 40)
+    {
+      prevApp = app;
+      app = 3;
+    }
+  }
+}

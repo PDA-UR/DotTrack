@@ -187,6 +187,7 @@ void sendRawOverSerial();
 void readMotionBurst(uint8_t* result, int resultLength);
 void updateMotBrValues();
 void sendMotBrOverSerial();
+void findAppPosition();
 
 // Firmware "PMW3360DM_srom_0x04"
 const uint8_t firmwareData[] = {
