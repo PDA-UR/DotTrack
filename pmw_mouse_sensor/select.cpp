@@ -10,6 +10,10 @@ namespace Select {
   char c = 'A';
   char num = '0';
 
+  int16_t xCounter = 0;
+  int16_t yCounter = 0;
+  int16_t range = 2000;
+
   Tools::rgb rgb = Tools::rgb();
   Tools::hsv hsv = Tools::hsv();
 
@@ -17,6 +21,34 @@ namespace Select {
   Tools::hsv hsv_text = Tools::hsv();
 
 void updateSelect(int32_t x, int32_t y){
+  // Invert x axis
+  x *= -1;
+  xCounter += x;
+  yCounter += y;
+
+  x = 0;
+  y = 0;
+
+  if(xCounter > range)
+  {
+    xCounter -= range;
+    x = 1;
+  }
+  if(xCounter <= -range)
+  {
+    xCounter += range;
+    x = -1;
+  }
+  if(yCounter > range)
+  {
+    yCounter -= range;
+    y = 1;
+  }
+  if(yCounter <= -range)
+  {
+    yCounter += range;
+    y = -1;
+  }
 
   c += x;
   h += x*5;
