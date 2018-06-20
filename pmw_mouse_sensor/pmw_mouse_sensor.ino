@@ -24,6 +24,8 @@ void setup()
   /*Serial.begin(250000);*/
   /*Serial.begin(2000000);*/
 
+  if(SIMULATE_INPUT == 1){ return;}
+
   if(DEBUG_LEVEL >= 2) Serial.println("setup()");
 
   // setup pins
@@ -32,7 +34,7 @@ void setup()
   /*// > The motion pin is an active low output (datasheet p.18)*/
   /*digitalWrite(PIN_MOTION, HIGH);*/
   pinMode(PIN_SCLK, OUTPUT);
-  pinMode(PIN_MISO, INPUT);
+  pinMode(PIN_SCLK, OUTPUT);
   pinMode(PIN_MOSI, OUTPUT);
   /*attachInterrupt(digitalPinToInterrupt(PIN_MOTION), onMovement, FALLING);*/
 
