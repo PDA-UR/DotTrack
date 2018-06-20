@@ -781,3 +781,11 @@ void findAppPosition()
     }
   }
 }
+
+void drawWelcomeScreen()
+{
+  /*M5.Lcd.fillScreen(PURPLE);*/
+  M5.Lcd.setCursor(25,210);
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.println("Place me on a pattern!");
+}

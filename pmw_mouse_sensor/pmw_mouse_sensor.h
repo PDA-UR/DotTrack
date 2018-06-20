@@ -196,6 +196,7 @@ void updateMotBrValues();
 void drawMotBrToDisplay();
 void sendMotBrOverSerial();
 void findAppPosition();
+void drawWelcomeScreen();
 
 // Firmware "PMW3360DM_srom_0x04"
 const uint8_t firmwareData[] = {
