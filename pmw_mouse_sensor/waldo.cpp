@@ -22,6 +22,9 @@ void updateWaldo(int32_t x, int32_t y)
 
   y *= 7;
   x *= 3;
+  // Invert and scale/smooth x & y values
+  y /= -100;
+  x /= -100;
   x_pos += x;
   y_pos += y;
 

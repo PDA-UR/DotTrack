@@ -30,9 +30,9 @@ void setup()
 
   // setup pins
   pinMode(PIN_NCS, OUTPUT);
-  pinMode(PIN_MOTION, INPUT); // maybe INPUT_PULLUP is better?
-  // > The motion pin is an active low output (datasheet p.18)
-  digitalWrite(PIN_MOTION, HIGH);
+  /*pinMode(PIN_MOTION, INPUT); // maybe INPUT_PULLUP is better?*/
+  /*// > The motion pin is an active low output (datasheet p.18)*/
+  /*digitalWrite(PIN_MOTION, HIGH);*/
   pinMode(PIN_SCLK, OUTPUT);
   pinMode(PIN_SCLK, OUTPUT);
   pinMode(PIN_MOSI, OUTPUT);
@@ -87,7 +87,7 @@ void setup()
   initComplete = true;
 
   // Start with frame capture burst mode
-  frameCapture = false;//true;
+  /*frameCapture = true;*/
   // Delay for Frame Capture burst mode (only needed once after power up/reset)
   if(frameCapture) delay(250);
 
@@ -100,48 +100,100 @@ void setup()
 
 void loop()
 {
-  if(frameCapture)
+  if(app == 3)
   {
     captureRawImage(rawData, rawDataLength);
-    drawImageToDisplay();
-    /*sendRawOverSerial();*/
+    /*drawImageToDisplay();*/
   }
   else
   {
-    if(SIMULATE_INPUT == 0){
-      readMotionBurst(rawMotBr, motBrLength);
-      sendMotBrOverSerial();
+    if(prevApp == 3)
+    {
+      resetSPIPort();
+      resetDevice();
+      performSROMdownload();
+      configureRegisters();
+      // TODO Maybe build a timer for faster resets when FC is not needed yet
+      delay(250);
     }
-    Simulator::update();
-    int16_t x = Simulator::get_x();
-    int16_t y = Simulator::get_y();
-    //Waldo::updateWaldo(x, y);
-    Select::updateSelect(x,y);
+    readMotionBurst(rawMotBr, motBrLength);
+    updateMotBrValues();
+    findAppPosition();
   }
 
-  if(SIMULATE_INPUT == 1){ return;}
-
-  // switch to frame capture mode when the sensor hits the ground
-  if(!liftOff && prevLiftOff)
+  switch(app)
   {
-    frameCapture = true;
-    // Delay for Frame Capture burst mode (only needed once after power up/reset)
-    t_switch = millis() + 3000;
+    case 0:
+      /*findAppPosition();*/
+      drawMotBrToDisplay();
+      break;
+    case 1:
+      Select::updateSelect(xyDelta[0], xyDelta[1]);
+      break;
+    case 2:
+      Waldo::updateWaldo(xyDelta[0], xyDelta[1]);
+      break;
+    case 3:
+      /*captureRawImage(rawData, rawDataLength);*/
+      drawImageToDisplay();
+      break;
+    default:
+      M5.Lcd.println("Error: \"app\" value unknown!");
   }
+
+  if(printMotBrToDisplay && app != 0 && app != 3)
+  {
+    drawMotBrToDisplay();
+  }
+
+  if(M5.BtnA.wasPressed())
+  {
+    prevApp = app;
+    app = 0;
+    M5.Lcd.fillScreen(BLACK);
+  }
+  if(M5.BtnC.wasPressed())
+  {
+    printMotBrToDisplay = !printMotBrToDisplay;
+  }
+
+  M5.update();
+
+  /*if(frameCapture)*/
+  /*{*/
+    /*captureRawImage(rawData, rawDataLength);*/
+    /*drawImageToDisplay();*/
+    /*[>sendRawOverSerial();<]*/
+  /*}*/
+  /*else*/
+  /*{*/
+    /*readMotionBurst(rawMotBr, motBrLength);*/
+    /*updateMotBrValues();*/
+    /*sendMotBrOverSerial();*/
+    /*updateWaldo(0, 0);*/
+  /*}*/
+
+  /*// switch to frame capture mode when the sensor hits the ground*/
+  /*if(!liftOff && prevLiftOff)*/
+  /*{*/
+    /*frameCapture = true;*/
+    /*// Delay for Frame Capture burst mode (only needed once after power up/reset)*/
+    /*t_switch = millis() + 3000;*/
+  /*}*/
   /*// TODO liftOff is too sensitive for this task*/
-  prevLiftOff = liftOff;
+  /*prevLiftOff = liftOff;*/
 
-  if(t_switch < millis() && t_switch != 0)
-  {
-    frameCapture = false;
-    t_switch = 0;
-    resetSPIPort();
-    resetDevice();
-    performSROMdownload();
-    configureRegisters();
-    // TODO Maybe build a timer for faster resets when FC is not needed yet
-    delay(250);
-  }
+  /*if(t_switch < millis() && t_switch != 0)*/
+  /*{*/
+    /*frameCapture = false;*/
+    /*t_switch = 0;*/
+    /*resetSPIPort();*/
+    /*resetDevice();*/
+    /*performSROMdownload();*/
+    /*configureRegisters();*/
+    /*// TODO Maybe build a timer for faster resets when FC is not needed yet*/
+    /*delay(250);*/
+  /*}*/
 }
 
 void writeRegister(uint8_t address, uint8_t data)
@@ -186,7 +238,6 @@ uint8_t readRegister(uint8_t address)
      address != REGISTER_DELTA_Y_L &&
      address != REGISTER_DELTA_Y_H)
   {
-    Serial.println("reset readingMotion");
     readingMotion = false;
   }
 
@@ -286,10 +337,7 @@ void performSROMdownload()
   uint8_t i = readRegister(REGISTER_SROM_ID);
   // Success: "4" (current firmware version)
   // Failed: "0"
-  if(DEBUG_LEVEL >= 2) {
-    Serial.print("SROM_ID RETURN: ");
-    Serial.println(i);
-  }
+  if(DEBUG_LEVEL >= 2) Serial.println("SROM_ID RETURN: " + String(i));
 }
 
 void configureRegisters()
@@ -327,31 +375,11 @@ void onMovement()
     uint8_t motion = readRegister(REGISTER_MOTION);
 
     // Evaluate Lift_Stat bit
-    liftOff = (bool)(motion & REG_MOTION_LIFT_STAT);
-    if(DEBUG_LEVEL >= 3) { Serial.print("Lift_Stat: "); Serial.println(liftOff); }
+    prevLiftOff = liftOff;
+    liftOff = motion & REG_MOTION_LIFT_STAT;
 
     // Evaluate OP_Mode[1:0] bits
     opMode = (motion & REG_MOTION_OP_MODE) >> 1;
-    if(DEBUG_LEVEL >= 3)
-    {
-      switch(opMode)
-      {
-        case 0:
-          Serial.println("OP_Mode: Run mode");
-          break;
-        case 1:
-          Serial.println("OP_Mode: Rest 1");
-          break;
-        case 2:
-          Serial.println("OP_Mode: Rest 2");
-          break;
-        case 3:
-          Serial.println("OP_Mode: Rest 3");
-          break;
-        default:
-          Serial.println("OP_Mode evaluation error");
-      }
-    }
 
     // Read motion registers if MOT bit is set
     if(motion & REG_MOTION_MOT_BIT)
@@ -364,8 +392,12 @@ void onMovement()
 
       xyDelta[0] = (int16_t)((resultDeltaXH << 8) | resultDeltaXL);
       xyDelta[1] = (int16_t)((resultDeltaYH << 8) | resultDeltaYL);
-      if(DEBUG_LEVEL >= 1) Serial.println("X: " + String(xyDelta[0]));
-      if(DEBUG_LEVEL >= 1) Serial.println("Y: " + String(xyDelta[0]));
+    }
+    else
+    {
+      hasMoved = false;
+      xyDelta[0] = 0;
+      xyDelta[1] = 0;
     }
   }
 }
@@ -412,8 +444,6 @@ void captureRawImage(uint8_t* result, int resultLength)
 
 void drawImageToDisplay()
 {
-  // FIXME: black lines
-  // TODO: offset
   // Draw raw data image data to M5Stack display
   for(int32_t x = 0; x < W_IMG; x++)
   {
@@ -424,40 +454,20 @@ void drawImageToDisplay()
       // Color needs to be encoded in 5,6,5 RGB bit format (16 bit)
       uint32_t color = (pixel >> 3) << 11 | (pixel >> 2) << 5 | (pixel >> 3);
       // Resize image pixel to use 6x6 rectangles
-      // INFO: y needs to be inverted to correlate with the displays x-/y-coordinates
+      // INFO: x needs to be inverted to correlate with the displays x-/y-coordinates
       // fillRect(int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color)
-      M5.Lcd.fillRect(x*PIX_RSZ + X_OFFSET, (H_IMG-y)*PIX_RSZ + Y_OFFSET, PIX_RSZ, PIX_RSZ, color);
+      M5.Lcd.fillRect((W_IMG-x)*PIX_RSZ + X_OFFSET, y*PIX_RSZ + Y_OFFSET, PIX_RSZ, PIX_RSZ, color);
     }
   }
 }
 
 // send a 36x36px greyscale raw image with 8bit depth over Serial connection to the PC
-// use the included python script to view the image
+// use the included python script (dottrack_stream.py) to view the image
 void sendRawOverSerial()
 {
-  /*uint8_t* rawResult = (uint8_t*) malloc(rawDataLength * sizeof(uint8_t));*/
-  /*captureRawImage(rawResult, rawDataLength);*/
-
-
-  // Original approach
-  /*Serial.write(0xFD);*/
-  /*for(int i = 0; i < rawDataLength; i++)*/
-  /*{*/
-    /*Serial.write(rawResult[i]);*/
-    /*yield; // make sure WDT does not block*/
-  /*}*/
-  /*Serial.write(0xFE);*/
-  // New approach
-  // TODO The interrupt on onMovement() seems to interrupt the Serial.write()
-  // Look into: https://stackoverflow.com/a/10570704
-  /*if(DEBUG_LEVEL >= 2) Serial.println("rawDataLength (expected bytes): " + String(rawDataLength));*/
-  /*int bytesSent = Serial.write(rawResult, rawDataLength);*/
-  /*if(DEBUG_LEVEL >= 2) Serial.println("\nbytesSent: " + String(bytesSent));*/
-
   Serial.write(rawData, rawDataLength);
   // Paket termination byte TODO improve this (header terminate bytes)
   Serial.write(0xFE);
-  /*free(rawResult);*/
 }
 
 void readMotionBurst(uint8_t* result, int resultLength)
@@ -494,17 +504,180 @@ void readMotionBurst(uint8_t* result, int resultLength)
   delayMicroseconds(250);
 }
 
-void sendMotBrOverSerial()
+// Update needed motion burst values from raw motion burst data
+void updateMotBrValues()
 {
   // Read Motion byte
   uint8_t motion = rawMotBr[0];
-
+  // Evaluate MOT bit
+  if(motion & REG_MOTION_MOT_BIT)
+  {
+    hasMoved = true;
+    xyDelta[0] = (int16_t)((rawMotBr[3] << 8) | rawMotBr[2]);
+    xyDelta[1] = (int16_t)((rawMotBr[5] << 8) | rawMotBr[4]);
+    absX += xyDelta[0];
+    absY += xyDelta[1];
+  }
+  else
+  {
+    hasMoved = false;
+    xyDelta[0] = 0;
+    xyDelta[1] = 0;
+  }
+  // TODO Evaluate RData_1st Needed?
   // Evaluate Lift_Stat bit
-  liftOff = (bool)(motion & REG_MOTION_LIFT_STAT);
-  if(DEBUG_LEVEL >= 3) { Serial.print("Lift_Stat: "); Serial.println(liftOff); }
-
+  prevLiftOff = liftOff;
+  liftOff = motion & REG_MOTION_LIFT_STAT;
   // Evaluate OP_Mode[1:0] bits
   opMode = (motion & REG_MOTION_OP_MODE) >> 1;
+  // TODO Evaluate FRAME_RData_1st Needed?
+
+  // Read Observation byte
+  // Evaluate SROM_RUN bit
+  sromRun = rawMotBr[2] & REG_OBS_SROM_RUN;
+
+  // Read SQUAL byte
+  squal = rawMotBr[6];
+  numFeatures = squal * 8;
+
+  // Read Raw_Data_Sum byte
+  // The Raw_Data_Sum byte should be between 0-160 (0x00 - 0xA0)
+  rawDataSum = rawMotBr[7];
+  // Therefore avgRawData (after calculation) lays between 0-126
+  avgRawData = rawDataSum * 1024 / 1296;
+
+  // Read Maximum_Raw_Data byte
+  maxRawData = rawMotBr[8];
+
+  // Read Minimum_Raw_Data byte
+  minRawData = rawMotBr[9];
+
+  // Read Shutter bytes
+  shutter = rawMotBr[10] << 8 | rawMotBr[11];
+}
+
+// Draw motion burst data to M5Stack display (spaces are for overwriting shorter values)
+void drawMotBrToDisplay()
+{
+  /*M5.Lcd.fillScreen(BLACK);*/
+  M5.Lcd.setCursor(0,0);
+  // Draw motion bit and registers if MOT bit is set
+  if(hasMoved)
+  {
+    M5.Lcd.println("MOT: Motion occurred");
+    M5.Lcd.println("Delta X: " + String(xyDelta[0]) + "      ");
+    M5.Lcd.println("Delta Y: " + String(xyDelta[1]) + "      ");
+
+    // TODO Figure out xyDelta sending
+    /*Serial.write(xyDelta[0]);*/
+    /*Serial.write(xyDelta[1]);*/
+    /*Serial.write(0xFE);*/
+  }
+  else
+  {
+    M5.Lcd.println("MOT: No motion      ");
+    M5.Lcd.println("Delta X: 0     ");
+    M5.Lcd.println("Delta Y: 0     ");
+  }
+
+  // Draw absoulte position (currently determined with relative tracking)
+  M5.Lcd.println("Absolute X: " + String(absX) + "            ");
+  M5.Lcd.println("Absolute Y: " + String(absY) + "            ");
+
+  // Draw Lift_Stat bit
+  if(liftOff)
+  {
+    M5.Lcd.println("Lift_Stat: Chip lifted    ");
+  }
+  else
+  {
+    M5.Lcd.println("Lift_Stat: Chip on surface");
+  }
+
+  // Draw OP_Mode[1:0] bit
+  switch(opMode)
+  {
+    case 0:
+      M5.Lcd.println("OP_Mode: Run mode       ");
+      break;
+    case 1:
+      M5.Lcd.println("OP_Mode: Rest 1         ");
+      break;
+    case 2:
+      M5.Lcd.println("OP_Mode: Rest 2         ");
+      break;
+    case 3:
+      M5.Lcd.println("OP_Mode: Rest 3         ");
+      break;
+    default:
+      M5.Lcd.println("OP_Mode evaluation error");
+  }
+
+  // Draw Observation/SROM_RUN value
+  if(sromRun)
+  {
+    M5.Lcd.println("SROM_RUN: SROM running    ");
+  }
+  else
+  {
+    M5.Lcd.println("SROM_RUN: SROM not running");
+  }
+
+  // Draw SQUAL value / number of features
+  M5.Lcd.println("SQUAL: " + String(squal) + "   ");
+  M5.Lcd.println("Number of Features: " + String(numFeatures) + "     ");
+
+  // Draw Raw_Data_Sum value
+  M5.Lcd.println("Raw_Data_Sum: " + String(rawDataSum) + "   ");
+  M5.Lcd.println("Average Raw Data: " + String(avgRawData) + "   ");
+
+  // Draw Maximum_Raw_Data value
+  M5.Lcd.println("Maximum_Raw_Data: " + String(maxRawData) + "   ");
+
+  // Draw Minimum_Raw_Data value
+  M5.Lcd.println("Minimum_Raw_Data: " + String(minRawData) + "   ");
+
+  // Draw Shutter value
+  M5.Lcd.println("Shutter: " + String(shutter) + "     ");
+}
+
+// Send motion burst values over serial
+void sendMotBrOverSerial()
+{
+  // Send motion bit and registers if MOT bit is set
+  if(hasMoved)
+  {
+    if(DEBUG_LEVEL >= 3) Serial.println("MOT: Motion occurred");
+    if(DEBUG_LEVEL >= 1) Serial.println("Delta X: " + String(xyDelta[0]));
+    if(DEBUG_LEVEL >= 1) Serial.println("Delta Y: " + String(xyDelta[1]));
+
+    // TODO Figure out xyDelta sending
+    /*Serial.write(xyDelta[0]);*/
+    /*Serial.write(xyDelta[1]);*/
+    /*Serial.write(0xFE);*/
+  }
+  else
+  {
+    if(DEBUG_LEVEL >= 3) Serial.println("MOT: No motion");
+    if(DEBUG_LEVEL >= 1) Serial.println("Delta X: 0");
+    if(DEBUG_LEVEL >= 1) Serial.println("Delta Y: 0");
+  }
+
+  // Send absoulte position (currently determined with relative tracking)
+  if(DEBUG_LEVEL >= 3) Serial.println("Absolute X: " + String(absX));
+  if(DEBUG_LEVEL >= 3) Serial.println("Absolute Y: " + String(absY));
+
+  // Send Lift_Stat bit
+  if(liftOff)
+  {
+    if(DEBUG_LEVEL >= 2) Serial.println("Lift_Stat: Chip lifted");
+  }
+  else
+  {
+    if(DEBUG_LEVEL >= 2) Serial.println("Lift_Stat: Chip on surface");
+  }
+
+  // Send OP_Mode[1:0] bit
   if(DEBUG_LEVEL >= 3)
   {
     switch(opMode)
@@ -526,93 +699,64 @@ void sendMotBrOverSerial()
     }
   }
 
-  // Read motion registers if MOT bit is set
-  if(motion & REG_MOTION_MOT_BIT)
-  {
-    hasMoved = true;
-    /*uint8_t resultDeltaXL = rawMotBr[2];*/
-    /*uint8_t resultDeltaXH = rawMotBr[3];*/
-    /*uint8_t resultDeltaYL = rawMotBr[4];*/
-    /*uint8_t resultDeltaYH = rawMotBr[5];*/
-
-    xyDelta[0] = (int16_t)((rawMotBr[3] << 8) | rawMotBr[2]);
-    xyDelta[1] = (int16_t)((rawMotBr[5] << 8) | rawMotBr[4]);
-    if(DEBUG_LEVEL >= 1) Serial.println("X: " + String(xyDelta[0]));
-    if(DEBUG_LEVEL >= 1) Serial.println("Y: " + String(xyDelta[1]));
-
-    // TODO Figure out xyDelta sending
-    /*Serial.write(xyDelta[0]);*/
-    /*Serial.write(xyDelta[1]);*/
-    /*Serial.write(0xFE);*/
-  }
-
-  // Read Raw_Data_Sum byte
-  // The rawMotBr[7] element should be between 0-160 (0x00 - 0xA0)
-  // Therefore rawDataSum 0-126
-  uint8_t rawDataSum = rawMotBr[7] * 1024 / 1296;
-  if(DEBUG_LEVEL >= 1) Serial.println("RDS: " + String(rawDataSum));
-
-  // Binary debug output
+  // Send Observation/SROM_RUN value
   if(DEBUG_LEVEL >= 3)
   {
-    for(int i = 0; i < motBrLength; i++)
+    if(sromRun)
     {
-      switch(i)
-      {
-        case 0:
-          Serial.print("Motion: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 1:
-          Serial.print("Observation: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 2:
-          Serial.print("Delta_X_L: ");
-          Serial.println(rawMotBr[i], BIN);
-          /*Serial.println(rawMotBr[i]);*/
-          break;
-        case 3:
-          Serial.print("Delta_X_H: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 4:
-          Serial.print("Delta_Y_L: ");
-          Serial.println(rawMotBr[i], BIN);
-          /*Serial.println(rawMotBr[i]);*/
-          break;
-        case 5:
-          Serial.print("Delta_Y_H: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 6:
-          Serial.print("SQUAL: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 7:
-          Serial.print("Raw_Data_Sum: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 8:
-          Serial.print("Maximum_Raw_Data: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 9:
-          Serial.print("Minimum_Raw_Data: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 10:
-          Serial.print("Shutter_Upper: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        case 11:
-          Serial.print("Shutter_Lower: ");
-          Serial.println(rawMotBr[i], BIN);
-          break;
-        default:
-          Serial.print("Error: ");
-          Serial.println(rawMotBr[i], BIN);
-      }
+      Serial.println("SROM_RUN: SROM running");
+    }
+    else
+    {
+      Serial.println("SROM_RUN: SROM not running");
+    }
+  }
+
+  // Send SQUAL value / number of features
+  if(DEBUG_LEVEL >= 3) Serial.println("SQUAL: " + String(squal));
+  if(DEBUG_LEVEL >= 3) Serial.println("Number of Features: " + String(numFeatures));
+
+  // Send Raw_Data_Sum value
+  if(DEBUG_LEVEL >= 3) Serial.println("Raw_Data_Sum: " + String(rawDataSum));
+  if(DEBUG_LEVEL >= 2) Serial.println("Average Raw Data: " + String(avgRawData));
+
+  // Send Maximum_Raw_Data value
+  if(DEBUG_LEVEL >= 3) Serial.println("Maximum_Raw_Data: " + String(maxRawData));
+
+  // Send Minimum_Raw_Data value
+  if(DEBUG_LEVEL >= 3) Serial.println("Minimum_Raw_Data: " + String(minRawData));
+
+  // Send Shutter value
+  if(DEBUG_LEVEL >= 3) Serial.println("Shutter: " + String(shutter));
+}
+
+void findAppPosition()
+{
+  if(liftOff && !prevLiftOff)
+  {
+    prevApp = app;
+    app = 0;
+    M5.Lcd.fillScreen(BLACK);
+  }
+  else if(!liftOff)
+  {
+    if(avgRawData >= 18 && avgRawData <= 20)
+    {
+      prevApp = app;
+      app = 1;
+      M5.Lcd.fillScreen(BLACK);
+    }
+    else if(avgRawData >= 28 && avgRawData <= 30)
+    {
+      prevApp = app;
+      app = 2;
+      M5.Lcd.fillScreen(BLACK);
+    }
+    else if(avgRawData >= 38 && avgRawData <= 40)
+    {
+      prevApp = app;
+      app = 3;
+      M5.Lcd.fillScreen(BLACK);
     }
   }
 }
