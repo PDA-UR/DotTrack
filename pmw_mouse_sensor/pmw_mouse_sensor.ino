@@ -125,7 +125,7 @@ void loop()
   {
     case 0:
       //findAppPosition();
-      drawMotBrToDisplay();
+      //drawMotBrToDisplay();
       break;
     case 1:
       Select::updateSelect(xyDelta[0], xyDelta[1]);
@@ -141,7 +141,8 @@ void loop()
       M5.Lcd.println("Error: \"app\" value unknown!");
   }
 
-  if(printMotBrToDisplay && app != 0 && app != 3)
+  //if(printMotBrToDisplay && app != 0 && app != 3)
+  if(printMotBrToDisplay && app != 3)
   {
     drawMotBrToDisplay();
   }
@@ -152,9 +153,14 @@ void loop()
     app = 0;
     M5.Lcd.fillScreen(BLACK);
   }
+  if(M5.BtnB.wasPressed())
+  {
+    preventAppExit = !preventAppExit;
+  }
   if(M5.BtnC.wasPressed())
   {
     printMotBrToDisplay = !printMotBrToDisplay;
+    M5.Lcd.fillScreen(BLACK);
   }
 
   M5.update();
@@ -747,7 +753,7 @@ void sendMotBrOverSerial()
 // TODO Maybe use a array of data values and medians/averages to prevent outlier problems
 void findAppPosition()
 {
-  if(liftOff && !prevLiftOff)
+  if(liftOff && !prevLiftOff && !preventAppExit)
   {
     // TODO prevent flickering (app switching on the between liftOff/!liftOff)
     prevApp = app;

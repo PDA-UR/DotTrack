@@ -134,6 +134,8 @@ bool initComplete = false;
 bool frameCapture = false;
 // if true prints motion burst data to display
 bool printMotBrToDisplay = false;
+// prevents apps being exited from liftOff state
+bool preventAppExit = false;
 
 // set true by the motion interrupt when new motion data is available, set false when motion data has been processed
 bool hasMoved = false;
