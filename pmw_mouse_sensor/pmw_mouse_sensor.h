@@ -4,7 +4,7 @@
 #include "select.h"
 #include "simulator.h"
 
-#define SIMULATE_INPUT 1
+#define SIMULATE_INPUT 0
 
 #define DEBUG_LEVEL 0
 
