@@ -3,6 +3,8 @@
 #include "waldo.h"
 #include "select.h"
 #include "simulator.h"
+#include "image.h"
+#include "muc_logo.h"
 
 #define SIMULATE_INPUT 0
 

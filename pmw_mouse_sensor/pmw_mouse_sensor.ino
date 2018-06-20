@@ -120,8 +120,9 @@ void loop()
   switch(app)
   {
     case 0:
-      //findAppPosition();
+      /*findAppPosition();*/
       //drawMotBrToDisplay();
+      Image::draw(muc_logo_pixel_map);
       break;
     case 1:
       Select::updateSelect(xyDelta[0], xyDelta[1]);
