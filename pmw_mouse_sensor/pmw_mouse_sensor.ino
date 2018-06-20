@@ -392,9 +392,9 @@ void drawImageToDisplay()
       // Color needs to be encoded in 5,6,5 RGB bit format (16 bit)
       uint32_t color = (pixel >> 3) << 11 | (pixel >> 2) << 5 | (pixel >> 3);
       // Resize image pixel to use 6x6 rectangles
-      // INFO: y needs to be inverted to correlate with the displays x-/y-coordinates
+      // INFO: x needs to be inverted to correlate with the displays x-/y-coordinates
       // fillRect(int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color)
-      M5.Lcd.fillRect(x*PIX_RSZ + X_OFFSET, (H_IMG-y)*PIX_RSZ + Y_OFFSET, PIX_RSZ, PIX_RSZ, color);
+      M5.Lcd.fillRect((W_IMG-x)*PIX_RSZ + X_OFFSET, y*PIX_RSZ + Y_OFFSET, PIX_RSZ, PIX_RSZ, color);
     }
   }
 }
