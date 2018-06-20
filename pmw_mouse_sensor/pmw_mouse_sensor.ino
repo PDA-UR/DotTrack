@@ -125,7 +125,8 @@ void loop()
   {
     case 0:
       /*findAppPosition();*/
-      drawMotBrToDisplay();
+      //drawMotBrToDisplay();
+      Image::draw(muc_logo_pixel_map);
       break;
     case 1:
       Select::updateSelect(xyDelta[0], xyDelta[1]);
