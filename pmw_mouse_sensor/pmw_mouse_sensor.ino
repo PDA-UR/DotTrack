@@ -493,6 +493,91 @@ void updateMotBrValues()
   shutter = rawMotBr[10] << 8 | rawMotBr[11];
 }
 
+// Draw motion burst data to M5Stack display (spaces are for overwriting shorter values)
+void drawMotBrToDisplay()
+{
+  /*M5.Lcd.fillScreen(BLACK);*/
+  M5.Lcd.setCursor(0,0);
+  // Draw motion bit and registers if MOT bit is set
+  if(hasMoved)
+  {
+    M5.Lcd.println("MOT: Motion occurred");
+    M5.Lcd.println("Delta X: " + String(xyDelta[0]) + "      ");
+    M5.Lcd.println("Delta Y: " + String(xyDelta[1]) + "      ");
+
+    // TODO Figure out xyDelta sending
+    /*Serial.write(xyDelta[0]);*/
+    /*Serial.write(xyDelta[1]);*/
+    /*Serial.write(0xFE);*/
+  }
+  else
+  {
+    M5.Lcd.println("MOT: No motion      ");
+    M5.Lcd.println("Delta X: 0     ");
+    M5.Lcd.println("Delta Y: 0     ");
+  }
+
+  // Draw absoulte position (currently determined with relative tracking)
+  M5.Lcd.println("Absolute X: " + String(absX) + "            ");
+  M5.Lcd.println("Absolute Y: " + String(absY) + "            ");
+
+  // Draw Lift_Stat bit
+  if(liftOff)
+  {
+    M5.Lcd.println("Lift_Stat: Chip lifted    ");
+  }
+  else
+  {
+    M5.Lcd.println("Lift_Stat: Chip on surface");
+  }
+
+  // Draw OP_Mode[1:0] bit
+  switch(opMode)
+  {
+    case 0:
+      M5.Lcd.println("OP_Mode: Run mode       ");
+      break;
+    case 1:
+      M5.Lcd.println("OP_Mode: Rest 1         ");
+      break;
+    case 2:
+      M5.Lcd.println("OP_Mode: Rest 2         ");
+      break;
+    case 3:
+      M5.Lcd.println("OP_Mode: Rest 3         ");
+      break;
+    default:
+      M5.Lcd.println("OP_Mode evaluation error");
+  }
+
+  // Draw Observation/SROM_RUN value
+  if(sromRun)
+  {
+    M5.Lcd.println("SROM_RUN: SROM running    ");
+  }
+  else
+  {
+    M5.Lcd.println("SROM_RUN: SROM not running");
+  }
+
+  // Draw SQUAL value / number of features
+  M5.Lcd.println("SQUAL: " + String(squal) + "   ");
+  M5.Lcd.println("Number of Features: " + String(numFeatures) + "     ");
+
+  // Draw Raw_Data_Sum value
+  M5.Lcd.println("Raw_Data_Sum: " + String(rawDataSum) + "   ");
+  M5.Lcd.println("Average Raw Data: " + String(avgRawData) + "   ");
+
+  // Draw Maximum_Raw_Data value
+  M5.Lcd.println("Maximum_Raw_Data: " + String(maxRawData) + "   ");
+
+  // Draw Minimum_Raw_Data value
+  M5.Lcd.println("Minimum_Raw_Data: " + String(minRawData) + "   ");
+
+  // Draw Shutter value
+  M5.Lcd.println("Shutter: " + String(shutter) + "     ");
+}
+
 // Send motion burst values over serial
 void sendMotBrOverSerial()
 {
@@ -500,8 +585,8 @@ void sendMotBrOverSerial()
   if(hasMoved)
   {
     if(DEBUG_LEVEL >= 3) Serial.println("MOT: Motion occurred");
-    if(DEBUG_LEVEL >= 1) Serial.println("X: " + String(xyDelta[0]));
-    if(DEBUG_LEVEL >= 1) Serial.println("Y: " + String(xyDelta[1]));
+    if(DEBUG_LEVEL >= 1) Serial.println("Delta X: " + String(xyDelta[0]));
+    if(DEBUG_LEVEL >= 1) Serial.println("Delta Y: " + String(xyDelta[1]));
 
     // TODO Figure out xyDelta sending
     /*Serial.write(xyDelta[0]);*/
@@ -511,9 +596,13 @@ void sendMotBrOverSerial()
   else
   {
     if(DEBUG_LEVEL >= 3) Serial.println("MOT: No motion");
-    if(DEBUG_LEVEL >= 1) Serial.println("X: 0");
-    if(DEBUG_LEVEL >= 1) Serial.println("Y: 0");
+    if(DEBUG_LEVEL >= 1) Serial.println("Delta X: 0");
+    if(DEBUG_LEVEL >= 1) Serial.println("Delta Y: 0");
   }
+
+  // Send absoulte position (currently determined with relative tracking)
+  if(DEBUG_LEVEL >= 3) Serial.println("Absolute X: " + String(absX));
+  if(DEBUG_LEVEL >= 3) Serial.println("Absolute Y: " + String(absY));
 
   // Send Lift_Stat bit
   if(liftOff)

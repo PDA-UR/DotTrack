@@ -129,6 +129,8 @@ const unsigned short motBrLength = 12;
 bool initComplete = false;
 // switch between frame capture and motion mode
 bool frameCapture = false;
+// if true prints motion burst data to display
+bool printMotBrToDisplay = false;
 
 // set true by the motion interrupt when new motion data is available, set false when motion data has been processed
 bool hasMoved = false;
@@ -186,6 +188,7 @@ void drawImageToDisplay();
 void sendRawOverSerial();
 void readMotionBurst(uint8_t* result, int resultLength);
 void updateMotBrValues();
+void drawMotBrToDisplay();
 void sendMotBrOverSerial();
 void findAppPosition();
 
