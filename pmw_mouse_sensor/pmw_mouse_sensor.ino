@@ -11,12 +11,8 @@ void setup()
   // Source: https://twitter.com/Kongduino/status/980466157701423104
   M5.Speaker.end();
 
-  // Lcd display
-  /*M5.Lcd.println("This is software power off demo");*/
-  /*M5.Lcd.println("Press the button A to power off.");*/
-
-  // Set the wakeup button (also PowerOff)
-  /*M5.setWakeupButton(BUTTON_A_PIN);*/
+  // Set Brightness of M5Stack LCD display
+  M5.Lcd.setBrightness(0xff);
 
   /*Serial.begin(9600);*/
   // 115200 is the baudrate used by the M5Stack library
