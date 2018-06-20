@@ -85,7 +85,7 @@ void setup()
   initComplete = true;
 
   // Start with frame capture burst mode
-  frameCapture = false;
+  /*frameCapture = true;*/
   // Delay for Frame Capture burst mode (only needed once after power up/reset)
   if(frameCapture) delay(250);
 
@@ -98,41 +98,119 @@ void setup()
 
 void loop()
 {
-  if(frameCapture)
-  {
-    captureRawImage(rawData, rawDataLength);
-    drawImageToDisplay();
-    /*sendRawOverSerial();*/
-  }
-  else
-  {
-    readMotionBurst(rawMotBr, motBrLength);
-    updateMotBrValues();
-    sendMotBrOverSerial();
-    updateWaldo(0, 0);
-  }
+  // INFO: Test code
+  /*captureRawImage(rawData, rawDataLength);*/
+  /*drawImageToDisplay();*/
+  /*sendMotBrOverSerial();*/
 
-  // switch to frame capture mode when the sensor hits the ground
-  if(!liftOff && prevLiftOff)
-  {
-    frameCapture = true;
-    // Delay for Frame Capture burst mode (only needed once after power up/reset)
-    t_switch = millis() + 3000;
-  }
-  // TODO liftOff is too sensitive for this task
-  prevLiftOff = liftOff;
 
-  if(t_switch < millis() && t_switch != 0)
-  {
-    frameCapture = false;
-    t_switch = 0;
-    resetSPIPort();
-    resetDevice();
-    performSROMdownload();
-    configureRegisters();
-    // TODO Maybe build a timer for faster resets when FC is not needed yet
-    delay(250);
-  }
+  /*digitalWrite(TFT_CS, HIGH);*/
+  /*M5.Lcd.sleep();*/
+  readMotionBurst(rawMotBr, motBrLength);
+  updateMotBrValues();
+  drawMotBrToDisplay();
+  /*delay(100);*/
+  /*sendMotBrOverSerial();*/
+
+  /*switch(app)*/
+  /*{*/
+    /*case 0:*/
+      /*if(prevApp == 3)*/
+      /*{*/
+        /*resetSPIPort();*/
+        /*resetDevice();*/
+        /*performSROMdownload();*/
+        /*configureRegisters();*/
+        /*// TODO Maybe build a timer for faster resets when FC is not needed yet*/
+        /*delay(250);*/
+      /*}*/
+      /*readMotionBurst(rawMotBr, motBrLength);*/
+      /*updateMotBrValues();*/
+      /*sendMotBrOverSerial();*/
+      /*M5.Lcd.fillScreen(BLACK);*/
+      /*M5.Lcd.setCursor(10,10);*/
+      /*M5.Lcd.println("Find app position");*/
+      /*[>Serial.println("Find app position");<]*/
+      /*findAppPosition();*/
+      /*break;*/
+    /*case 1:*/
+      /*M5.Lcd.fillScreen(BLACK);*/
+      /*M5.Lcd.setCursor(10,10);*/
+      /*M5.Lcd.println("Select App");*/
+      /*[>Serial.println("Select App");<]*/
+      /*//updateSelectApp();*/
+      /*break;*/
+    /*case 2:*/
+      /*M5.Lcd.fillScreen(BLACK);*/
+      /*M5.Lcd.setCursor(10,10);*/
+      /*M5.Lcd.println("Magic Lense App");*/
+      /*[>Serial.println("Magic Lense App");<]*/
+      /*//updateWaldo(0, 0);*/
+      /*break;*/
+    /*case 3:*/
+      /*M5.Lcd.fillScreen(BLACK);*/
+      /*M5.Lcd.setCursor(10,10);*/
+      /*M5.Lcd.println("Magnifying Lense App");*/
+      /*[>Serial.println("Magnifying Lense App");<]*/
+      /*captureRawImage(rawData, rawDataLength);*/
+      /*drawImageToDisplay();*/
+      /*break;*/
+    /*default:*/
+      /*Serial.println("Bad error");*/
+  /*}*/
+
+  /*if(printMotBrToDisplay)*/
+  /*{*/
+    /*drawMotBrToDisplay();*/
+  /*}*/
+
+  /*if(M5.BtnA.wasPressed())*/
+  /*{*/
+    /*prevApp = app;*/
+    /*app = 0;*/
+  /*}*/
+  /*if(M5.BtnC.wasPressed())*/
+  /*{*/
+    /*printMotBrToDisplay = !printMotBrToDisplay;*/
+  /*}*/
+
+  /*M5.update();*/
+
+  /*if(frameCapture)*/
+  /*{*/
+    /*captureRawImage(rawData, rawDataLength);*/
+    /*drawImageToDisplay();*/
+    /*[>sendRawOverSerial();<]*/
+  /*}*/
+  /*else*/
+  /*{*/
+    /*readMotionBurst(rawMotBr, motBrLength);*/
+    /*updateMotBrValues();*/
+    /*sendMotBrOverSerial();*/
+    /*updateWaldo(0, 0);*/
+  /*}*/
+
+  /*// switch to frame capture mode when the sensor hits the ground*/
+  /*if(!liftOff && prevLiftOff)*/
+  /*{*/
+    /*frameCapture = true;*/
+    /*// Delay for Frame Capture burst mode (only needed once after power up/reset)*/
+    /*t_switch = millis() + 3000;*/
+  /*}*/
+  /*// TODO liftOff is too sensitive for this task*/
+  /*prevLiftOff = liftOff;*/
+
+  /*if(t_switch < millis() && t_switch != 0)*/
+  /*{*/
+    /*frameCapture = false;*/
+    /*t_switch = 0;*/
+    /*resetSPIPort();*/
+    /*resetDevice();*/
+    /*performSROMdownload();*/
+    /*configureRegisters();*/
+    /*// TODO Maybe build a timer for faster resets when FC is not needed yet*/
+    /*delay(250);*/
+  /*}*/
 }
 
 void writeRegister(uint8_t address, uint8_t data)

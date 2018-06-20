@@ -2,8 +2,7 @@
 #include <M5Stack.h>
 #include "waldo.h"
 
-#define DEBUG_LEVEL 3
-//#define DEBUG_LEVEL 2
+#define DEBUG_LEVEL 0
 
 // ESP32 Pins (M5STACK)
 //#define PIN0 0 // Motion
