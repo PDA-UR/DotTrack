@@ -314,6 +314,7 @@ void onMovement()
     uint8_t motion = readRegister(REGISTER_MOTION);
 
     // Evaluate Lift_Stat bit
+    prevLiftOff = liftOff;
     liftOff = motion & REG_MOTION_LIFT_STAT;
 
     // Evaluate OP_Mode[1:0] bits
@@ -464,6 +465,7 @@ void updateMotBrValues()
   }
   // TODO Evaluate RData_1st Needed?
   // Evaluate Lift_Stat bit
+  prevLiftOff = liftOff;
   liftOff = motion & REG_MOTION_LIFT_STAT;
   // Evaluate OP_Mode[1:0] bits
   opMode = (motion & REG_MOTION_OP_MODE) >> 1;
