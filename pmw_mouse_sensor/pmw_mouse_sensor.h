@@ -6,39 +6,17 @@
 //#define DEBUG_LEVEL 2
 
 // ESP32 Pins (M5STACK)
-#define PIN3 3
-#define PIN21 21
-//#define PIN22 22
+//#define PIN0 0 // Motion
+#define PIN17 17 // NCS
 #define PIN18 18 // SCK
 #define PIN19 19 // MISO
 #define PIN23 23 // MOSI
 // mapped to better pin names
-//#define PIN_NCS PIN22
-#define PIN_NCS PIN3
-#define PIN_MOTION PIN21
+//#define PIN_MOTION PIN0
+#define PIN_NCS PIN17
 #define PIN_SCLK PIN18
 #define PIN_MISO PIN19
 #define PIN_MOSI PIN23
-
-// TODO Test pins asap for the MuC Demo
-//#define PIN0 0 // Motion
-//#define PIN5 5 // MOSI
-//#define PIN13 13 // SCLK
-//#define PIN17 17 // NCS
-//#define PIN22 22 // MISO
-//// mapped to better pin names
-//#define PIN_NCS PIN17
-//#define PIN_MOTION PIN0
-//#define PIN_SCLK PIN13
-//#define PIN_MISO PIN22
-//#define PIN_MOSI PIN5
-
-// OLD!! ESP8266 Pins OLD!! JUST A REFERENCE
-//#define PIN_NCS D1
-//#define PIN_MOTION D2
-//#define PIN_SCLK D5
-//#define PIN_MISO D6
-//#define PIN_MOSI D7
 
 // register addresses of pmw3360 (see p. 29)
 #define REGISTER_PRODUCT_ID       0x00

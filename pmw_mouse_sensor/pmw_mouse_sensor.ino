@@ -28,9 +28,9 @@ void setup()
 
   // setup pins
   pinMode(PIN_NCS, OUTPUT);
-  pinMode(PIN_MOTION, INPUT); // maybe INPUT_PULLUP is better?
-  // > The motion pin is an active low output (datasheet p.18)
-  digitalWrite(PIN_MOTION, HIGH);
+  /*pinMode(PIN_MOTION, INPUT); // maybe INPUT_PULLUP is better?*/
+  /*// > The motion pin is an active low output (datasheet p.18)*/
+  /*digitalWrite(PIN_MOTION, HIGH);*/
   pinMode(PIN_SCLK, OUTPUT);
   pinMode(PIN_MISO, INPUT);
   pinMode(PIN_MOSI, OUTPUT);
