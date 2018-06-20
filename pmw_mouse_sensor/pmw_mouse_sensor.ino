@@ -100,83 +100,64 @@ void setup()
 
 void loop()
 {
-  // INFO: Test code
-  /*captureRawImage(rawData, rawDataLength);*/
-  /*drawImageToDisplay();*/
-  /*sendMotBrOverSerial();*/
+  if(app == 3)
+  {
+    captureRawImage(rawData, rawDataLength);
+    /*drawImageToDisplay();*/
+  }
+  else
+  {
+    if(prevApp == 3)
+    {
+      resetSPIPort();
+      resetDevice();
+      performSROMdownload();
+      configureRegisters();
+      // TODO Maybe build a timer for faster resets when FC is not needed yet
+      delay(250);
+    }
+    readMotionBurst(rawMotBr, motBrLength);
+    updateMotBrValues();
+    findAppPosition();
+  }
 
-
-  /*digitalWrite(TFT_CS, HIGH);*/
-  /*M5.Lcd.sleep();*/
-  readMotionBurst(rawMotBr, motBrLength);
-  updateMotBrValues();
-  drawMotBrToDisplay();
-  /*delay(100);*/
-  /*sendMotBrOverSerial();*/
-
-  /*switch(app)*/
-  /*{*/
-    /*case 0:*/
-      /*if(prevApp == 3)*/
-      /*{*/
-        /*resetSPIPort();*/
-        /*resetDevice();*/
-        /*performSROMdownload();*/
-        /*configureRegisters();*/
-        /*// TODO Maybe build a timer for faster resets when FC is not needed yet*/
-        /*delay(250);*/
-      /*}*/
-      /*readMotionBurst(rawMotBr, motBrLength);*/
-      /*updateMotBrValues();*/
-      /*sendMotBrOverSerial();*/
-      /*M5.Lcd.fillScreen(BLACK);*/
-      /*M5.Lcd.setCursor(10,10);*/
-      /*M5.Lcd.println("Find app position");*/
-      /*[>Serial.println("Find app position");<]*/
+  switch(app)
+  {
+    case 0:
       /*findAppPosition();*/
-      /*break;*/
-    /*case 1:*/
-      /*M5.Lcd.fillScreen(BLACK);*/
-      /*M5.Lcd.setCursor(10,10);*/
-      /*M5.Lcd.println("Select App");*/
-      /*[>Serial.println("Select App");<]*/
-      /*//updateSelectApp();*/
-      /*break;*/
-    /*case 2:*/
-      /*M5.Lcd.fillScreen(BLACK);*/
-      /*M5.Lcd.setCursor(10,10);*/
-      /*M5.Lcd.println("Magic Lense App");*/
-      /*[>Serial.println("Magic Lense App");<]*/
-      /*//updateWaldo(0, 0);*/
-      /*break;*/
-    /*case 3:*/
-      /*M5.Lcd.fillScreen(BLACK);*/
-      /*M5.Lcd.setCursor(10,10);*/
-      /*M5.Lcd.println("Magnifying Lense App");*/
-      /*[>Serial.println("Magnifying Lense App");<]*/
+      drawMotBrToDisplay();
+      break;
+    case 1:
+      Select::updateSelect(xyDelta[0], xyDelta[1]);
+      break;
+    case 2:
+      Waldo::updateWaldo(xyDelta[0], xyDelta[1]);
+      break;
+    case 3:
       /*captureRawImage(rawData, rawDataLength);*/
-      /*drawImageToDisplay();*/
-      /*break;*/
-    /*default:*/
-      /*Serial.println("Bad error");*/
-  /*}*/
+      drawImageToDisplay();
+      break;
+    default:
+      M5.Lcd.println("Error: \"app\" value unknown!");
+  }
 
-  /*if(printMotBrToDisplay)*/
-  /*{*/
-    /*drawMotBrToDisplay();*/
-  /*}*/
+  if(printMotBrToDisplay && app != 0 && app != 3)
+  {
+    drawMotBrToDisplay();
+  }
 
-  /*if(M5.BtnA.wasPressed())*/
-  /*{*/
-    /*prevApp = app;*/
-    /*app = 0;*/
-  /*}*/
-  /*if(M5.BtnC.wasPressed())*/
-  /*{*/
-    /*printMotBrToDisplay = !printMotBrToDisplay;*/
-  /*}*/
+  if(M5.BtnA.wasPressed())
+  {
+    prevApp = app;
+    app = 0;
+    M5.Lcd.fillScreen(BLACK);
+  }
+  if(M5.BtnC.wasPressed())
+  {
+    printMotBrToDisplay = !printMotBrToDisplay;
+  }
 
-  /*M5.update();*/
+  M5.update();
 
   /*if(frameCapture)*/
   /*{*/
@@ -751,22 +732,31 @@ void sendMotBrOverSerial()
 
 void findAppPosition()
 {
-  if(!liftOff)
+  if(liftOff && !prevLiftOff)
+  {
+    prevApp = app;
+    app = 0;
+    M5.Lcd.fillScreen(BLACK);
+  }
+  else if(!liftOff)
   {
     if(avgRawData >= 18 && avgRawData <= 20)
     {
       prevApp = app;
       app = 1;
+      M5.Lcd.fillScreen(BLACK);
     }
     else if(avgRawData >= 28 && avgRawData <= 30)
     {
       prevApp = app;
       app = 2;
+      M5.Lcd.fillScreen(BLACK);
     }
     else if(avgRawData >= 38 && avgRawData <= 40)
     {
       prevApp = app;
       app = 3;
+      M5.Lcd.fillScreen(BLACK);
     }
   }
 }
