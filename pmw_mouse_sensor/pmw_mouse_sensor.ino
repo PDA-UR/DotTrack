@@ -87,7 +87,7 @@ void setup()
   initComplete = true;
 
   // Start with frame capture burst mode
-  /*frameCapture = true;*/
+  frameCapture = true;
   // Delay for Frame Capture burst mode (only needed once after power up/reset)
   if(frameCapture) delay(250);
 
@@ -103,7 +103,7 @@ void loop()
   if(app == 3)
   {
     captureRawImage(rawData, rawDataLength);
-    /*drawImageToDisplay();*/
+    //drawImageToDisplay();
   }
   else
   {
@@ -124,7 +124,7 @@ void loop()
   switch(app)
   {
     case 0:
-      /*findAppPosition();*/
+      //findAppPosition();
       drawMotBrToDisplay();
       break;
     case 1:
@@ -134,7 +134,7 @@ void loop()
       Waldo::updateWaldo(xyDelta[0], xyDelta[1]);
       break;
     case 3:
-      /*captureRawImage(rawData, rawDataLength);*/
+      //captureRawImage(rawData, rawDataLength);
       drawImageToDisplay();
       break;
     default:
@@ -163,15 +163,29 @@ void loop()
   /*{*/
     /*captureRawImage(rawData, rawDataLength);*/
     /*drawImageToDisplay();*/
-    /*[>sendRawOverSerial();<]*/
   /*}*/
   /*else*/
   /*{*/
     /*readMotionBurst(rawMotBr, motBrLength);*/
     /*updateMotBrValues();*/
-    /*sendMotBrOverSerial();*/
-    /*updateWaldo(0, 0);*/
+    /*drawMotBrToDisplay();*/
   /*}*/
+
+  /*if(M5.BtnC.wasPressed())*/
+  /*{*/
+    /*M5.Lcd.fillScreen(BLACK);*/
+    /*if(frameCapture)*/
+    /*{*/
+      /*resetSPIPort();*/
+      /*resetDevice();*/
+      /*performSROMdownload();*/
+      /*configureRegisters();*/
+      /*// TODO Maybe build a timer for faster resets when FC is not needed yet*/
+      /*delay(250);*/
+    /*}*/
+    /*frameCapture = !frameCapture;*/
+  /*}*/
+  /*M5.update();*/
 
   /*// switch to frame capture mode when the sensor hits the ground*/
   /*if(!liftOff && prevLiftOff)*/
@@ -730,29 +744,34 @@ void sendMotBrOverSerial()
   if(DEBUG_LEVEL >= 3) Serial.println("Shutter: " + String(shutter));
 }
 
+// TODO Maybe use a array of data values and medians/averages to prevent outlier problems
 void findAppPosition()
 {
   if(liftOff && !prevLiftOff)
   {
+    // TODO prevent flickering (app switching on the between liftOff/!liftOff)
     prevApp = app;
     app = 0;
     M5.Lcd.fillScreen(BLACK);
   }
   else if(!liftOff)
   {
-    if(avgRawData >= 18 && avgRawData <= 20)
+    if(avgRawData >= 16 && avgRawData <= 26 &&
+       shutter >= 112 && shutter <= 141)
     {
       prevApp = app;
       app = 1;
       M5.Lcd.fillScreen(BLACK);
     }
-    else if(avgRawData >= 28 && avgRawData <= 30)
+    else if(avgRawData >= 18 && avgRawData <= 28 &&
+            shutter >= 91 && shutter <= 106)
     {
       prevApp = app;
       app = 2;
       M5.Lcd.fillScreen(BLACK);
     }
-    else if(avgRawData >= 38 && avgRawData <= 40)
+    else if(avgRawData >= 24 && avgRawData <= 30 &&
+            shutter >= 80 && shutter <= 90)
     {
       prevApp = app;
       app = 3;
