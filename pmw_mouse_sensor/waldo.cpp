@@ -7,8 +7,8 @@ int16_t counter_waldo = 0;
 int scale = 4;
 uint32_t count = 3;
 
-int16_t x_pos = 50;
-int16_t y_pos = 50;
+int16_t x_pos = 500;
+int16_t y_pos = 1000;
 
 bool initialized = false;
 
