@@ -157,6 +157,12 @@ uint8_t minRawData = 0;
 // Shutter value
 uint16_t shutter = 0;
 
+int32_t absX = 0;
+int32_t absY = 0;
+
+uint8_t prevApp = 0;
+uint8_t app = 0;
+
 // INFO: volatile not needed when using polling (and not using interrupts)
 // set to true when reading motion registers (motion & delta registers) was initialized (see datasheet p. 30)
 volatile bool readingMotion = false;

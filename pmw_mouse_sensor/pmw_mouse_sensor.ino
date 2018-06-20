@@ -453,6 +453,8 @@ void updateMotBrValues()
     hasMoved = true;
     xyDelta[0] = (int16_t)((rawMotBr[3] << 8) | rawMotBr[2]);
     xyDelta[1] = (int16_t)((rawMotBr[5] << 8) | rawMotBr[4]);
+    absX += xyDelta[0];
+    absY += xyDelta[1];
   }
   else
   {
