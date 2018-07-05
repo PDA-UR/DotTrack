@@ -14,6 +14,12 @@ void setup()
   // Set Brightness of M5Stack LCD display
   M5.Lcd.setBrightness(0xff);
 
+  // fill lift off buffer with default values
+  for(auto i = 0; i < LIFT_OFF_BUF_LEN; i++)
+  {
+      liftOffBuffer[i] = liftOff;
+  }
+
   /*Serial.begin(9600);*/
   // 115200 is the baudrate used by the M5Stack library
   Serial.begin(115200);
@@ -543,6 +549,8 @@ void updateMotBrValues()
   // Evaluate Lift_Stat bit
   prevLiftOff = liftOff;
   liftOff = motion & REG_MOTION_LIFT_STAT;
+  Tools::pushOnBuffer(liftOff, liftOffBuffer, LIFT_OFF_BUF_LEN);
+  evalLiftOffBuffer();
   // Evaluate OP_Mode[1:0] bits
   opMode = (motion & REG_MOTION_OP_MODE) >> 1;
   // TODO Evaluate FRAME_RData_1st Needed?
@@ -608,6 +616,16 @@ void drawMotBrToDisplay()
   else
   {
     M5.Lcd.println("Lift_Stat: Chip on surface");
+  }
+
+  // Draw cumulative lift of state (lift off buffer)
+  if(cumLiftOff)
+  {
+    M5.Lcd.println("Cumulative Lift State: Chip lifted    ");
+  }
+  else
+  {
+    M5.Lcd.println("Cumulative Lift State: Chip on surface");
   }
 
   // Draw OP_Mode[1:0] bit
@@ -750,6 +768,7 @@ void sendMotBrOverSerial()
 void findAppPosition()
 {
   if(liftOff && !prevLiftOff && !preventAppExit)
+  /*if(cumLiftOff && !preventAppExit)*/
   {
     // TODO prevent flickering (app switching on the between liftOff/!liftOff)
     prevApp = app;
@@ -757,6 +776,7 @@ void findAppPosition()
     M5.Lcd.fillScreen(BLACK);
   }
   else if(!liftOff)
+  /*else if(!cumLiftOff)*/
   {
     if(avgRawData >= 16 && avgRawData <= 22 &&
        shutter >= 128 && shutter <= 145)
@@ -793,4 +813,25 @@ void drawWelcomeScreen()
   M5.Lcd.println("me on a");
   M5.Lcd.setCursor(50, 150);
   M5.Lcd.println("pattern!");
+}
+
+void evalLiftOffBuffer()
+{
+  bool temp, tempOld;
+  for(auto i = 0; i < LIFT_OFF_BUF_LEN; i++)
+  {
+    temp = liftOffBuffer[i];
+    if(i != 0)
+    {
+      if(temp != tempOld)
+      {
+        break;
+      }
+      else if(i == LIFT_OFF_BUF_LEN - 1)
+      {
+        cumLiftOff = temp;
+      }
+    }
+    tempOld = temp;
+  }
 }

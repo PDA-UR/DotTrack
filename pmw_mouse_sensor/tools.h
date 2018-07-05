@@ -24,6 +24,8 @@ rgb hsv2rgb(hsv in);
 uint16_t get_rgb(rgb in);
 
 uint16_t get16from8(uint8_t color);
+
+void pushOnBuffer(uint8_t element, uint8_t* buffer, int buf_len);
 }
 
 #endif

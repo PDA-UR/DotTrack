@@ -128,5 +128,14 @@ uint16_t get16from8(uint8_t color){
   uint16_t color_16 = (red_16 << 11) | (green_16 << 5) | blue_16;
   return color_16;
 }
+
+  void pushOnBuffer(uint8_t element, uint8_t* buffer, int buf_len)
+  {
+    for(auto i = buf_len - 1; i > 0; i--)
+    {
+      buffer[i] = buffer[i - 1];
+    }
+    buffer[0] = element;
+  }
 }
 

@@ -5,6 +5,7 @@
 #include "simulator.h"
 #include "image.h"
 #include "muc_logo.h"
+#include "tools.h"
 
 #define SIMULATE_INPUT 0
 
@@ -115,6 +116,9 @@
 #define H_IMG 36
 #define IMG_SIZE 1296 // W_IMG * H_IMG --> 36 * 36 = 1296
 
+// Lift off buffer length
+#define LIFT_OFF_BUF_LEN 5
+
 // M5Stack
 // M5Stack Display: 320x240
 #define W_DISP 320
@@ -145,6 +149,8 @@ bool hasMoved = false;
 bool liftOff = false;
 // LO state from previous loop
 bool prevLiftOff = false;
+// cumulative lift off state (switches to true if liftOffBuffer is all true and reverse)
+bool cumLiftOff = liftOff;
 // values between  (according to OP_Mode bit in Motion register)
 uint8_t opMode = 0;
 // SROM_RUN value (Observation byte/register)
@@ -176,6 +182,8 @@ uint8_t app = 0;
 // set to true when reading motion registers (motion & delta registers) was initialized (see datasheet p. 30)
 volatile bool readingMotion = false;
 
+// lift off buffer
+uint8_t liftOffBuffer[LIFT_OFF_BUF_LEN];
 // Raw data image data
 uint8_t rawData[IMG_SIZE];
 // Raw motion burst data
