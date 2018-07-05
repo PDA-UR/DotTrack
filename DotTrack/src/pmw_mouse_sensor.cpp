@@ -1,4 +1,4 @@
-#include "pmw_mouse_sensor.h"
+#include "pmw_mouse_sensor.hpp"
 
 unsigned long t_switch;
 

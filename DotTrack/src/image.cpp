@@ -1,5 +1,5 @@
-#include "image.h"
-#include "tools.h"
+#include "image.hpp"
+#include "tools.hpp"
 
 namespace Image {
   uint16_t bitmap[38400];

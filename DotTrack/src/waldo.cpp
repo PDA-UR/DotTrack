@@ -1,6 +1,6 @@
-#include "waldo.h"
-#include "wimmel.h"
-#include "image.h"
+#include "waldo.hpp"
+#include "wimmel.hpp"
+#include "image.hpp"
 
 namespace Waldo {
 

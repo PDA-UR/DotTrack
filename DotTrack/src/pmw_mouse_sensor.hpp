@@ -1,11 +1,11 @@
 #include <SPI.h>
 #include <M5Stack.h>
-#include "waldo.h"
-#include "select.h"
-#include "simulator.h"
-#include "image.h"
-#include "muc_logo.h"
-#include "tools.h"
+#include "waldo.hpp"
+#include "select.hpp"
+#include "simulator.hpp"
+#include "image.hpp"
+#include "muc_logo.hpp"
+#include "tools.hpp"
 
 #define SIMULATE_INPUT 0
 
@@ -207,6 +207,7 @@ void drawMotBrToDisplay();
 void sendMotBrOverSerial();
 void findAppPosition();
 void drawWelcomeScreen();
+void evalLiftOffBuffer();
 
 // Firmware "PMW3360DM_srom_0x04"
 const uint8_t firmwareData[] = {
