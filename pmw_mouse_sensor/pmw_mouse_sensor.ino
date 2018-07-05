@@ -99,7 +99,6 @@ void loop()
   if(app == 3)
   {
     captureRawImage(rawData, rawDataLength);
-    //drawImageToDisplay();
   }
   else
   {
@@ -120,9 +119,7 @@ void loop()
   switch(app)
   {
     case 0:
-      /*findAppPosition();*/
-      //drawMotBrToDisplay();
-      Image::draw(muc_logo_pixel_map);
+      drawWelcomeScreen();
       break;
     case 1:
       Select::updateSelect(xyDelta[0], xyDelta[1]);
@@ -131,14 +128,15 @@ void loop()
       Waldo::updateWaldo(xyDelta[0], xyDelta[1]);
       break;
     case 3:
-      //captureRawImage(rawData, rawDataLength);
       drawImageToDisplay();
       break;
     default:
+      M5.Lcd.setTextSize(1);
+      M5.Lcd.setTextColor(WHITE, BLACK);
+      M5.Lcd.setCursor(0,0);
       M5.Lcd.println("Error: \"app\" value unknown!");
   }
 
-  //if(printMotBrToDisplay && app != 0 && app != 3)
   if(printMotBrToDisplay && app != 3)
   {
     drawMotBrToDisplay();
@@ -576,7 +574,8 @@ void updateMotBrValues()
 // Draw motion burst data to M5Stack display (spaces are for overwriting shorter values)
 void drawMotBrToDisplay()
 {
-  /*M5.Lcd.fillScreen(BLACK);*/
+  M5.Lcd.setTextSize(1);
+  M5.Lcd.setTextColor(WHITE, BLACK);
   M5.Lcd.setCursor(0,0);
   // Draw motion bit and registers if MOT bit is set
   if(hasMoved)
@@ -785,8 +784,13 @@ void findAppPosition()
 
 void drawWelcomeScreen()
 {
-  /*M5.Lcd.fillScreen(PURPLE);*/
-  M5.Lcd.setCursor(25,210);
-  M5.Lcd.setTextSize(2);
-  M5.Lcd.println("Place me on a pattern!");
+  /*Image::draw(muc_logo_pixel_map);*/
+  M5.Lcd.setTextSize(5);
+  M5.Lcd.setTextColor(RED, BLACK);
+  M5.Lcd.setCursor(80, 30);
+  M5.Lcd.println("Place");
+  M5.Lcd.setCursor(50, 90);
+  M5.Lcd.println("me on a");
+  M5.Lcd.setCursor(50, 150);
+  M5.Lcd.println("pattern!");
 }
