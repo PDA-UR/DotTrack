@@ -759,22 +759,22 @@ void findAppPosition()
   }
   else if(!liftOff)
   {
-    if(avgRawData >= 16 && avgRawData <= 26 &&
-       shutter >= 112 && shutter <= 141)
+    if(avgRawData >= 16 && avgRawData <= 22 &&
+       shutter >= 128 && shutter <= 145)
     {
       prevApp = app;
       app = 1;
       M5.Lcd.fillScreen(BLACK);
     }
-    else if(avgRawData >= 18 && avgRawData <= 28 &&
-            shutter >= 91 && shutter <= 106)
+    else if(avgRawData >= 18 && avgRawData <= 25 &&
+            shutter >= 98 && shutter <= 111)
     {
       prevApp = app;
       app = 2;
       M5.Lcd.fillScreen(BLACK);
     }
-    else if(avgRawData >= 24 && avgRawData <= 30 &&
-            shutter >= 80 && shutter <= 90)
+    else if(avgRawData >= 23 && avgRawData <= 30 &&
+            shutter >= 89 && shutter <= 94)
     {
       prevApp = app;
       app = 3;
