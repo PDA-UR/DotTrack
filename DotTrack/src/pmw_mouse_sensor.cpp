@@ -349,7 +349,20 @@ void printWiFiStatus()
 void calcBearing()
 {
     // Source: https://math.stackexchange.com/a/1596518
-    double rad = atan2f(trackX - absX, trackY - absY);
+    float deltaX = absX - trackX;
+    float deltaY = absY - trackY;
+    if(deltaX == 0 && deltaY == 0)
+    {
+        return;
+    }
+    double rad = atan2f(deltaY, deltaX);
+    int32_t circleX = (int32_t)(cos(rad) * 100);
+    int32_t circleY = (int32_t)(sin(rad) * 100);
+    //int32_t origin[2] = { 160, 120 };
+    M5.Lcd.fillCircle(160, 120, 100, BLACK);
+    M5.Lcd.drawLine(160, 120, 160+circleX, 120+circleY, RED);
+
+    //double rad = atan2f(trackX - absX, trackY - absY);
     int32_t deg = degrees(rad);
     if(deg < 0)
     {
@@ -365,18 +378,22 @@ void calcBearing()
     }
     if(DEBUG_LEVEL >= 2)
     {
-        Serial.print("trackX: ");
-        Serial.println(trackX);
-        Serial.print("trackY: ");
-        Serial.println(trackY);
-        Serial.print("absX: ");
-        Serial.println(absX);
-        Serial.print("absY: ");
-        Serial.println(absY);
+        //Serial.print("trackX: ");
+        //Serial.println(trackX);
+        //Serial.print("trackY: ");
+        //Serial.println(trackY);
+        //Serial.print("absX: ");
+        //Serial.println(absX);
+        //Serial.print("absY: ");
+        //Serial.println(absY);
         Serial.print("rad: ");
         Serial.println(rad);
         Serial.print("deg: ");
         Serial.println(deg);
+        Serial.print("circleX: ");
+        Serial.println(circleX);
+        Serial.print("circleY: ");
+        Serial.println(circleY);
     }
 }
 
@@ -417,7 +434,7 @@ void loop()
     switch(app)
     {
         case 0:
-            drawWelcomeScreen();
+            //drawWelcomeScreen();
             break;
         case 1:
             Select::updateSelect(xyDelta[0], xyDelta[1]);
