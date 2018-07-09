@@ -1,6 +1,13 @@
 #include "pmw_mouse_sensor.hpp"
 
-unsigned long t_switch;
+//unsigned long t_switch;
+unsigned long comTimeStamp;
+
+WiFiUDP Udp;
+bool isAP;
+IPAddress serverIP(192, 168, 4, 1);
+unsigned int serverPort = 2390;
+IPAddress remoteIP(0, 0, 0, 0);
 
 void setup()
 {
@@ -98,10 +105,293 @@ void setup()
     // Capture single frame
     /*delay(250);*/
     /*sendRawOverSerial();*/
+
+    // Setup WiFi
+
+    // Deletes old config (see esp32 WiFiUDPClient example)
+    WiFi.disconnect(true);
+    // TODO Register event handler
+    WiFi.onEvent(handleWiFiEvent);
+
+    if(DEBUG_LEVEL >= 3) printWiFiStatus();
+    if(DEBUG_LEVEL >= 1) Serial.println("Press middle button to enter server mode...");
+    unsigned long t = millis();
+    while(millis() < t + 3000)
+    {
+        if(M5.BtnB.wasPressed())
+        {
+            isAP = true;
+            break;
+        }
+        M5.update();
+    }
+    if(isAP)
+    {
+        // TODO Configure IP (does not always take effect)
+        IPAddress subnet = IPAddress(255, 255, 255, 0);
+        WiFi.config(serverIP, serverIP, subnet);
+        WiFi.softAPConfig(serverIP, serverIP, subnet);
+        WiFi.softAP(AP_SSID, AP_PASS);
+
+        if(DEBUG_LEVEL >= 2) Serial.println("Starting UDP Server");
+    }
+    else
+    {
+        // Attempt to connect to Wifi network:
+        if(DEBUG_LEVEL >= 1)
+        {
+            Serial.print("Attempting to connect to SSID: ");
+            Serial.println(AP_SSID);
+        }
+        while (WiFi.begin(AP_SSID, AP_PASS) != WL_CONNECTED)
+        {
+            if(DEBUG_LEVEL >= 1) Serial.print(".");
+            delay(1000);
+        }
+        if(DEBUG_LEVEL >= 2) Serial.println("Connected to wifi");
+        // Set remote IP for sending
+        remoteIP = serverIP;
+    }
+    Udp.begin(serverPort);
+
+    // Initialize send / receive delay
+    comTimeStamp = millis();
+
+    if(DEBUG_LEVEL >= 3)
+    {
+        delay(3000);
+        printWiFiStatus();
+    }
+}
+
+// WiFi event handler
+void handleWiFiEvent(WiFiEvent_t event)
+{
+    if(DEBUG_LEVEL >= 3) Serial.print("WiFiEvent: ");
+    // Events listed in esp_event.h (~/.platformio/packages/framework-arduinoespressif32/tools/sdk/include/esp32/esp_event.h)
+    switch(event)
+    {
+        case SYSTEM_EVENT_WIFI_READY:               /**< ESP32 WiFi ready */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_WIFI_READY");
+            break;
+        case SYSTEM_EVENT_SCAN_DONE:                /**< ESP32 finish scanning AP */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_SCAN_DONE");
+            break;
+        case SYSTEM_EVENT_STA_START:                /**< ESP32 station start */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_START");
+            break;
+        case SYSTEM_EVENT_STA_STOP:                 /**< ESP32 station stop */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_STOP");
+            break;
+        case SYSTEM_EVENT_STA_CONNECTED:            /**< ESP32 station connected to AP */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_CONNECTED");
+            // TODO Set up connection values.
+            break;
+        case SYSTEM_EVENT_STA_DISCONNECTED:         /**< ESP32 station disconnected from AP */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_DISCONNECTED");
+            // TODO Periodically scan and / or reconnect.
+            break;
+        case SYSTEM_EVENT_STA_AUTHMODE_CHANGE:      /**< the auth mode of AP connected by ESP32 station changed */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_AUTHMODE_CHANGE");
+            break;
+        case SYSTEM_EVENT_STA_GOT_IP:               /**< ESP32 station got IP from connected AP */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_GOT_IP");
+            break;
+        case SYSTEM_EVENT_STA_LOST_IP:              /**< ESP32 station lost IP and the IP is reset to 0 */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_LOST_IP");
+            break;
+        case SYSTEM_EVENT_STA_WPS_ER_SUCCESS:       /**< ESP32 station wps succeeds in enrollee mode */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_WPS_ER_SUCCESS");
+            break;
+        case SYSTEM_EVENT_STA_WPS_ER_FAILED:        /**< ESP32 station wps fails in enrollee mode */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_WPS_ER_FAILED");
+            break;
+        case SYSTEM_EVENT_STA_WPS_ER_TIMEOUT:       /**< ESP32 station wps timeout in enrollee mode */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_WPS_ER_TIMEOUT");
+            break;
+        case SYSTEM_EVENT_STA_WPS_ER_PIN:           /**< ESP32 station wps pin code in enrollee mode */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_WPS_ER_PIN");
+            break;
+        case SYSTEM_EVENT_AP_START:                 /**< ESP32 soft-AP start */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_AP_START");
+            break;
+        case SYSTEM_EVENT_AP_STOP:                  /**< ESP32 soft-AP stop */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_AP_STOP");
+            break;
+        case SYSTEM_EVENT_AP_STACONNECTED:          /**< a station connected to ESP32 soft-AP */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_AP_STACONNECTED");
+            // TODO Set up connection values.
+            break;
+        case SYSTEM_EVENT_AP_STADISCONNECTED:       /**< a station disconnected from ESP32 soft-AP */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_AP_STADISCONNECTED");
+            // TODO
+            break;
+        case SYSTEM_EVENT_AP_STAIPASSIGNED:         /**< ESP32 soft-AP assign an IP to a connected station */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_AP_STAIPASSIGNED");
+            // TODO Set up connection values.
+            break;
+        case SYSTEM_EVENT_AP_PROBEREQRECVED:        /**< Receive probe request packet in soft-AP interface */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_AP_PROBEREQRECVED");
+            break;
+        case SYSTEM_EVENT_GOT_IP6:                  /**< ESP32 station or ap or ethernet interface v6IP addr is preferred */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_GOT_IP6");
+            break;
+        case SYSTEM_EVENT_ETH_START:                /**< ESP32 ethernet start */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_ETH_START");
+            break;
+        case SYSTEM_EVENT_ETH_STOP:                 /**< ESP32 ethernet stop */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_ETH_STOP");
+            break;
+        case SYSTEM_EVENT_ETH_CONNECTED:            /**< ESP32 ethernet phy link up */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_ETH_CONNECTED");
+            break;
+        case SYSTEM_EVENT_ETH_DISCONNECTED:         /**< ESP32 ethernet phy link down */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_ETH_DISCONNECTED");
+            break;
+        case SYSTEM_EVENT_ETH_GOT_IP:               /**< ESP32 ethernet got IP from connected AP */
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_ETH_GOT_IP");
+            break;
+        case SYSTEM_EVENT_MAX:
+            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_MAX");
+            break;
+    }
+}
+
+void sendDataUdp()
+{
+    // send a reply, to the IP address and port that sent us the packet we received
+    if(remoteIP == IPAddress(0, 0, 0, 0))
+    {
+        if(DEBUG_LEVEL >= 3) Serial.println("Abort sending to local UDP port");
+        return;
+    }
+    Udp.beginPacket(remoteIP, serverPort);
+
+    for(auto i = 0; i < packetBufferLen / 2; i++)
+    {
+        auto posX = i;
+        auto posY = i + packetBufferLen / 2;
+        auto shift = i * packetBufferLen;
+        packetBuffer[posX] = (byte)(absX >> shift);
+        packetBuffer[posY] = (byte)(absY >> shift);
+    }
+
+    Udp.write(packetBuffer, packetBufferLen);
+    Udp.endPacket();
+}
+
+void receiveDataUdp()
+{
+    int packetSize = Udp.parsePacket();
+    if (packetSize)
+    {
+        // Set remote IP for sending
+        remoteIP = Udp.remoteIP();
+        uint16_t remotePort = Udp.remotePort();
+        if(DEBUG_LEVEL >= 3)
+        {
+            Serial.print("Received packet of size ");
+            Serial.println(packetSize);
+            Serial.print("From ");
+            Serial.print(remoteIP);
+            Serial.print(", port ");
+            Serial.println(remotePort);
+        }
+
+        if(remoteIP == WiFi.localIP() || packetSize != packetBufferLen)
+        {
+            if(DEBUG_LEVEL >= 3) Serial.println("Listening to local ip or incorrect buffer length. Flushing and aborting.");
+            Udp.flush();
+            return;
+        }
+
+        // read the packet into packetBufffer
+        Udp.read(packetBuffer, packetBufferLen);
+
+        trackX = 0;
+        trackY = 0;
+        for(auto i = 0; i < packetBufferLen / 2; i++)
+        {
+            auto posX = i;
+            auto posY = i + packetBufferLen / 2;
+            auto shift = i * packetBufferLen;
+            trackX = (packetBuffer[posX] << shift) | trackX;
+            trackY = (packetBuffer[posY] << shift) | trackY;
+        }
+        if(DEBUG_LEVEL >= 2)
+        {
+            Serial.println("Parsed packet:");
+            Serial.println("X:\t" + String(trackX));
+            Serial.println("Y:\t" + String(trackY));
+        }
+    }
+}
+
+void printWiFiStatus()
+{
+    if(DEBUG_LEVEL >= 3)
+    {
+        Serial.print("WiFi.localIP: ");
+        Serial.println(WiFi.localIP());
+        Serial.print("WiFi.localIPv6: ");
+        Serial.println(WiFi.localIPv6());
+        Serial.print("WiFi.gatewayIP: ");
+        Serial.println(WiFi.gatewayIP());
+        Serial.print("WiFi.dnsIP: ");
+        Serial.println(WiFi.dnsIP());
+        Serial.print("WiFi.softAPIP: ");
+        Serial.println(WiFi.softAPIP());
+        Serial.print("WiFi.softAPIPv6: ");
+        Serial.println(WiFi.softAPIPv6());
+    }
+}
+
+void calcBearing()
+{
+    // Source: https://math.stackexchange.com/a/1596518
+    double rad = atan2f(trackX - absX, trackY - absY);
+    int32_t deg = degrees(rad);
+    if(deg < 0)
+    {
+        deg += 360;
+    }
+    if(trackLiftOff)
+    {
+        trackBearing = -1;
+    }
+    else
+    {
+        trackBearing = deg;
+    }
+    if(DEBUG_LEVEL >= 2)
+    {
+        Serial.print("trackX: ");
+        Serial.println(trackX);
+        Serial.print("trackY: ");
+        Serial.println(trackY);
+        Serial.print("absX: ");
+        Serial.println(absX);
+        Serial.print("absY: ");
+        Serial.println(absY);
+        Serial.print("rad: ");
+        Serial.println(rad);
+        Serial.print("deg: ");
+        Serial.println(deg);
+    }
 }
 
 void loop()
 {
+    if(millis() - comTimeStamp > COM_DELAY)
+    {
+        // Handle WiFi communication
+        receiveDataUdp();
+        sendDataUdp();
+        calcBearing();
+        comTimeStamp = millis();
+    }
+
+
     if(app == 3)
     {
         captureRawImage(rawData, rawDataLength);
@@ -133,7 +423,8 @@ void loop()
             Select::updateSelect(xyDelta[0], xyDelta[1]);
             break;
         case 2:
-            Waldo::updateWaldo(xyDelta[0], xyDelta[1]);
+            //Waldo::updateWaldo(xyDelta[0], xyDelta[1]);
+            Serial.println("Waldo App");
             break;
         case 3:
             drawImageToDisplay();

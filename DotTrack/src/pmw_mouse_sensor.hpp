@@ -1,10 +1,14 @@
-#include <SPI.h>
+#include <Arduino.h>
 #include <M5Stack.h>
+#include <SPI.h>
+#include <WiFi.h>
+#include <WiFiUdp.h>
+#include <math.h>
 #include "waldo.hpp"
 #include "select.hpp"
 #include "simulator.hpp"
 #include "image.hpp"
-#include "muc_logo.hpp"
+//#include "muc_logo.hpp"
 #include "tools.hpp"
 
 #define SIMULATE_INPUT 0
@@ -208,6 +212,27 @@ void sendMotBrOverSerial();
 void findAppPosition();
 void drawWelcomeScreen();
 void evalLiftOffBuffer();
+
+#define AP_SSID "DotTrack"
+#define AP_PASS "blubblub"
+#define COM_DELAY 1 // in ms
+
+int32_t trackX = 0;
+int32_t trackY = 0;
+int16_t trackBearing = 0; // -1 if lift off
+// TODO send / receive lift off state
+bool trackLiftOff = false;
+
+// Length of packet buffer (4/1 * 2 = 8)
+const uint8_t packetBufferLen = sizeof(int32_t)/sizeof(byte) * 2;
+// Buffer to hold incoming/outgoing packet
+byte packetBuffer[packetBufferLen];
+
+void receiveDataUdp();
+void sendDataUdp();
+void calcBearing();
+void printWiFiStatus();
+void handleWiFiEvent(WiFiEvent_t event);
 
 // Firmware "PMW3360DM_srom_0x04"
 const uint8_t firmwareData[] = {
