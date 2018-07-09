@@ -30,7 +30,6 @@ void setup()
     /*Serial.begin(9600);*/
     // 115200 is the baudrate used by the M5Stack library
     Serial.begin(115200);
-    /*Serial.begin(250000);*/
     /*Serial.begin(2000000);*/
 
     if(SIMULATE_INPUT == 1){ return;}
@@ -43,7 +42,7 @@ void setup()
     /*// > The motion pin is an active low output (datasheet p.18)*/
     /*digitalWrite(PIN_MOTION, HIGH);*/
     pinMode(PIN_SCLK, OUTPUT);
-    pinMode(PIN_SCLK, OUTPUT);
+    pinMode(PIN_MISO, INPUT);
     pinMode(PIN_MOSI, OUTPUT);
     /*attachInterrupt(digitalPinToInterrupt(PIN_MOTION), onMovement, FALLING);*/
 
@@ -128,9 +127,10 @@ void setup()
     if(isAP)
     {
         // TODO Configure IP (does not always take effect)
-        IPAddress subnet = IPAddress(255, 255, 255, 0);
-        WiFi.config(serverIP, serverIP, subnet);
-        WiFi.softAPConfig(serverIP, serverIP, subnet);
+        // WARNING: Crashes everything instantly
+        //IPAddress subnet = IPAddress(255, 255, 255, 0);
+        //WiFi.config(serverIP, serverIP, subnet);
+        //WiFi.softAPConfig(serverIP, serverIP, subnet);
         WiFi.softAP(AP_SSID, AP_PASS);
 
         if(DEBUG_LEVEL >= 2) Serial.println("Starting UDP Server");
@@ -356,13 +356,17 @@ void calcBearing()
         return;
     }
     double rad = atan2f(deltaY, deltaX);
-    int32_t circleX = (int32_t)(cos(rad) * 100);
-    int32_t circleY = (int32_t)(sin(rad) * 100);
+    // Draw googly eyes
+    int32_t circleX = (int32_t)(cos(rad) * 50);
+    int32_t circleY = (int32_t)(sin(rad) * 50);
     //int32_t origin[2] = { 160, 120 };
-    M5.Lcd.fillCircle(160, 120, 100, BLACK);
-    M5.Lcd.drawLine(160, 120, 160+circleX, 120+circleY, RED);
+    M5.Lcd.fillCircle(160, 120, 120, WHITE);
+    M5.Lcd.fillCircle(160+circleX, 120+circleY, 70, BLACK);
+    // Draw line
+    //int32_t circleX = (int32_t)(cos(rad) * 100);
+    //int32_t circleY = (int32_t)(sin(rad) * 100);
+    //M5.Lcd.drawLine(160, 120, 160+circleX, 120+circleY, RED);
 
-    //double rad = atan2f(trackX - absX, trackY - absY);
     int32_t deg = degrees(rad);
     if(deg < 0)
     {
@@ -376,16 +380,9 @@ void calcBearing()
     {
         trackBearing = deg;
     }
+
     if(DEBUG_LEVEL >= 2)
     {
-        //Serial.print("trackX: ");
-        //Serial.println(trackX);
-        //Serial.print("trackY: ");
-        //Serial.println(trackY);
-        //Serial.print("absX: ");
-        //Serial.println(absX);
-        //Serial.print("absY: ");
-        //Serial.println(absY);
         Serial.print("rad: ");
         Serial.println(rad);
         Serial.print("deg: ");
@@ -441,7 +438,7 @@ void loop()
             break;
         case 2:
             //Waldo::updateWaldo(xyDelta[0], xyDelta[1]);
-            Serial.println("Waldo App");
+            if(DEBUG_LEVEL >= 1) Serial.println("Waldo App");
             break;
         case 3:
             drawImageToDisplay();
