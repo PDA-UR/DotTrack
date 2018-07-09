@@ -110,6 +110,8 @@ void loop()
     {
         if(prevApp == 3)
         {
+            // Set prevApp to its default value to prevent further resets
+            prevApp = 0;
             resetSPIPort();
             resetDevice();
             performSROMdownload();
