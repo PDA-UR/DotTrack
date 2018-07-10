@@ -761,9 +761,10 @@ void configureRegisters()
 
     // TODO Configure registers (write to config registers)
 
-    // disable Rest mode
-    /*writeRegister(REGISTER_CONFIG2, 0x00);*/
-    /*if(DEBUG_LEVEL >= 2) Serial.println("disable Rest mode");*/
+    // Disable Rest mode
+    // Info: Prevent LO detection not working within the first few ms after waking up from Rest2 or Rest3 mode.
+    writeRegister(REGISTER_CONFIG2, 0x00);
+    if(DEBUG_LEVEL >= 2) Serial.println("disable Rest mode");
 
     // Set lift detection height threshold
     writeRegister(REGISTER_LIFT_CONFIG, 0x03); // 0x03 = nominal height + 3mm (default: 0x02 = nominal height + 2mm)
