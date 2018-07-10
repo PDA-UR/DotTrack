@@ -1,7 +1,10 @@
 #include "pmw_mouse_sensor.hpp"
 
 //unsigned long t_switch;
-unsigned long comTimeStamp;
+unsigned long comTimer;
+//unsigned long drawTimer;
+
+bool eyeDrawn = false;
 
 WiFiUDP Udp;
 bool isAP;
@@ -158,13 +161,16 @@ void setup()
     Udp.begin(serverPort);
 
     // Initialize send / receive delay
-    comTimeStamp = millis();
+    comTimer = millis();
 
     if(DEBUG_LEVEL >= 3)
     {
         delay(3000);
         printWiFiStatus();
     }
+
+    // init draw timer
+    //drawTimer = millis();
 }
 
 // WiFi event handler
@@ -351,24 +357,45 @@ void printWiFiStatus()
 
 void calcBearing()
 {
-    // Source: https://math.stackexchange.com/a/1596518
     float deltaX = absX - trackX;
     float deltaY = absY - trackY;
     if(deltaX == 0 && deltaY == 0)
     {
         return;
     }
+    // Source: https://math.stackexchange.com/a/1596518
     double rad = atan2f(deltaY, deltaX);
+    int32_t oldX = circleX;
+    int32_t oldY = circleY;
+    circleX = (int32_t)(cos(rad) * 50);
+    circleY = (int32_t)(sin(rad) * 50);
+
     // Draw googly eyes
-    int32_t circleX = (int32_t)(cos(rad) * 50);
-    int32_t circleY = (int32_t)(sin(rad) * 50);
-    //int32_t origin[2] = { 160, 120 };
-    M5.Lcd.fillCircle(160, 120, 120, WHITE);
-    M5.Lcd.fillCircle(160+circleX, 120+circleY, 70, BLACK);
-    // Draw line
-    //int32_t circleX = (int32_t)(cos(rad) * 100);
-    //int32_t circleY = (int32_t)(sin(rad) * 100);
-    //M5.Lcd.drawLine(160, 120, 160+circleX, 120+circleY, RED);
+    // Working but flickering version
+    //M5.Lcd.fillCircle(160, 120, 120, WHITE);
+    //M5.Lcd.fillCircle(160+circleX, 120+circleY, 70, BLACK);
+
+    // Attempt to reduce flicker
+    if(!eyeDrawn)
+    {
+        M5.Lcd.fillCircle(160, 120, 120, WHITE);
+        eyeDrawn = true;
+    }
+    if(oldX != circleX || oldY != circleY)
+    {
+        M5.Lcd.fillCircle(160+oldX, 120+oldY, 70, WHITE);
+        M5.Lcd.fillCircle(160+circleX, 120+circleY, 70, BLACK);
+    }
+    //unsigned long ms = millis();
+    //if(ms - drawTimer > 5)
+    //{
+    //    if(oldX != circleX || oldY != circleY)
+    //    {
+    //        M5.Lcd.fillCircle(160+oldX, 120+oldY, 70, WHITE);
+    //        M5.Lcd.fillCircle(160+circleX, 120+circleY, 70, BLACK);
+    //    }
+    //    drawTimer = ms;
+    //}
 
     int32_t deg = degrees(rad);
     if(deg < 0)
@@ -399,13 +426,20 @@ void calcBearing()
 
 void loop()
 {
-    if(millis() - comTimeStamp > COM_DELAY)
+    if(millis() - comTimer > COM_DELAY)
     {
         // Handle WiFi communication
         receiveDataUdp();
         sendDataUdp();
         calcBearing();
-        comTimeStamp = millis();
+        comTimer = millis();
+        if(DEBUG_LEVEL >= 3)
+        {
+            Serial.print("Estimated X (in cm): ");
+            Serial.println(((double)absX / cpi) * 2.54);
+            Serial.print("Estimated Y (in cm): ");
+            Serial.println(((double)absY / cpi) * 2.54);
+        }
     }
 
 

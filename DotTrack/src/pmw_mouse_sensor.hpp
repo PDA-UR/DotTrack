@@ -246,7 +246,12 @@ int16_t trackBearing = 0; // -1 if lift off
 // TODO send / receive lift off state
 bool trackLiftOff = false;
 
+int32_t circleX = 0;
+int32_t circleY = 0;
+
 // Length of packet buffer (4/1 * 2 = 8)
+// TODO send LO state
+//const uint8_t packetBufferLen = sizeof(int32_t)/sizeof(byte) * 2 + sizeof(byte);
 const uint8_t packetBufferLen = sizeof(int32_t)/sizeof(byte) * 2;
 // Buffer to hold incoming/outgoing packet
 byte packetBuffer[packetBufferLen];
