@@ -456,6 +456,29 @@ void loop()
         readMotionBurst(rawMotBr, motBrLength);
         updateMotBrValues();
 
+        // Points are ~ 9cm apart -> 9*2.54 = 3,54in -> 3.54*5000 = 17716cpi
+        if(!liftOff)
+        {
+            if(avgRawData >= 16 && avgRawData <= 22 &&
+                    shutter >= 128 && shutter <= 145)
+            {
+                absX = 17716;
+                absY = 0;
+            }
+            else if(avgRawData >= 18 && avgRawData <= 25 &&
+                    shutter >= 98 && shutter <= 111)
+            {
+                absX = 0;
+                absY = 0;
+            }
+            else if(avgRawData >= 23 && avgRawData <= 30 &&
+                    shutter >= 89 && shutter <= 94)
+            {
+                absX = -17716;
+                absY = 0;
+            }
+        }
+
         if(printMotBrToDisplay && app != 3)
         {
             drawMotBrToDisplay();
