@@ -2,7 +2,6 @@
 
 //unsigned long t_switch;
 unsigned long comTimer;
-//unsigned long drawTimer;
 
 bool eyeDrawn = false;
 
@@ -111,6 +110,8 @@ void setup()
     /*delay(250);*/
     /*sendRawOverSerial();*/
 
+    if(EYES_DEMO == 0) return;
+
     // Setup WiFi
 
     // Deletes old config (see esp32 WiFiUDPClient example)
@@ -168,9 +169,6 @@ void setup()
         delay(3000);
         printWiFiStatus();
     }
-
-    // init draw timer
-    //drawTimer = millis();
 }
 
 // WiFi event handler
@@ -371,11 +369,6 @@ void calcBearing()
     circleY = (int32_t)(sin(rad) * 50);
 
     // Draw googly eyes
-    // Working but flickering version
-    //M5.Lcd.fillCircle(160, 120, 120, WHITE);
-    //M5.Lcd.fillCircle(160+circleX, 120+circleY, 70, BLACK);
-
-    // Attempt to reduce flicker
     if(!eyeDrawn)
     {
         M5.Lcd.fillCircle(160, 120, 120, WHITE);
@@ -386,16 +379,6 @@ void calcBearing()
         M5.Lcd.fillCircle(160+oldX, 120+oldY, 70, WHITE);
         M5.Lcd.fillCircle(160+circleX, 120+circleY, 70, BLACK);
     }
-    //unsigned long ms = millis();
-    //if(ms - drawTimer > 5)
-    //{
-    //    if(oldX != circleX || oldY != circleY)
-    //    {
-    //        M5.Lcd.fillCircle(160+oldX, 120+oldY, 70, WHITE);
-    //        M5.Lcd.fillCircle(160+circleX, 120+circleY, 70, BLACK);
-    //    }
-    //    drawTimer = ms;
-    //}
 
     int32_t deg = degrees(rad);
     if(deg < 0)
@@ -426,20 +409,39 @@ void calcBearing()
 
 void loop()
 {
-    if(millis() - comTimer > COM_DELAY)
+    if(EYES_DEMO == 1)
     {
-        // Handle WiFi communication
-        receiveDataUdp();
-        sendDataUdp();
-        calcBearing();
-        comTimer = millis();
-        if(DEBUG_LEVEL >= 3)
+        if(millis() - comTimer > COM_DELAY)
         {
-            Serial.print("Estimated X (in cm): ");
-            Serial.println(((double)absX / cpi) * 2.54);
-            Serial.print("Estimated Y (in cm): ");
-            Serial.println(((double)absY / cpi) * 2.54);
+            // Handle WiFi communication
+            receiveDataUdp();
+            sendDataUdp();
+            calcBearing();
+            comTimer = millis();
+            if(DEBUG_LEVEL >= 3)
+            {
+                Serial.print("Estimated X (in cm): ");
+                Serial.println(((double)absX / cpi) * 2.54);
+                Serial.print("Estimated Y (in cm): ");
+                Serial.println(((double)absY / cpi) * 2.54);
+            }
         }
+
+        readMotionBurst(rawMotBr, motBrLength);
+        updateMotBrValues();
+
+        if(printMotBrToDisplay && app != 3)
+        {
+            drawMotBrToDisplay();
+        }
+        if(M5.BtnC.wasPressed())
+        {
+            if(printMotBrToDisplay) M5.Lcd.fillScreen(BLACK);
+            printMotBrToDisplay = !printMotBrToDisplay;
+        }
+        M5.update();
+
+        return;
     }
 
 
@@ -468,14 +470,13 @@ void loop()
     switch(app)
     {
         case 0:
-            //drawWelcomeScreen();
+            drawWelcomeScreen();
             break;
         case 1:
             Select::updateSelect(xyDelta[0], xyDelta[1]);
             break;
         case 2:
-            //Waldo::updateWaldo(xyDelta[0], xyDelta[1]);
-            if(DEBUG_LEVEL >= 1) Serial.println("Waldo App");
+            Waldo::updateWaldo(xyDelta[0], xyDelta[1]);
             break;
         case 3:
             drawImageToDisplay();

@@ -15,6 +15,8 @@
 
 #define DEBUG_LEVEL 0
 
+#define EYES_DEMO 1
+
 // ESP32 Pins (M5STACK)
 //#define PIN0 0 // Motion
 #define PIN17 17 // NCS
