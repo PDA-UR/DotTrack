@@ -74,6 +74,9 @@ void setup()
 
     if(DEBUG_LEVEL >= 2) Serial.println("reset device done");
 
+    // Reads configurations from registers
+    readConfigRegisters();
+
     // WARNING: Inhibits motion tracking (no interrupts get fired)
     // Test if PMWs SROM reports to be running:
     // 1 = SROM running
@@ -681,6 +684,39 @@ void configureRegisters()
     // Set lift detection height threshold
     writeRegister(REGISTER_LIFT_CONFIG, 0x03); // 0x03 = nominal height + 3mm (default: 0x02 = nominal height + 2mm)
     if(DEBUG_LEVEL >= 2) Serial.println("set lift detection");
+}
+
+void readConfigRegisters()
+{
+    // Read CPI settings and calculate scale
+    uint8_t config2 = readRegister(REGISTER_CONFIG2);
+    restEn = config2 & REG_CONF2_REST_EN;
+    rptMod = config2 & REG_CONF2_RPT_MOD;
+    if(!rptMod)
+    {
+        uint8_t config1 = readRegister(REGISTER_CONFIG1);
+        cpi = MIN_CPI + config1 * MIN_CPI;
+        cpiX = cpiY = -1; // disable cpi values
+        if(DEBUG_LEVEL >= 2)
+        {
+            Serial.println("CPI: " + String(cpi));
+            Serial.println("Counts per centimeter: " + String(cpi * 2.54));
+        }
+    }
+    else
+    {
+        // If X and Y CPI can be configured independently
+        uint8_t config1 = readRegister(REGISTER_CONFIG1);
+        cpiX = MIN_CPI + config1 * MIN_CPI;
+        uint8_t config5 = readRegister(REGISTER_CONFIG5);
+        cpiY = MIN_CPI + config5 * MIN_CPI;
+        cpi = -1; // disable cpi value
+        if(DEBUG_LEVEL >= 2)
+        {
+            Serial.println("CPI X: " + String(cpiX));
+            Serial.println("CPI Y: " + String(cpiY));
+        }
+    }
 }
 
 // interrupt callback for motion pin

@@ -88,6 +88,9 @@
 #define REG_MOTION_FRAME_RDATA_1ST 0x01 // FRAME_RData_1st bit
 // Observation Register (REGISTER_OBSERVATION) (p. 46):
 #define REG_OBS_SROM_RUN 0x40
+// Config2 Register (REGISTER_CONFIG2) (p. 39)
+#define REG_CONF2_REST_EN 0x20 // Rest_En bit (0 = rest mode disabled; 1 = rest mode enabled [default])
+#define REG_CONF2_RPT_MOD 0x04 // Rpt_Mod bit (0 = X CPI == Y CPI; 1 = X and Y CPI can be configured independent from each other)
 
 
 // write commands have a 1 as MSB, read commands have a 0
@@ -114,6 +117,11 @@
 #define FIRMWARE_VERSION 0x04
 #define SROM_ID_SUCCESS FIRMWARE_VERSION
 #define SROM_ID_FAIL 0x00
+
+// Minimum CPI
+#define MIN_CPI 100
+#define DEFAULT_CPI 5000
+#define MAX_CPI 12000
 
 // Frame capture data variables
 #define W_IMG 36
@@ -161,6 +169,20 @@ uint8_t opMode = 0;
 // true/1 = SROM running
 // false/0 = SROM NOT running
 bool sromRun = false;
+// Rest_En value
+// false = rest mode disabled
+// true = rest mode enabled [default]
+bool restEn = true;
+// Rpt_Mod value
+// false = X CPI == Y CPI [default]
+// true = X and Y CPI can be configured independently
+bool rptMod = false;
+// CPI (counts per inch) value (-1 = disabled [see Rpt_Mod p. 39])
+int16_t cpi = DEFAULT_CPI;
+// X axis CPI (counts per inch) value (-1 = disabled [see Rpt_Mod p. 39])
+int16_t cpiX = DEFAULT_CPI;
+// Y axis CPI (counts per inch) value (-1 = disabled [see Rpt_Mod p. 39])
+int16_t cpiY = DEFAULT_CPI;
 // SQUAL value
 uint8_t squal = 0;
 // Number of surface features (calculated from SQUAL value)
