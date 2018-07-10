@@ -223,6 +223,7 @@ void resetSPIPort();
 void resetDevice();
 void performSROMdownload();
 void configureRegisters();
+void readConfigRegisters();
 void onMovement();
 void captureRawImage(uint8_t* result, int resultLength);
 void drawImageToDisplay();
