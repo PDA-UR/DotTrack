@@ -390,11 +390,11 @@ void calcBearing()
             // Reset value
             noEyeTrack = false;
         }
-    }
-    if(oldX != circleX || oldY != circleY)
-    {
-        M5.Lcd.fillCircle(160+oldX, 120+oldY, 70, WHITE);
-        M5.Lcd.fillCircle(160+circleX, 120+circleY, 70, BLACK);
+        if(oldX != circleX || oldY != circleY)
+        {
+            M5.Lcd.fillCircle(160+oldX, 120+oldY, 70, WHITE);
+            M5.Lcd.fillCircle(160+circleX, 120+circleY, 70, BLACK);
+        }
     }
 
     int32_t deg = degrees(rad);
