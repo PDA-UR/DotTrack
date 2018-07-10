@@ -274,15 +274,19 @@ void sendDataUdp()
     }
     Udp.beginPacket(remoteIP, serverPort);
 
-    for(auto i = 0; i < (packetBufLen - 1) / 2; i++)
+    // Fill packetBuffer
+    auto len = packetBufLen - sizeof(bool);
+    // Write absX, absY (each int32_t = 8 bytes) to packetBuffer
+    for(auto i = 0; i < len / 2; i++)
     {
         auto posX = i;
-        auto posY = i + (packetBufLen - 1) / 2;
-        auto shift = i * (packetBufLen - 1);
+        auto posY = i + len / 2;
+        auto shift = i * len;
         packetBuffer[posX] = (byte)(absX >> shift);
         packetBuffer[posY] = (byte)(absY >> shift);
     }
-    packetBuffer[packetBufLen - 1] = liftOff;
+    // Write liftOff (bool = 1 byte) to packetBuffer
+    packetBuffer[len] = liftOff;
 
     Udp.write(packetBuffer, packetBufLen);
     Udp.endPacket();
@@ -316,17 +320,21 @@ void receiveDataUdp()
         // read the packet into packetBuffer
         Udp.read(packetBuffer, packetBufLen);
 
+        // Empty packetBuffer
         trackX = 0;
         trackY = 0;
-        for(auto i = 0; i < (packetBufLen - 1) / 2; i++)
+        // Read from packetBuffer into trackX, trackY (each int32_t = 8 bytes)
+        auto len = packetBufLen - sizeof(bool);
+        for(auto i = 0; i < len / 2; i++)
         {
             auto posX = i;
-            auto posY = i + (packetBufLen - 1) / 2;
-            auto shift = i * (packetBufLen - 1);
+            auto posY = i + len / 2;
+            auto shift = i * len;
             trackX = (packetBuffer[posX] << shift) | trackX;
             trackY = (packetBuffer[posY] << shift) | trackY;
         }
-        trackLiftOff = packetBuffer[packetBufLen - 1];
+        // Read from packetBuffer into trackLiftOff (bool = 1 byte)
+        trackLiftOff = (bool)packetBuffer[len];
         if(DEBUG_LEVEL >= 2)
         {
             Serial.println("Parsed packet:");

@@ -252,9 +252,11 @@ int32_t circleX = 0;
 int32_t circleY = 0;
 bool noEyeTrack = false;
 
-// Length of packet buffer for two 32-bit and one 8-bit values (4 * 2 + 1 = 9)
-const uint8_t packetBufLen = sizeof(int32_t) * 2 + sizeof(byte);
-// Buffer to hold incoming/outgoing packet
+// Length of packet buffer.
+// For two 32-bit and one 8-bit values (4 bytes * 2 + 1 byte = 9 bytes).
+const uint8_t packetBufLen = sizeof(int32_t) * 2 + sizeof(bool);
+// Buffer to hold incoming/outgoing packet.
+// Holds absX, absY (each int32_t) and liftOff (bool).
 byte packetBuffer[packetBufLen];
 
 void receiveDataUdp();
