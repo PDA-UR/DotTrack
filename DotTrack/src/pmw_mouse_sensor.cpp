@@ -274,16 +274,17 @@ void sendDataUdp()
     }
     Udp.beginPacket(remoteIP, serverPort);
 
-    for(auto i = 0; i < packetBufferLen / 2; i++)
+    for(auto i = 0; i < (packetBufLen - 1) / 2; i++)
     {
         auto posX = i;
-        auto posY = i + packetBufferLen / 2;
-        auto shift = i * packetBufferLen;
+        auto posY = i + (packetBufLen - 1) / 2;
+        auto shift = i * (packetBufLen - 1);
         packetBuffer[posX] = (byte)(absX >> shift);
         packetBuffer[posY] = (byte)(absY >> shift);
     }
+    packetBuffer[packetBufLen - 1] = liftOff;
 
-    Udp.write(packetBuffer, packetBufferLen);
+    Udp.write(packetBuffer, packetBufLen);
     Udp.endPacket();
 }
 
@@ -305,31 +306,33 @@ void receiveDataUdp()
             Serial.println(remotePort);
         }
 
-        if(remoteIP == WiFi.localIP() || packetSize != packetBufferLen)
+        if(remoteIP == WiFi.localIP() || packetSize != packetBufLen)
         {
             if(DEBUG_LEVEL >= 3) Serial.println("Listening to local ip or incorrect buffer length. Flushing and aborting.");
             Udp.flush();
             return;
         }
 
-        // read the packet into packetBufffer
-        Udp.read(packetBuffer, packetBufferLen);
+        // read the packet into packetBuffer
+        Udp.read(packetBuffer, packetBufLen);
 
         trackX = 0;
         trackY = 0;
-        for(auto i = 0; i < packetBufferLen / 2; i++)
+        for(auto i = 0; i < (packetBufLen - 1) / 2; i++)
         {
             auto posX = i;
-            auto posY = i + packetBufferLen / 2;
-            auto shift = i * packetBufferLen;
+            auto posY = i + (packetBufLen - 1) / 2;
+            auto shift = i * (packetBufLen - 1);
             trackX = (packetBuffer[posX] << shift) | trackX;
             trackY = (packetBuffer[posY] << shift) | trackY;
         }
+        trackLiftOff = packetBuffer[packetBufLen - 1];
         if(DEBUG_LEVEL >= 2)
         {
             Serial.println("Parsed packet:");
             Serial.println("X:\t" + String(trackX));
             Serial.println("Y:\t" + String(trackY));
+            Serial.println("LO:\t" + String(trackLiftOff));
         }
     }
 }
@@ -369,10 +372,24 @@ void calcBearing()
     circleY = (int32_t)(sin(rad) * 50);
 
     // Draw googly eyes
-    if(!eyeDrawn)
+    if(trackLiftOff || liftOff)
     {
-        M5.Lcd.fillCircle(160, 120, 120, WHITE);
-        eyeDrawn = true;
+        if(!noEyeTrack)
+        {
+            M5.Lcd.fillCircle(160, 120, 120, WHITE);
+            M5.Lcd.fillCircle(160, 120, 70, BLACK);
+            noEyeTrack = true;
+        }
+    }
+    else
+    {
+        if(noEyeTrack)
+        {
+            M5.Lcd.fillCircle(160, 120, 120, WHITE);
+            M5.Lcd.fillCircle(160+circleX, 120+circleY, 70, BLACK);
+            // Reset value
+            noEyeTrack = false;
+        }
     }
     if(oldX != circleX || oldY != circleY)
     {
@@ -400,6 +417,8 @@ void calcBearing()
         Serial.println(rad);
         Serial.print("deg: ");
         Serial.println(deg);
+        Serial.print("trackBearing: ");
+        Serial.println(trackBearing);
         Serial.print("circleX: ");
         Serial.println(circleX);
         Serial.print("circleY: ");
@@ -411,6 +430,13 @@ void loop()
 {
     if(EYES_DEMO == 1)
     {
+        if(!eyeDrawn)
+        {
+            M5.Lcd.fillCircle(160, 120, 120, WHITE);
+            M5.Lcd.fillCircle(160, 120, 70, BLACK);
+            eyeDrawn = true;
+        }
+
         if(millis() - comTimer > COM_DELAY)
         {
             // Handle WiFi communication
