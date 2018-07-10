@@ -469,18 +469,24 @@ void loop()
         {
             if(avgRawData >= 16 && avgRawData <= 22 &&
                     shutter >= 128 && shutter <= 145)
+            //if(avgRawData >= 56 && avgRawData <= 65 &&
+               //shutter >= 120 && shutter <= 129)
             {
                 absX = 17716;
                 absY = 0;
             }
             else if(avgRawData >= 18 && avgRawData <= 25 &&
                     shutter >= 98 && shutter <= 111)
+            //else if(avgRawData >= 66 && avgRawData <= 75 &&
+                    //shutter >= 90 && shutter <= 100)
             {
                 absX = 0;
                 absY = 0;
             }
             else if(avgRawData >= 23 && avgRawData <= 30 &&
                     shutter >= 89 && shutter <= 94)
+            //else if(avgRawData >= 82 && avgRawData <= 90 &&
+                    //shutter >= 77 && shutter <= 87)
             {
                 absX = -17716;
                 absY = 0;
@@ -771,8 +777,9 @@ void configureRegisters()
 
     // Disable Rest mode
     // Info: Prevent LO detection not working within the first few ms after waking up from Rest2 or Rest3 mode.
-    writeRegister(REGISTER_CONFIG2, 0x00);
-    if(DEBUG_LEVEL >= 2) Serial.println("disable Rest mode");
+    // Warning: Changes average raw data values (but may make them more consistent)
+    //writeRegister(REGISTER_CONFIG2, 0x00);
+    //if(DEBUG_LEVEL >= 2) Serial.println("disable Rest mode");
 
     // Set lift detection height threshold
     writeRegister(REGISTER_LIFT_CONFIG, 0x03); // 0x03 = nominal height + 3mm (default: 0x02 = nominal height + 2mm)
