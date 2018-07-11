@@ -368,6 +368,10 @@ void calcBearing()
 {
     float deltaX = absX - trackX;
     float deltaY = absY - trackY;
+
+    // Calculate distance
+    trackDist = sqrt(pow(deltaX, 2) + pow(deltaY, 2));
+
     if(deltaX == 0 && deltaY == 0)
     {
         return;
@@ -382,26 +386,37 @@ void calcBearing()
     // Draw googly eyes
     if(trackLiftOff || liftOff)
     {
+        // Draw eye once when lift off
         if(!noEyeTrack)
         {
-            M5.Lcd.fillCircle(160, 120, 120, WHITE);
-            M5.Lcd.fillCircle(160, 120, 70, BLACK);
+            M5.Lcd.fillCircle(160, 120, EYE_SCLERA_RADIUS, EYE_SCLERA_COLOR);
+            M5.Lcd.fillCircle(160, 120, EYE_IRIS_RADIUS, EYE_IRIS_COLOR);
             noEyeTrack = true;
         }
     }
     else
     {
+        // Fill sclera once when comming back to the surface
         if(noEyeTrack)
         {
-            M5.Lcd.fillCircle(160, 120, 120, WHITE);
-            M5.Lcd.fillCircle(160+circleX, 120+circleY, 70, BLACK);
+            M5.Lcd.fillCircle(160, 120, EYE_SCLERA_RADIUS, EYE_SCLERA_COLOR);
+            M5.Lcd.fillCircle(160+circleX, 120+circleY, EYE_IRIS_RADIUS, EYE_IRIS_COLOR);
             // Reset value
             noEyeTrack = false;
         }
+        // Draw eye (when moved)
         if(oldX != circleX || oldY != circleY)
         {
-            M5.Lcd.fillCircle(160+oldX, 120+oldY, 70, WHITE);
-            M5.Lcd.fillCircle(160+circleX, 120+circleY, 70, BLACK);
+            M5.Lcd.fillCircle(160+oldX, 120+oldY, EYE_IRIS_RADIUS, EYE_SCLERA_COLOR);
+            M5.Lcd.fillCircle(160+circleX, 120+circleY, EYE_IRIS_RADIUS, EYE_IRIS_COLOR);
+        }
+        if(trackDist < MAX_CPI_NEAR)
+        {
+            M5.Lcd.fillCircle(160+circleX, 120+circleY, EYE_PUPIL_RADIUS, EYE_PUPIL_COLOR);
+        }
+        else
+        {
+            M5.Lcd.fillCircle(160+circleX, 120+circleY, EYE_PUPIL_RADIUS, EYE_IRIS_COLOR);
         }
     }
 
@@ -438,10 +453,11 @@ void loop()
 {
     if(EYES_DEMO == 1)
     {
+        // One time initial draw of eye
         if(!eyeDrawn)
         {
-            M5.Lcd.fillCircle(160, 120, 120, WHITE);
-            M5.Lcd.fillCircle(160, 120, 70, BLACK);
+            M5.Lcd.fillCircle(160, 120, EYE_SCLERA_RADIUS, EYE_SCLERA_COLOR);
+            M5.Lcd.fillCircle(160, 120, EYE_IRIS_RADIUS, EYE_IRIS_COLOR);
             eyeDrawn = true;
         }
 

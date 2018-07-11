@@ -265,6 +265,22 @@ void calcBearing();
 void printWiFiStatus();
 void handleWiFiEvent(WiFiEvent_t event);
 
+#define EYE_SCLERA_COLOR WHITE
+#define EYE_IRIS_COLOR BLACK
+#define EYE_PUPIL_COLOR RED
+
+#define EYE_SCLERA_RADIUS 120
+#define EYE_IRIS_RADIUS 70
+#define EYE_PUPIL_RADIUS 30
+
+// Maximum CPI value to consider tracked object to be "near"
+// Calculation: inches * cpi    or  (cm / 2.54) * cpi
+// 12500 counts are 2.5in or 6.35cm (when the CPI is 5000 [default])
+#define MAX_CPI_NEAR 12500
+
+// Distance from tracked object
+double trackDist = 0.0;
+
 // Firmware "PMW3360DM_srom_0x04"
 const uint8_t firmwareData[] = {
 0x01, 0x04, 0x8e, 0x96, 0x6e, 0x77, 0x3e, 0xfe, 0x7e, 0x5f, 0x1d, 0xb8, 0xf2, 0x66, 0x4e, 
