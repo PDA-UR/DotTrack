@@ -467,27 +467,30 @@ void loop()
         // Points are ~ 9cm apart -> 9*2.54 = 3,54in -> 3.54*5000 = 17716cpi
         if(!liftOff)
         {
-            if(avgRawData >= 16 && avgRawData <= 22 &&
-                    shutter >= 128 && shutter <= 145)
+            if(avgRawData >= 11 && avgRawData <= 18 &&
+               shutter >= 106 && shutter <= 139)
             //if(avgRawData >= 56 && avgRawData <= 65 &&
                //shutter >= 120 && shutter <= 129)
             {
+                if(DEBUG_LEVEL >= 3) Serial.println("Reset to left position");
                 absX = 17716;
                 absY = 0;
             }
-            else if(avgRawData >= 18 && avgRawData <= 25 &&
-                    shutter >= 98 && shutter <= 111)
+            else if(avgRawData >= 15 && avgRawData <= 20 &&
+                    shutter >= 85 && shutter <= 105)
             //else if(avgRawData >= 66 && avgRawData <= 75 &&
                     //shutter >= 90 && shutter <= 100)
             {
+                if(DEBUG_LEVEL >= 3) Serial.println("Reset to center position");
                 absX = 0;
                 absY = 0;
             }
-            else if(avgRawData >= 23 && avgRawData <= 30 &&
-                    shutter >= 89 && shutter <= 94)
+            else if(avgRawData >= 20 && avgRawData <= 30 &&
+                    shutter >= 75 && shutter <= 90)
             //else if(avgRawData >= 82 && avgRawData <= 90 &&
                     //shutter >= 77 && shutter <= 87)
             {
+                if(DEBUG_LEVEL >= 3) Serial.println("Reset to right position");
                 absX = -17716;
                 absY = 0;
             }
