@@ -286,14 +286,14 @@ void handleWiFiEvent(WiFiEvent_t event);
 #define EYE_IRIS_COLOR BLACK
 #define EYE_PUPIL_COLOR RED
 
-#define EYE_SCLERA_RADIUS 120
-#define EYE_IRIS_RADIUS 70
-#define EYE_PUPIL_RADIUS 30
+#define EYE_SCLERA_RADIUS 110
+#define EYE_IRIS_RADIUS 60
+#define EYE_PUPIL_RADIUS 25
 
 // Maximum CPI value to consider tracked object to be "near"
 // Calculation: inches * cpi    or  (cm / 2.54) * cpi
 // 12500 counts are 2.5in or 6.35cm (when the CPI is 5000 [default])
-#define MAX_CPI_NEAR 12500
+#define MAX_PROXIMITY_CPI 12500
 
 // Distance from tracked object
 double trackDist = 0.0;

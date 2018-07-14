@@ -389,6 +389,36 @@ void calcBearing()
     circleX = (int32_t)(cos(rad) * 50);
     circleY = (int32_t)(sin(rad) * 50);
 
+    int32_t deg = degrees(rad);
+    if(deg < 0)
+    {
+        deg += 360;
+    }
+
+    if(trackLiftOff)
+    {
+        trackBearing = -1;
+    }
+    else
+    {
+        trackBearing = deg;
+    }
+
+    if(DEBUG_LEVEL >= 2)
+    {
+        Serial.print("rad: ");
+        Serial.println(rad);
+        Serial.print("deg: ");
+        Serial.println(deg);
+        Serial.print("trackBearing: ");
+        Serial.println(trackBearing);
+        Serial.print("circleX: ");
+        Serial.println(circleX);
+        Serial.print("circleY: ");
+        Serial.println(circleY);
+        Serial.println("trackDist: " + String(trackDist));
+    }
+
     // Draw googly eyes
     if(trackLiftOff || liftOff)
     {
@@ -416,42 +446,54 @@ void calcBearing()
             M5.Lcd.fillCircle(160+oldX, 120+oldY, EYE_IRIS_RADIUS, EYE_SCLERA_COLOR);
             M5.Lcd.fillCircle(160+circleX, 120+circleY, EYE_IRIS_RADIUS, EYE_IRIS_COLOR);
         }
-        if(trackDist < MAX_CPI_NEAR)
+
+        // Draw proximity indicator
+        if(trackDist < MAX_PROXIMITY_CPI)
         {
-            M5.Lcd.fillCircle(160+circleX, 120+circleY, EYE_PUPIL_RADIUS, EYE_PUPIL_COLOR);
+            if(DEBUG_LEVEL >= 3) Serial.print("Draw proximity indicator: ");
+            // Right (0°)
+            if(deg > 315 || deg <= 45)
+            {
+                if(DEBUG_LEVEL >= 3) Serial.println("RIGHT (0 degrees)");
+                M5.Lcd.fillRect(320-10, 0, 10, 240, GREEN);
+            }
+            // Bottom (90°)
+            else if(deg > 45 && deg <= 135)
+            {
+                if(DEBUG_LEVEL >= 3) Serial.println("BOTTOM (90 degrees)");
+                M5.Lcd.fillRect(0, 240-10, 320, 10, GREEN);
+            }
+            // Left (180°)
+            else if(deg > 135 && deg <= 225)
+            {
+                if(DEBUG_LEVEL >= 3) Serial.println("LEFT (180 degrees)");
+                M5.Lcd.fillRect(0, 0, 10, 240, GREEN);
+            }
+            // Top (270°)
+            else if(deg > 225 && deg <= 315)
+            {
+                if(DEBUG_LEVEL >= 3) Serial.println("TOP (270 degrees)");
+                M5.Lcd.fillRect(0, 0, 320, 10, GREEN);
+            }
         }
         else
         {
-            M5.Lcd.fillCircle(160+circleX, 120+circleY, EYE_PUPIL_RADIUS, EYE_IRIS_COLOR);
+            if(DEBUG_LEVEL >= 3) Serial.println("Erase proximity indicator");
+            M5.Lcd.fillRect(320-10, 0, 10, 240, BLACK);
+            M5.Lcd.fillRect(0, 240-10, 320, 10, BLACK);
+            M5.Lcd.fillRect(0, 0, 10, 240, BLACK);
+            M5.Lcd.fillRect(0, 0, 320, 10, BLACK);
         }
-    }
 
-    int32_t deg = degrees(rad);
-    if(deg < 0)
-    {
-        deg += 360;
-    }
-    if(trackLiftOff)
-    {
-        trackBearing = -1;
-    }
-    else
-    {
-        trackBearing = deg;
-    }
-
-    if(DEBUG_LEVEL >= 2)
-    {
-        Serial.print("rad: ");
-        Serial.println(rad);
-        Serial.print("deg: ");
-        Serial.println(deg);
-        Serial.print("trackBearing: ");
-        Serial.println(trackBearing);
-        Serial.print("circleX: ");
-        Serial.println(circleX);
-        Serial.print("circleY: ");
-        Serial.println(circleY);
+        // Draw pupil on proximity
+        //if(trackDist < MAX_PROXIMITY_CPI)
+        //{
+            //M5.Lcd.fillCircle(160+circleX, 120+circleY, EYE_PUPIL_RADIUS, EYE_PUPIL_COLOR);
+        //}
+        //else
+        //{
+            //M5.Lcd.fillCircle(160+circleX, 120+circleY, EYE_PUPIL_RADIUS, EYE_IRIS_COLOR);
+        //}
     }
 }
 
