@@ -141,6 +141,9 @@ void setup()
         WiFi.softAP(AP_SSID, AP_PASS);
 
         if(DEBUG_LEVEL >= 2) Serial.println("Starting UDP Server");
+
+        absX = START_POS_SERV_X;
+        absY = START_POS_SERV_Y;
     }
     else
     {
@@ -158,6 +161,9 @@ void setup()
         if(DEBUG_LEVEL >= 2) Serial.println("Connected to wifi");
         // Set remote IP for sending
         remoteIP = serverIP;
+
+        absX = START_POS_CLI_X;
+        absY = START_POS_CLI_Y;
     }
     Udp.begin(serverPort);
 
@@ -489,8 +495,8 @@ void loop()
                //shutter >= 120 && shutter <= 129)
             {
                 if(DEBUG_LEVEL >= 3) Serial.println("Reset to left position");
-                absX = 17716;
-                absY = 0;
+                absX = POS1_X;
+                absY = POS1_Y;
             }
             else if(avgRawData >= 15 && avgRawData <= 20 &&
                     shutter >= 85 && shutter <= 105)
@@ -498,8 +504,8 @@ void loop()
                     //shutter >= 90 && shutter <= 100)
             {
                 if(DEBUG_LEVEL >= 3) Serial.println("Reset to center position");
-                absX = 0;
-                absY = 0;
+                absX = POS2_X;
+                absY = POS2_Y;
             }
             else if(avgRawData >= 20 && avgRawData <= 30 &&
                     shutter >= 75 && shutter <= 90)
@@ -507,8 +513,8 @@ void loop()
                     //shutter >= 77 && shutter <= 87)
             {
                 if(DEBUG_LEVEL >= 3) Serial.println("Reset to right position");
-                absX = -17716;
-                absY = 0;
+                absX = POS3_X;
+                absY = POS3_Y;
             }
         }
 

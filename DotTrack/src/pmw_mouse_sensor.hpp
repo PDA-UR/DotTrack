@@ -265,6 +265,23 @@ void calcBearing();
 void printWiFiStatus();
 void handleWiFiEvent(WiFiEvent_t event);
 
+// Coords of left position
+#define POS1_X 17716;
+#define POS1_Y 0;
+// Coords of center position
+#define POS2_X 0;
+#define POS2_Y 0;
+// Coords of right position
+#define POS3_X -17716;
+#define POS3_Y 0;
+
+// Server start position
+#define START_POS_SERV_X POS3_X
+#define START_POS_SERV_Y POS3_Y
+// Client start position
+#define START_POS_CLI_X POS1_X
+#define START_POS_CLI_Y POS1_Y
+
 #define EYE_SCLERA_COLOR WHITE
 #define EYE_IRIS_COLOR BLACK
 #define EYE_PUPIL_COLOR RED
