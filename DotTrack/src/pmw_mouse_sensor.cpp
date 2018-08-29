@@ -3,8 +3,6 @@
 //unsigned long t_switch;
 unsigned long comTimer;
 
-bool eyeDrawn = false;
-
 WiFiUDP Udp;
 bool isAP;
 IPAddress serverIP(192, 168, 4, 1);
@@ -22,6 +20,11 @@ void setup()
 
     // Set Brightness of M5Stack LCD display
     M5.Lcd.setBrightness(0xff);
+
+    // Setup and use sprite object (frame buffer) to prevent flicker:
+    // Because of RAM limitations it can only have a 8bit color depth
+    img.setColorDepth(8);
+    img.createSprite(W_DISP, H_DISP);
 
     // fill lift off buffer with default values
     for(auto i = 0; i < LIFT_OFF_BUF_LEN; i++)
@@ -384,8 +387,6 @@ void calcBearing()
     }
     // Source: https://math.stackexchange.com/a/1596518
     double rad = atan2f(deltaY, deltaX);
-    int32_t oldX = circleX;
-    int32_t oldY = circleY;
     circleX = (int32_t)(cos(rad) * 50);
     circleY = (int32_t)(sin(rad) * 50);
 
@@ -418,82 +419,51 @@ void calcBearing()
         Serial.println(circleY);
         Serial.println("trackDist: " + String(trackDist));
     }
+}
 
-    // Draw googly eyes
+void drawEye()
+{
+    img.fillCircle(160, 120, EYE_SCLERA_RADIUS, EYE_SCLERA_COLOR);
+
     if(trackLiftOff || liftOff)
     {
-        // Draw eye once when lift off
-        if(!noEyeTrack)
-        {
-            M5.Lcd.fillCircle(160, 120, EYE_SCLERA_RADIUS, EYE_SCLERA_COLOR);
-            M5.Lcd.fillCircle(160, 120, EYE_IRIS_RADIUS, EYE_IRIS_COLOR);
-            noEyeTrack = true;
-        }
+        // Draw eye in the middle
+        img.fillCircle(160, 120, EYE_IRIS_RADIUS, EYE_IRIS_COLOR);
     }
     else
     {
-        // Fill sclera once when comming back to the surface
-        if(noEyeTrack)
-        {
-            M5.Lcd.fillCircle(160, 120, EYE_SCLERA_RADIUS, EYE_SCLERA_COLOR);
-            M5.Lcd.fillCircle(160+circleX, 120+circleY, EYE_IRIS_RADIUS, EYE_IRIS_COLOR);
-            // Reset value
-            noEyeTrack = false;
-        }
-        // Draw eye (when moved)
-        if(oldX != circleX || oldY != circleY)
-        {
-            M5.Lcd.fillCircle(160+oldX, 120+oldY, EYE_IRIS_RADIUS, EYE_SCLERA_COLOR);
-            M5.Lcd.fillCircle(160+circleX, 120+circleY, EYE_IRIS_RADIUS, EYE_IRIS_COLOR);
-        }
+        // Draw eye at the bearing
+        img.fillCircle(160+circleX, 120+circleY, EYE_IRIS_RADIUS, EYE_IRIS_COLOR);
 
         // Draw proximity indicator
         if(trackDist < MAX_PROXIMITY_CPI)
         {
             if(DEBUG_LEVEL >= 3) Serial.print("Draw proximity indicator: ");
             // Right (0°)
-            if(deg > 315 || deg <= 45)
+            if(trackBearing > 315 || trackBearing <= 45)
             {
                 if(DEBUG_LEVEL >= 3) Serial.println("RIGHT (0 degrees)");
-                M5.Lcd.fillRect(320-10, 0, 10, 240, GREEN);
+                img.fillRect(320-10, 0, 10, 240, GREEN);
             }
             // Bottom (90°)
-            else if(deg > 45 && deg <= 135)
+            else if(trackBearing > 45 && trackBearing <= 135)
             {
                 if(DEBUG_LEVEL >= 3) Serial.println("BOTTOM (90 degrees)");
-                M5.Lcd.fillRect(0, 240-10, 320, 10, GREEN);
+                img.fillRect(0, 240-10, 320, 10, GREEN);
             }
             // Left (180°)
-            else if(deg > 135 && deg <= 225)
+            else if(trackBearing > 135 && trackBearing <= 225)
             {
                 if(DEBUG_LEVEL >= 3) Serial.println("LEFT (180 degrees)");
-                M5.Lcd.fillRect(0, 0, 10, 240, GREEN);
+                img.fillRect(0, 0, 10, 240, GREEN);
             }
             // Top (270°)
-            else if(deg > 225 && deg <= 315)
+            else if(trackBearing > 225 && trackBearing <= 315)
             {
                 if(DEBUG_LEVEL >= 3) Serial.println("TOP (270 degrees)");
-                M5.Lcd.fillRect(0, 0, 320, 10, GREEN);
+                img.fillRect(0, 0, 320, 10, GREEN);
             }
         }
-        else
-        {
-            if(DEBUG_LEVEL >= 3) Serial.println("Erase proximity indicator");
-            M5.Lcd.fillRect(320-10, 0, 10, 240, BLACK);
-            M5.Lcd.fillRect(0, 240-10, 320, 10, BLACK);
-            M5.Lcd.fillRect(0, 0, 10, 240, BLACK);
-            M5.Lcd.fillRect(0, 0, 320, 10, BLACK);
-        }
-
-        // Draw pupil on proximity
-        //if(trackDist < MAX_PROXIMITY_CPI)
-        //{
-            //M5.Lcd.fillCircle(160+circleX, 120+circleY, EYE_PUPIL_RADIUS, EYE_PUPIL_COLOR);
-        //}
-        //else
-        //{
-            //M5.Lcd.fillCircle(160+circleX, 120+circleY, EYE_PUPIL_RADIUS, EYE_IRIS_COLOR);
-        //}
     }
 }
 
@@ -501,20 +471,15 @@ void loop()
 {
     if(EYES_DEMO == 1)
     {
-        // One time initial draw of eye
-        if(!eyeDrawn)
-        {
-            M5.Lcd.fillCircle(160, 120, EYE_SCLERA_RADIUS, EYE_SCLERA_COLOR);
-            M5.Lcd.fillCircle(160, 120, EYE_IRIS_RADIUS, EYE_IRIS_COLOR);
-            eyeDrawn = true;
-        }
-
         if(millis() - comTimer > COM_DELAY)
         {
+            img.fillSprite(BLACK);
+
             // Handle WiFi communication
             receiveDataUdp();
             sendDataUdp();
             calcBearing();
+            drawEye();
             comTimer = millis();
             if(DEBUG_LEVEL >= 3)
             {
@@ -523,6 +488,8 @@ void loop()
                 Serial.print("Estimated Y (in cm): ");
                 Serial.println(((double)absY / cpi) * 2.54);
             }
+
+            img.pushSprite(0, 0);
         }
 
         readMotionBurst(rawMotBr, motBrLength);

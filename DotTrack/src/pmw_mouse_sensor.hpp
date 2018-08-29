@@ -148,6 +148,9 @@ const unsigned short rawDataLength = IMG_SIZE;
 // Read motion burst mode
 const unsigned short motBrLength = 12;
 
+// Create sprite object (frame buffer)
+TFT_eSprite img = TFT_eSprite(&M5.Lcd);
+
 // true as soon as the startup sequence has been completed
 bool initComplete = false;
 // switch between frame capture and motion mode
@@ -250,7 +253,6 @@ bool trackLiftOff = false;
 
 int32_t circleX = 0;
 int32_t circleY = 0;
-bool noEyeTrack = false;
 
 // Length of packet buffer.
 // For two 32-bit and one 8-bit values (4 bytes * 2 + 1 byte = 9 bytes).
@@ -262,6 +264,7 @@ byte packetBuffer[packetBufLen];
 void receiveDataUdp();
 void sendDataUdp();
 void calcBearing();
+void drawEye();
 void printWiFiStatus();
 void handleWiFiEvent(WiFiEvent_t event);
 
