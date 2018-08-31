@@ -1275,23 +1275,24 @@ void findAppPosition()
     else if(!liftOff && app == 0)
         /*else if(!cumLiftOff)*/
     {
-        if(avgRawData >= 16 && avgRawData <= 22 &&
-                shutter >= 128 && shutter <= 145)
+        if(avgRawData >= 11 && avgRawData <= 20 &&
+                shutter >= 115 && shutter <= 155)
         {
+            if(DEBUG_LEVEL >= 3) Serial.println("Switch to app 1: Select app");
             prevApp = app;
             app = 1;
-            //M5.Lcd.fillScreen(BLACK);
         }
-        else if(avgRawData >= 18 && avgRawData <= 25 &&
-                shutter >= 98 && shutter <= 111)
+        else if(avgRawData >= 16 && avgRawData <= 24 &&
+                shutter >= 95 && shutter <= 120)
         {
+            if(DEBUG_LEVEL >= 3) Serial.println("Switch to app 2: Magic lens app");
             prevApp = app;
             app = 2;
-            //M5.Lcd.fillScreen(BLACK);
         }
-        else if(avgRawData >= 23 && avgRawData <= 30 &&
-                shutter >= 89 && shutter <= 94)
+        else if(avgRawData >= 22 && avgRawData <= 30 &&
+                shutter >= 75 && shutter <= 105)
         {
+            if(DEBUG_LEVEL >= 3) Serial.println("Switch to app 3: Magnifying lens app");
             prevApp = app;
             app = 3;
             M5.Lcd.fillScreen(BLACK);
