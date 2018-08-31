@@ -1310,6 +1310,11 @@ void drawWelcomeScreen()
     img.println("me on a");
     img.setCursor(50, 150);
     img.println("pattern!");
+
+    img.setTextSize(2);
+    img.setTextColor(WHITE, BLACK);
+    img.setCursor(40, 220);
+    img.println("Quit    Lock    Debug");
 }
 
 void evalLiftOffBuffer()
