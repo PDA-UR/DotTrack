@@ -15,7 +15,7 @@ bool initialized = false;
 
 auto IMAGE_SIZE = sizeof(wimmel_pixel_map);
 
-void updateWaldo(int32_t x, int32_t y)
+void updateWaldo(TFT_eSprite img, int32_t x, int32_t y)
 {
   initWaldo();
 
@@ -41,7 +41,7 @@ void updateWaldo(int32_t x, int32_t y)
         Image::bitmap[320*i+t] = color;
       }
   }
-  M5.Lcd.drawBitmap(0, 0, 320, 120,Image::bitmap);
+  img.pushImage(0, 0, 320, 120,Image::bitmap);
   for(auto i = 0; i < 120; ++i){
       for(auto t = 0; t < 320; t+=1){
         auto pos = x_pos+t/scale+((i+y_pos+120)/scale)*1000;
@@ -55,7 +55,7 @@ void updateWaldo(int32_t x, int32_t y)
         Image::bitmap[320*i+t] = Tools::get16from8(pixel);
         }
   }
-  M5.Lcd.drawBitmap(0, 120, 320, 120,Image::bitmap);
+  img.pushImage(0, 120, 320, 120,Image::bitmap);
 
   count+=2;
 }

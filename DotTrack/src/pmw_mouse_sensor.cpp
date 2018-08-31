@@ -471,15 +471,15 @@ void loop()
 {
     if(EYES_DEMO == 1)
     {
+        // Reset sprite to a black background
+        img.fillSprite(BLACK);
+
         if(millis() - comTimer > COM_DELAY)
         {
-            img.fillSprite(BLACK);
-
             // Handle WiFi communication
             receiveDataUdp();
             sendDataUdp();
             calcBearing();
-            drawEye();
             comTimer = millis();
             if(DEBUG_LEVEL >= 3)
             {
@@ -488,9 +488,10 @@ void loop()
                 Serial.print("Estimated Y (in cm): ");
                 Serial.println(((double)absY / cpi) * 2.54);
             }
-
-            img.pushSprite(0, 0);
         }
+
+        // Draw eye and proximity indicator
+        drawEye();
 
         readMotionBurst(rawMotBr, motBrLength);
         updateMotBrValues();
@@ -527,20 +528,24 @@ void loop()
             }
         }
 
-        if(printMotBrToDisplay && app != 3)
+        if(printMotBrToDisplay)
         {
             drawMotBrToDisplay();
         }
         if(M5.BtnC.wasPressed())
         {
-            if(printMotBrToDisplay) M5.Lcd.fillScreen(BLACK);
             printMotBrToDisplay = !printMotBrToDisplay;
         }
         M5.update();
 
+        // Draw sprite to display
+        img.pushSprite(0, 0);
+
         return;
     }
 
+    // Reset sprite to a black background
+    img.fillSprite(BLACK);
 
     if(app == 3)
     {
@@ -570,19 +575,19 @@ void loop()
             drawWelcomeScreen();
             break;
         case 1:
-            Select::updateSelect(xyDelta[0], xyDelta[1]);
+            Select::updateSelect(img, xyDelta[0], xyDelta[1]);
             break;
         case 2:
-            Waldo::updateWaldo(xyDelta[0], xyDelta[1]);
+            Waldo::updateWaldo(img, xyDelta[0], xyDelta[1]);
             break;
         case 3:
             drawImageToDisplay();
             break;
         default:
-            M5.Lcd.setTextSize(1);
-            M5.Lcd.setTextColor(WHITE, BLACK);
-            M5.Lcd.setCursor(0,0);
-            M5.Lcd.println("Error: \"app\" value unknown!");
+            img.setTextSize(1);
+            img.setTextColor(WHITE, BLACK);
+            img.setCursor(0,0);
+            img.println("Error: \"app\" value unknown!");
     }
 
     if(printMotBrToDisplay && app != 3)
@@ -594,7 +599,7 @@ void loop()
     {
         prevApp = app;
         app = 0;
-        M5.Lcd.fillScreen(BLACK);
+        //M5.Lcd.fillScreen(BLACK);
     }
     if(M5.BtnB.wasPressed())
     {
@@ -603,10 +608,16 @@ void loop()
     if(M5.BtnC.wasPressed())
     {
         printMotBrToDisplay = !printMotBrToDisplay;
-        M5.Lcd.fillScreen(BLACK);
+        //M5.Lcd.fillScreen(BLACK);
     }
 
     M5.update();
+
+    if(app != 3)
+    {
+        // Draw sprite to display
+        img.pushSprite(0, 0);
+    }
 
     /*if(frameCapture)*/
     /*{*/
@@ -1059,15 +1070,15 @@ void updateMotBrValues()
 // Draw motion burst data to M5Stack display (spaces are for overwriting shorter values)
 void drawMotBrToDisplay()
 {
-    M5.Lcd.setTextSize(1);
-    M5.Lcd.setTextColor(WHITE, BLACK);
-    M5.Lcd.setCursor(0,0);
+    img.setTextSize(1);
+    img.setTextColor(WHITE, BLACK);
+    img.setCursor(0,0);
     // Draw motion bit and registers if MOT bit is set
     if(hasMoved)
     {
-        M5.Lcd.println("MOT: Motion occurred");
-        M5.Lcd.println("Delta X: " + String(xyDelta[0]) + "      ");
-        M5.Lcd.println("Delta Y: " + String(xyDelta[1]) + "      ");
+        img.println("MOT: Motion occurred");
+        img.println("Delta X: " + String(xyDelta[0]));
+        img.println("Delta Y: " + String(xyDelta[1]));
 
         // TODO Figure out xyDelta sending
         /*Serial.write(xyDelta[0]);*/
@@ -1076,80 +1087,80 @@ void drawMotBrToDisplay()
     }
     else
     {
-        M5.Lcd.println("MOT: No motion      ");
-        M5.Lcd.println("Delta X: 0     ");
-        M5.Lcd.println("Delta Y: 0     ");
+        img.println("MOT: No motion");
+        img.println("Delta X: 0");
+        img.println("Delta Y: 0");
     }
 
     // Draw absoulte position (currently determined with relative tracking)
-    M5.Lcd.println("Absolute X: " + String(absX) + "            ");
-    M5.Lcd.println("Absolute Y: " + String(absY) + "            ");
+    img.println("Absolute X: " + String(absX));
+    img.println("Absolute Y: " + String(absY));
 
     // Draw Lift_Stat bit
     if(liftOff)
     {
-        M5.Lcd.println("Lift_Stat: Chip lifted    ");
+        img.println("Lift_Stat: Chip lifted");
     }
     else
     {
-        M5.Lcd.println("Lift_Stat: Chip on surface");
+        img.println("Lift_Stat: Chip on surface");
     }
 
     // Draw cumulative lift of state (lift off buffer)
     if(cumLiftOff)
     {
-        M5.Lcd.println("Cumulative Lift State: Chip lifted    ");
+        img.println("Cumulative Lift State: Chip lifted");
     }
     else
     {
-        M5.Lcd.println("Cumulative Lift State: Chip on surface");
+        img.println("Cumulative Lift State: Chip on surface");
     }
 
     // Draw OP_Mode[1:0] bit
     switch(opMode)
     {
         case 0:
-            M5.Lcd.println("OP_Mode: Run mode       ");
+            img.println("OP_Mode: Run mode");
             break;
         case 1:
-            M5.Lcd.println("OP_Mode: Rest 1         ");
+            img.println("OP_Mode: Rest 1");
             break;
         case 2:
-            M5.Lcd.println("OP_Mode: Rest 2         ");
+            img.println("OP_Mode: Rest 2");
             break;
         case 3:
-            M5.Lcd.println("OP_Mode: Rest 3         ");
+            img.println("OP_Mode: Rest 3");
             break;
         default:
-            M5.Lcd.println("OP_Mode evaluation error");
+            img.println("OP_Mode evaluation error");
     }
 
     // Draw Observation/SROM_RUN value
     if(sromRun)
     {
-        M5.Lcd.println("SROM_RUN: SROM running    ");
+        img.println("SROM_RUN: SROM running");
     }
     else
     {
-        M5.Lcd.println("SROM_RUN: SROM not running");
+        img.println("SROM_RUN: SROM not running");
     }
 
     // Draw SQUAL value / number of features
-    M5.Lcd.println("SQUAL: " + String(squal) + "   ");
-    M5.Lcd.println("Number of Features: " + String(numFeatures) + "     ");
+    img.println("SQUAL: " + String(squal));
+    img.println("Number of Features: " + String(numFeatures));
 
     // Draw Raw_Data_Sum value
-    M5.Lcd.println("Raw_Data_Sum: " + String(rawDataSum) + "   ");
-    M5.Lcd.println("Average Raw Data: " + String(avgRawData) + "   ");
+    img.println("Raw_Data_Sum: " + String(rawDataSum));
+    img.println("Average Raw Data: " + String(avgRawData));
 
     // Draw Maximum_Raw_Data value
-    M5.Lcd.println("Maximum_Raw_Data: " + String(maxRawData) + "   ");
+    img.println("Maximum_Raw_Data: " + String(maxRawData));
 
     // Draw Minimum_Raw_Data value
-    M5.Lcd.println("Minimum_Raw_Data: " + String(minRawData) + "   ");
+    img.println("Minimum_Raw_Data: " + String(minRawData));
 
     // Draw Shutter value
-    M5.Lcd.println("Shutter: " + String(shutter) + "     ");
+    img.println("Shutter: " + String(shutter));
 }
 
 // Send motion burst values over serial
@@ -1250,9 +1261,9 @@ void findAppPosition()
         // TODO prevent flickering (app switching on the between liftOff/!liftOff)
         prevApp = app;
         app = 0;
-        M5.Lcd.fillScreen(BLACK);
+        //M5.Lcd.fillScreen(BLACK);
     }
-    else if(!liftOff)
+    else if(!liftOff && app == 0)
         /*else if(!cumLiftOff)*/
     {
         if(avgRawData >= 16 && avgRawData <= 22 &&
@@ -1260,14 +1271,14 @@ void findAppPosition()
         {
             prevApp = app;
             app = 1;
-            M5.Lcd.fillScreen(BLACK);
+            //M5.Lcd.fillScreen(BLACK);
         }
         else if(avgRawData >= 18 && avgRawData <= 25 &&
                 shutter >= 98 && shutter <= 111)
         {
             prevApp = app;
             app = 2;
-            M5.Lcd.fillScreen(BLACK);
+            //M5.Lcd.fillScreen(BLACK);
         }
         else if(avgRawData >= 23 && avgRawData <= 30 &&
                 shutter >= 89 && shutter <= 94)
@@ -1282,14 +1293,14 @@ void findAppPosition()
 void drawWelcomeScreen()
 {
     /*Image::draw(muc_logo_pixel_map);*/
-    M5.Lcd.setTextSize(5);
-    M5.Lcd.setTextColor(RED, BLACK);
-    M5.Lcd.setCursor(80, 30);
-    M5.Lcd.println("Place");
-    M5.Lcd.setCursor(50, 90);
-    M5.Lcd.println("me on a");
-    M5.Lcd.setCursor(50, 150);
-    M5.Lcd.println("pattern!");
+    img.setTextSize(5);
+    img.setTextColor(RED, BLACK);
+    img.setCursor(80, 30);
+    img.println("Place");
+    img.setCursor(50, 90);
+    img.println("me on a");
+    img.setCursor(50, 150);
+    img.println("pattern!");
 }
 
 void evalLiftOffBuffer()

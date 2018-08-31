@@ -20,7 +20,7 @@ namespace Select {
   Tools::rgb rgb_text = Tools::rgb();
   Tools::hsv hsv_text = Tools::hsv();
 
-void updateSelect(int32_t x, int32_t y){
+void updateSelect(TFT_eSprite img, int32_t x, int32_t y){
   // Invert x axis
   x *= -1;
   xCounter += x;
@@ -88,16 +88,16 @@ void updateSelect(int32_t x, int32_t y){
   
   //M5.Lcd.fillScreen(color); //flickers
 
-  M5.Lcd.fillRect(0, 0, 320, 50, color); //top
+  img.fillRect(0, 0, 320, 50, color); //top
   
-  M5.Lcd.fillRect(0, 50, 50, 160, color); //left
-  M5.Lcd.fillRect(280, 50, 40, 160, color); //right
+  img.fillRect(0, 50, 50, 160, color); //left
+  img.fillRect(280, 50, 40, 160, color); //right
   
-  M5.Lcd.fillRect(0, 210, 320, 40, color);// bottom
+  img.fillRect(0, 210, 320, 40, color);// bottom
   
 
-  M5.Lcd.drawChar(50, 50,c, color_text,color,20);
-  M5.Lcd.drawChar(160, 50,num, color_text,color,20);
+  img.drawChar(50, 50,c, color_text,color,20);
+  img.drawChar(160, 50,num, color_text,color,20);
 }
 
 void initSelect(){

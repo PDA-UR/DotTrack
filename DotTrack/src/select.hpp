@@ -6,7 +6,7 @@
 
 namespace Select {
 
-void updateSelect(int32_t x, int32_t y);
+void updateSelect(TFT_eSprite img, int32_t x, int32_t y);
 
 void initSelect();
 
