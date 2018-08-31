@@ -243,7 +243,7 @@ void drawWelcomeScreen();
 void evalLiftOffBuffer();
 
 #define AP_SSID "DotTrack"
-#define AP_PASS "blubblub"
+#define AP_PASS "W^LjUPRN[s%,'LL6"
 #define COM_DELAY 1 // in ms
 
 int32_t trackX = 0;
@@ -268,6 +268,8 @@ void calcBearing();
 void drawEye();
 void printWiFiStatus();
 void handleWiFiEvent(WiFiEvent_t event);
+void drawChoiceScreen();
+void drawConnectScreen();
 
 // Coords of left position
 #define POS1_X 17716;

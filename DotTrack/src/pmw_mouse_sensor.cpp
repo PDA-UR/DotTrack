@@ -132,16 +132,21 @@ void setup()
     WiFi.onEvent(handleWiFiEvent);
 
     if(DEBUG_LEVEL >= 3) printWiFiStatus();
-    if(DEBUG_LEVEL >= 1) Serial.println("Press middle button to enter server mode...");
-    unsigned long t = millis();
-    while(millis() < t + 3000)
+    while(true)
     {
-        if(M5.BtnB.wasPressed())
+        img.fillSprite(BLACK);
+        drawChoiceScreen();
+        if(M5.BtnA.wasPressed())
+        {
+            break;
+        }
+        else if(M5.BtnC.wasPressed())
         {
             isAP = true;
             break;
         }
         M5.update();
+        img.pushSprite(0, 0);
     }
     if(isAP)
     {
@@ -165,10 +170,27 @@ void setup()
             Serial.print("Attempting to connect to SSID: ");
             Serial.println(AP_SSID);
         }
-        while (WiFi.begin(AP_SSID, AP_PASS) != WL_CONNECTED)
+        unsigned long t = millis();
+        while(true)
         {
-            if(DEBUG_LEVEL >= 1) Serial.print(".");
-            delay(1000);
+            if(millis() - t > 1000)
+            {
+                t = millis();
+                if(DEBUG_LEVEL >= 1) Serial.print(".");
+                if(WiFi.begin(AP_SSID, AP_PASS) == WL_CONNECTED)
+                {
+                    break;
+                }
+            }
+            img.fillSprite(BLACK);
+            drawConnectScreen();
+            //if(M5.BtnA.wasPressed())
+            //{
+            //    if(DEBUG_LEVEL >= 1) Serial.println("Become server!");
+            //    //isAP = true;
+            //}
+            //M5.update();
+            img.pushSprite(0, 0);
         }
         if(DEBUG_LEVEL >= 2) Serial.println("Connected to wifi");
         // Set remote IP for sending
@@ -1337,4 +1359,43 @@ void evalLiftOffBuffer()
         }
         tempOld = temp;
     }
+}
+
+void drawChoiceScreen()
+{
+    img.setTextSize(3);
+    img.setTextColor(RED, BLACK);
+    img.setCursor(15, 50);
+    img.println("Choose to become");
+    img.setCursor(10, 90);
+    img.println("server or client!");
+    img.setTextSize(2);
+    img.setCursor(40, 150);
+    img.println("Server spawns right,");
+    img.setCursor(40, 170);
+    img.println("   client left!");
+
+    img.setTextSize(2);
+    img.setTextColor(WHITE, BLACK);
+    img.setCursor(35, 220);
+    img.println("Client          Server");
+}
+
+void drawConnectScreen()
+{
+    img.setTextSize(5);
+    img.setTextColor(RED, BLACK);
+    img.setCursor(20, 60);
+    img.println("Trying to");
+    img.setCursor(20, 120);
+    img.println("connect..");
+    //img.setCursor(40, 90);
+    //img.println("Or choose to become");
+    //img.setCursor(40, 150);
+    //img.println("    the server!");
+
+    //img.setTextSize(2);
+    //img.setTextColor(WHITE, BLACK);
+    //img.setCursor(40, 220);
+    //img.println("Server");
 }
