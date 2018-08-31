@@ -13,6 +13,15 @@ void setup()
 {
     // Initialize the M5Stack object
     M5.begin();
+    // Needed for M5Stack-SD-Updater
+    Wire.begin();
+
+    // Load SD Cards menu.bin which lets you load the other binaries
+    if(digitalRead(BUTTON_A_PIN) == 0) {
+        // Will load menu binary
+        updateFromFS(SD);
+        ESP.restart();
+    }
 
     // Turn off/disconnect speaker
     // Source: https://twitter.com/Kongduino/status/980466157701423104

@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <M5Stack.h>
+#include <M5StackUpdater.h>
 #include <SPI.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
