@@ -1,6 +1,6 @@
 # DotTrack
 
-DotTrack is a system for tracking the 2D position of tangible blocks and their spatial relations. 
+DotTrack is a system for tracking the 2D position of tangible blocks and their spatial relations developed at the junior research group [Physical-Digital Affordances at the University of Regensburg, Germany](https://hci.ur.de/). 
 It allows tangible objects to track their own position on a surface using an off-the-shelf optical mouse sensor.
 In addition to measuring the (relative) movement of the device, the sensor also allows capturing a low-resolution raw image of the surface. 
 This makes it possible to detect the absolute position of the device via marker patterns at known positions.
