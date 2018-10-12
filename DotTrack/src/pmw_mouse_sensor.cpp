@@ -9,6 +9,25 @@ IPAddress serverIP(192, 168, 4, 1);
 unsigned int serverPort = 2390;
 IPAddress remoteIP(0, 0, 0, 0);
 
+void debug1(String message){
+    if (DEBUG_LEVEL >= 1){
+        Serial.println(message);
+    }
+}
+
+void debug2(String message){
+    if (DEBUG_LEVEL >= 2){
+        Serial.println(message);
+    }
+}
+
+void debug3(String message){
+    if (DEBUG_LEVEL >= 3){
+        Serial.println(message);
+    }
+}
+
+
 void setup()
 {
     // Initialize the M5Stack object
@@ -48,7 +67,7 @@ void setup()
 
     if(SIMULATE_INPUT == 1){ return;}
 
-    if(DEBUG_LEVEL >= 2) Serial.println("setup()");
+    debug2("setup()");
 
     // setup pins
     pinMode(PIN_NCS, OUTPUT);
@@ -60,7 +79,7 @@ void setup()
     pinMode(PIN_MOSI, OUTPUT);
     /*attachInterrupt(digitalPinToInterrupt(PIN_MOTION), onMovement, FALLING);*/
 
-    if(DEBUG_LEVEL >= 2) Serial.println("pins initialized");
+    debug2("pins initialized");
 
     // Initialize the SPI object
     SPI.begin();
@@ -70,7 +89,7 @@ void setup()
     // Two bytes should take 16*500ns = 8µs
     /*SPI.beginTransaction(SPISettings(F_SCLK, MSBFIRST, SPI_MODE3));*/
 
-    if(DEBUG_LEVEL >= 2) Serial.println("SPI initialized");
+    debug2("SPI initialized");
 
     // Initialize PMW3360 - Power up/startup sequence (see p. 26 of datasheet)
 
@@ -86,7 +105,7 @@ void setup()
     // TODO Configure registers (write to config registers)
     configureRegisters();
 
-    if(DEBUG_LEVEL >= 2) Serial.println("reset device done");
+    debug2("reset device done");
 
     // Reads configurations from registers
     readConfigRegisters();
@@ -107,7 +126,7 @@ void setup()
     /*attachInterrupt(digitalPinToInterrupt(PIN_MOTION), onMovement, FALLING);*/
     /*if(DEBUG_LEVEL >= 2) Serial.println("motion pin interrupt attached");*/
 
-    if(DEBUG_LEVEL >= 2) Serial.println("startup done");
+    debug2("startup done");
 
     initComplete = true;
 
@@ -157,7 +176,7 @@ void setup()
         //WiFi.softAPConfig(serverIP, serverIP, subnet);
         WiFi.softAP(AP_SSID, AP_PASS);
 
-        if(DEBUG_LEVEL >= 2) Serial.println("Starting UDP Server");
+        debug2("Starting UDP Server");
 
         absX = START_POS_SERV_X;
         absY = START_POS_SERV_Y;
@@ -214,92 +233,92 @@ void setup()
 // WiFi event handler
 void handleWiFiEvent(WiFiEvent_t event)
 {
-    if(DEBUG_LEVEL >= 3) Serial.print("WiFiEvent: ");
+    debug3("WiFiEvent: ");
     // Events listed in esp_event.h (~/.platformio/packages/framework-arduinoespressif32/tools/sdk/include/esp32/esp_event.h)
     switch(event)
     {
         case SYSTEM_EVENT_WIFI_READY:               /**< ESP32 WiFi ready */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_WIFI_READY");
+            debug3("SYSTEM_EVENT_WIFI_READY");
             break;
         case SYSTEM_EVENT_SCAN_DONE:                /**< ESP32 finish scanning AP */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_SCAN_DONE");
+            debug3("SYSTEM_EVENT_SCAN_DONE");
             break;
         case SYSTEM_EVENT_STA_START:                /**< ESP32 station start */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_START");
+            debug3("SYSTEM_EVENT_STA_START");
             break;
         case SYSTEM_EVENT_STA_STOP:                 /**< ESP32 station stop */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_STOP");
+            debug3("SYSTEM_EVENT_STA_STOP");
             break;
         case SYSTEM_EVENT_STA_CONNECTED:            /**< ESP32 station connected to AP */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_CONNECTED");
+            debug3("SYSTEM_EVENT_STA_CONNECTED");
             // TODO Set up connection values.
             break;
         case SYSTEM_EVENT_STA_DISCONNECTED:         /**< ESP32 station disconnected from AP */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_DISCONNECTED");
+            debug3("SYSTEM_EVENT_STA_DISCONNECTED");
             // TODO Periodically scan and / or reconnect.
             break;
         case SYSTEM_EVENT_STA_AUTHMODE_CHANGE:      /**< the auth mode of AP connected by ESP32 station changed */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_AUTHMODE_CHANGE");
+            debug3("SYSTEM_EVENT_STA_AUTHMODE_CHANGE");
             break;
         case SYSTEM_EVENT_STA_GOT_IP:               /**< ESP32 station got IP from connected AP */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_GOT_IP");
+            debug3("SYSTEM_EVENT_STA_GOT_IP");
             break;
         case SYSTEM_EVENT_STA_LOST_IP:              /**< ESP32 station lost IP and the IP is reset to 0 */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_LOST_IP");
+            debug3("SYSTEM_EVENT_STA_LOST_IP");
             break;
         case SYSTEM_EVENT_STA_WPS_ER_SUCCESS:       /**< ESP32 station wps succeeds in enrollee mode */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_WPS_ER_SUCCESS");
+            debug3("SYSTEM_EVENT_STA_WPS_ER_SUCCESS");
             break;
         case SYSTEM_EVENT_STA_WPS_ER_FAILED:        /**< ESP32 station wps fails in enrollee mode */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_WPS_ER_FAILED");
+            debug3("SYSTEM_EVENT_STA_WPS_ER_FAILED");
             break;
         case SYSTEM_EVENT_STA_WPS_ER_TIMEOUT:       /**< ESP32 station wps timeout in enrollee mode */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_WPS_ER_TIMEOUT");
+            debug3("SYSTEM_EVENT_STA_WPS_ER_TIMEOUT");
             break;
         case SYSTEM_EVENT_STA_WPS_ER_PIN:           /**< ESP32 station wps pin code in enrollee mode */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_STA_WPS_ER_PIN");
+            debug3("SYSTEM_EVENT_STA_WPS_ER_PIN");
             break;
         case SYSTEM_EVENT_AP_START:                 /**< ESP32 soft-AP start */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_AP_START");
+            debug3("SYSTEM_EVENT_AP_START");
             break;
         case SYSTEM_EVENT_AP_STOP:                  /**< ESP32 soft-AP stop */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_AP_STOP");
+            debug3("SYSTEM_EVENT_AP_STOP");
             break;
         case SYSTEM_EVENT_AP_STACONNECTED:          /**< a station connected to ESP32 soft-AP */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_AP_STACONNECTED");
+            debug3("SYSTEM_EVENT_AP_STACONNECTED");
             // TODO Set up connection values.
             break;
         case SYSTEM_EVENT_AP_STADISCONNECTED:       /**< a station disconnected from ESP32 soft-AP */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_AP_STADISCONNECTED");
+            debug3("SYSTEM_EVENT_AP_STADISCONNECTED");
             // TODO
             break;
         case SYSTEM_EVENT_AP_STAIPASSIGNED:         /**< ESP32 soft-AP assign an IP to a connected station */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_AP_STAIPASSIGNED");
+            debug3("SYSTEM_EVENT_AP_STAIPASSIGNED");
             // TODO Set up connection values.
             break;
         case SYSTEM_EVENT_AP_PROBEREQRECVED:        /**< Receive probe request packet in soft-AP interface */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_AP_PROBEREQRECVED");
+            debug3("SYSTEM_EVENT_AP_PROBEREQRECVED");
             break;
         case SYSTEM_EVENT_GOT_IP6:                  /**< ESP32 station or ap or ethernet interface v6IP addr is preferred */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_GOT_IP6");
+            debug3("SYSTEM_EVENT_GOT_IP6");
             break;
         case SYSTEM_EVENT_ETH_START:                /**< ESP32 ethernet start */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_ETH_START");
+            debug3("SYSTEM_EVENT_ETH_START");
             break;
         case SYSTEM_EVENT_ETH_STOP:                 /**< ESP32 ethernet stop */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_ETH_STOP");
+            debug3("SYSTEM_EVENT_ETH_STOP");
             break;
         case SYSTEM_EVENT_ETH_CONNECTED:            /**< ESP32 ethernet phy link up */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_ETH_CONNECTED");
+            debug3("SYSTEM_EVENT_ETH_CONNECTED");
             break;
         case SYSTEM_EVENT_ETH_DISCONNECTED:         /**< ESP32 ethernet phy link down */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_ETH_DISCONNECTED");
+            debug3("SYSTEM_EVENT_ETH_DISCONNECTED");
             break;
         case SYSTEM_EVENT_ETH_GOT_IP:               /**< ESP32 ethernet got IP from connected AP */
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_ETH_GOT_IP");
+            debug3("SYSTEM_EVENT_ETH_GOT_IP");
             break;
         case SYSTEM_EVENT_MAX:
-            if(DEBUG_LEVEL >= 3) Serial.println("SYSTEM_EVENT_MAX");
+            debug3("SYSTEM_EVENT_MAX");
             break;
     }
 }
@@ -309,7 +328,7 @@ void sendDataUdp()
     // send a reply, to the IP address and port that sent us the packet we received
     if(remoteIP == IPAddress(0, 0, 0, 0))
     {
-        if(DEBUG_LEVEL >= 3) Serial.println("Abort sending to local UDP port");
+        debug3("Abort sending to local UDP port");
         return;
     }
     Udp.beginPacket(remoteIP, serverPort);
@@ -352,7 +371,7 @@ void receiveDataUdp()
 
         if(remoteIP == WiFi.localIP() || packetSize != packetBufLen)
         {
-            if(DEBUG_LEVEL >= 3) Serial.println("Listening to local ip or incorrect buffer length. Flushing and aborting.");
+            debug3("Listening to local ip or incorrect buffer length. Flushing and aborting.");
             Udp.flush();
             return;
         }
@@ -469,29 +488,29 @@ void drawEye()
         // Draw proximity indicator
         if(trackDist < MAX_PROXIMITY_CPI)
         {
-            if(DEBUG_LEVEL >= 3) Serial.print("Draw proximity indicator: ");
+            debug3("Draw proximity indicator: ");
             // Right (0°)
             if(trackBearing > 315 || trackBearing <= 45)
             {
-                if(DEBUG_LEVEL >= 3) Serial.println("RIGHT (0 degrees)");
+                debug3("RIGHT (0 degrees)");
                 img.fillRect(320-10, 0, 10, 240, GREEN);
             }
             // Bottom (90°)
             else if(trackBearing > 45 && trackBearing <= 135)
             {
-                if(DEBUG_LEVEL >= 3) Serial.println("BOTTOM (90 degrees)");
+                debug3("BOTTOM (90 degrees)");
                 img.fillRect(0, 240-10, 320, 10, GREEN);
             }
             // Left (180°)
             else if(trackBearing > 135 && trackBearing <= 225)
             {
-                if(DEBUG_LEVEL >= 3) Serial.println("LEFT (180 degrees)");
+                debug3("LEFT (180 degrees)");
                 img.fillRect(0, 0, 10, 240, GREEN);
             }
             // Top (270°)
             else if(trackBearing > 225 && trackBearing <= 315)
             {
-                if(DEBUG_LEVEL >= 3) Serial.println("TOP (270 degrees)");
+                debug3("TOP (270 degrees)");
                 img.fillRect(0, 0, 320, 10, GREEN);
             }
         }
@@ -535,7 +554,7 @@ void loop()
             //if(avgRawData >= 56 && avgRawData <= 65 &&
                //shutter >= 120 && shutter <= 129)
             {
-                if(DEBUG_LEVEL >= 3) Serial.println("Reset to left position");
+                debug3("Reset to left position");
                 absX = POS1_X;
                 absY = POS1_Y;
             }
@@ -544,7 +563,7 @@ void loop()
             //else if(avgRawData >= 66 && avgRawData <= 75 &&
                     //shutter >= 90 && shutter <= 100)
             {
-                if(DEBUG_LEVEL >= 3) Serial.println("Reset to center position");
+                debug3("Reset to center position");
                 absX = POS2_X;
                 absY = POS2_Y;
             }
@@ -553,7 +572,7 @@ void loop()
             //else if(avgRawData >= 82 && avgRawData <= 90 &&
                     //shutter >= 77 && shutter <= 87)
             {
-                if(DEBUG_LEVEL >= 3) Serial.println("Reset to right position");
+                debug3("Reset to right position");
                 absX = POS3_X;
                 absY = POS3_Y;
             }
@@ -802,7 +821,7 @@ void resetDevice()
 
 void performSROMdownload()
 {
-    if(DEBUG_LEVEL >= 2) Serial.println("performSROMdownload()");
+    debug2("performSROMdownload()");
 
     // disable Rest mode
     writeRegister(REGISTER_CONFIG2, 0x00);
@@ -842,12 +861,12 @@ void performSROMdownload()
     uint8_t i = readRegister(REGISTER_SROM_ID);
     // Success: "4" (current firmware version)
     // Failed: "0"
-    if(DEBUG_LEVEL >= 2) Serial.println("SROM_ID RETURN: " + String(i));
+    debug2("SROM_ID RETURN: " + String(i));
 }
 
 void configureRegisters()
 {
-    if(DEBUG_LEVEL >= 2) Serial.println("configureRegisters()");
+    debug2("configureRegisters()");
 
     // TODO Configure registers (write to config registers)
 
@@ -859,7 +878,7 @@ void configureRegisters()
 
     // Set lift detection height threshold
     writeRegister(REGISTER_LIFT_CONFIG, 0x03); // 0x03 = nominal height + 3mm (default: 0x02 = nominal height + 2mm)
-    if(DEBUG_LEVEL >= 2) Serial.println("set lift detection");
+    debug2("set lift detection");
 }
 
 void readConfigRegisters()
@@ -898,7 +917,7 @@ void readConfigRegisters()
 // interrupt callback for motion pin
 void onMovement()
 {
-    if(DEBUG_LEVEL >= 3) Serial.println("onMovement()");
+    debug3("onMovement()");
 
     if(initComplete)
     {
@@ -1200,9 +1219,9 @@ void sendMotBrOverSerial()
     // Send motion bit and registers if MOT bit is set
     if(hasMoved)
     {
-        if(DEBUG_LEVEL >= 3) Serial.println("MOT: Motion occurred");
-        if(DEBUG_LEVEL >= 1) Serial.println("Delta X: " + String(xyDelta[0]));
-        if(DEBUG_LEVEL >= 1) Serial.println("Delta Y: " + String(xyDelta[1]));
+        debug3("MOT: Motion occurred");
+        debug("Delta X: " + String(xyDelta[0]));
+        debug("Delta Y: " + String(xyDelta[1]));
 
         // TODO Figure out xyDelta sending
         /*Serial.write(xyDelta[0]);*/
@@ -1211,23 +1230,23 @@ void sendMotBrOverSerial()
     }
     else
     {
-        if(DEBUG_LEVEL >= 3) Serial.println("MOT: No motion");
-        if(DEBUG_LEVEL >= 1) Serial.println("Delta X: 0");
-        if(DEBUG_LEVEL >= 1) Serial.println("Delta Y: 0");
+        debug3("MOT: No motion");
+        debug("Delta X: 0");
+        debug("Delta Y: 0");
     }
 
     // Send absoulte position (currently determined with relative tracking)
-    if(DEBUG_LEVEL >= 3) Serial.println("Absolute X: " + String(absX));
-    if(DEBUG_LEVEL >= 3) Serial.println("Absolute Y: " + String(absY));
+    debug3("Absolute X: " + String(absX));
+    debug3("Absolute Y: " + String(absY));
 
     // Send Lift_Stat bit
     if(liftOff)
     {
-        if(DEBUG_LEVEL >= 2) Serial.println("Lift_Stat: Chip lifted");
+        debug2("Lift_Stat: Chip lifted");
     }
     else
     {
-        if(DEBUG_LEVEL >= 2) Serial.println("Lift_Stat: Chip on surface");
+        debug2("Lift_Stat: Chip on surface");
     }
 
     // Send OP_Mode[1:0] bit
@@ -1253,34 +1272,31 @@ void sendMotBrOverSerial()
     }
 
     // Send Observation/SROM_RUN value
-    if(DEBUG_LEVEL >= 3)
+    if(sromRun)
     {
-        if(sromRun)
-        {
-            Serial.println("SROM_RUN: SROM running");
-        }
-        else
-        {
-            Serial.println("SROM_RUN: SROM not running");
-        }
+        debug3("SROM_RUN: SROM running");
+    }
+    else
+    {
+        debug3("SROM_RUN: SROM not running");
     }
 
     // Send SQUAL value / number of features
-    if(DEBUG_LEVEL >= 3) Serial.println("SQUAL: " + String(squal));
-    if(DEBUG_LEVEL >= 3) Serial.println("Number of Features: " + String(numFeatures));
+    debug3("SQUAL: " + String(squal));
+    debug3("Number of Features: " + String(numFeatures));
 
     // Send Raw_Data_Sum value
-    if(DEBUG_LEVEL >= 3) Serial.println("Raw_Data_Sum: " + String(rawDataSum));
-    if(DEBUG_LEVEL >= 2) Serial.println("Average Raw Data: " + String(avgRawData));
+    debug3("Raw_Data_Sum: " + String(rawDataSum));
+    debug3("Average Raw Data: " + String(avgRawData));
 
     // Send Maximum_Raw_Data value
-    if(DEBUG_LEVEL >= 3) Serial.println("Maximum_Raw_Data: " + String(maxRawData));
+    debug3("Maximum_Raw_Data: " + String(maxRawData));
 
     // Send Minimum_Raw_Data value
-    if(DEBUG_LEVEL >= 3) Serial.println("Minimum_Raw_Data: " + String(minRawData));
+    debug3("Minimum_Raw_Data: " + String(minRawData));
 
     // Send Shutter value
-    if(DEBUG_LEVEL >= 3) Serial.println("Shutter: " + String(shutter));
+    debug3("Shutter: " + String(shutter));
 }
 
 // TODO Maybe use a array of data values and medians/averages to prevent outlier problems
@@ -1300,21 +1316,21 @@ void findAppPosition()
         if(avgRawData >= 11 && avgRawData <= 20 &&
                 shutter >= 115 && shutter <= 155)
         {
-            if(DEBUG_LEVEL >= 3) Serial.println("Switch to app 1: Select app");
+            debug3("Switch to app 1: Select app");
             prevApp = app;
             app = 1;
         }
         else if(avgRawData >= 16 && avgRawData <= 24 &&
                 shutter >= 95 && shutter <= 120)
         {
-            if(DEBUG_LEVEL >= 3) Serial.println("Switch to app 2: Magic lens app");
+            debug3("Switch to app 2: Magic lens app");
             prevApp = app;
             app = 2;
         }
         else if(avgRawData >= 22 && avgRawData <= 30 &&
                 shutter >= 75 && shutter <= 105)
         {
-            if(DEBUG_LEVEL >= 3) Serial.println("Switch to app 3: Magnifying lens app");
+            debug3("Switch to app 3: Magnifying lens app");
             prevApp = app;
             app = 3;
             M5.Lcd.fillScreen(BLACK);
