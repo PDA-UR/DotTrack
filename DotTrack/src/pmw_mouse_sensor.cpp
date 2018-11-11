@@ -9,7 +9,7 @@ IPAddress serverIP(192, 168, 4, 1);
 unsigned int serverPort = 2390;
 IPAddress remoteIP(0, 0, 0, 0);
 
-void debug1(String message){
+void debug(String message){
     if (DEBUG_LEVEL >= 1){
         Serial.println(message);
     }
@@ -546,11 +546,19 @@ void loop()
         readMotionBurst(rawMotBr, motBrLength);
         updateMotBrValues();
 
+        int avg_threshold = 5;
+        int shutter_threshold = 8;
+        int left[] = {20, 110, 20, 100};
+        int mid[] = {26, 120, 20, 81};
+        int right[] = {36, 120, 32, 75};
+
         // Points are ~ 9cm apart -> 9*2.54 = 3,54in -> 3.54*5000 = 17716cpi
         if(!liftOff)
         {
-            if(avgRawData >= 11 && avgRawData <= 18 &&
-               shutter >= 106 && shutter <= 139)
+            if(left[AVG] - avg_threshold <= avgRawData && avgRawData <= left[AVG] + avg_threshold &&
+                left[SHTR] - shutter_threshold <= shutter && shutter <= left[SHTR] + shutter_threshold)
+            //if(avgRawData >= 11 && avgRawData <= 18 &&
+            //   shutter >= 106 && shutter <= 139)
             //if(avgRawData >= 56 && avgRawData <= 65 &&
                //shutter >= 120 && shutter <= 129)
             {
@@ -558,8 +566,10 @@ void loop()
                 absX = POS1_X;
                 absY = POS1_Y;
             }
-            else if(avgRawData >= 15 && avgRawData <= 20 &&
-                    shutter >= 85 && shutter <= 105)
+            else if(mid[AVG] - avg_threshold <= avgRawData && avgRawData <= mid[AVG] + avg_threshold &&
+                mid[SHTR] - shutter_threshold <= shutter && shutter <= mid[SHTR] + shutter_threshold)
+            //else if(avgRawData >= 15 && avgRawData <= 20 &&
+            //        shutter >= 85 && shutter <= 105)
             //else if(avgRawData >= 66 && avgRawData <= 75 &&
                     //shutter >= 90 && shutter <= 100)
             {
@@ -567,8 +577,10 @@ void loop()
                 absX = POS2_X;
                 absY = POS2_Y;
             }
-            else if(avgRawData >= 20 && avgRawData <= 30 &&
-                    shutter >= 75 && shutter <= 90)
+            else if(right[AVG] - avg_threshold <= avgRawData && avgRawData <= right[AVG] + avg_threshold &&
+                right[SHTR] - shutter_threshold <= shutter && shutter <= right[SHTR] + shutter_threshold)
+            //else if(avgRawData >= 20 && avgRawData <= 30 &&
+            //        shutter >= 75 && shutter <= 90)
             //else if(avgRawData >= 82 && avgRawData <= 90 &&
                     //shutter >= 77 && shutter <= 87)
             {
@@ -593,6 +605,8 @@ void loop()
 
         return;
     }
+
+    // not EYES_DEMO:
 
     // Reset sprite to a black background
     img.fillSprite(BLACK);
@@ -1302,6 +1316,21 @@ void sendMotBrOverSerial()
 // TODO Maybe use a array of data values and medians/averages to prevent outlier problems
 void findAppPosition()
 {
+    // orig demo values
+    // int avg_threshold = 5
+    // int shutter_threshold = 20
+    //u_char[] left = {15, 0, 0, 135};
+    //u_char[] mid = {20, 0, 0, 108};
+    //u_char[] right = {26, 0, 0, 95};
+
+//  RW demo values
+// avg, max, min, shutter
+    int avg_threshold = 5;
+    int shutter_threshold = 8;
+    int left[] = {20, 110, 20, 100};
+    int mid[] = {26, 120, 20, 81};
+    int right[] = {36, 120, 32, 75};
+
     if(liftOff && !prevLiftOff && !preventAppExit)
         /*if(cumLiftOff && !preventAppExit)*/
     {
@@ -1313,27 +1342,28 @@ void findAppPosition()
     else if(!liftOff && app == 0)
         /*else if(!cumLiftOff)*/
     {
-        if(avgRawData >= 11 && avgRawData <= 20 &&
-                shutter >= 115 && shutter <= 155)
+        if(left[AVG] - avg_threshold <= avgRawData && avgRawData <= left[AVG] + avg_threshold &&
+                left[SHTR] - shutter_threshold <= shutter && shutter <= left[SHTR] + shutter_threshold)
         {
             debug3("Switch to app 1: Select app");
             prevApp = app;
             app = 1;
         }
-        else if(avgRawData >= 16 && avgRawData <= 24 &&
-                shutter >= 95 && shutter <= 120)
+        else if(mid[AVG] - avg_threshold <= avgRawData && avgRawData <= mid[AVG] + avg_threshold &&
+                mid[SHTR] - shutter_threshold <= shutter && shutter <= mid[SHTR] + shutter_threshold)
         {
             debug3("Switch to app 2: Magic lens app");
             prevApp = app;
             app = 2;
         }
-        else if(avgRawData >= 22 && avgRawData <= 30 &&
-                shutter >= 75 && shutter <= 105)
+        else if(right[AVG] - avg_threshold <= avgRawData && avgRawData <= right[AVG] + avg_threshold &&
+                right[SHTR] - shutter_threshold <= shutter && shutter <= right[SHTR] + shutter_threshold)
+       
         {
             debug3("Switch to app 3: Magnifying lens app");
-            prevApp = app;
-            app = 3;
-            M5.Lcd.fillScreen(BLACK);
+             prevApp = app;
+             app = 3;
+             M5.Lcd.fillScreen(BLACK);
         }
     }
 }

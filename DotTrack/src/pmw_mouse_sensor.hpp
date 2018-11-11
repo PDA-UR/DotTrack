@@ -14,9 +14,9 @@
 
 #define SIMULATE_INPUT 0
 
-#define DEBUG_LEVEL 0
+#define DEBUG_LEVEL 3
 
-#define EYES_DEMO 1
+#define EYES_DEMO 0
 
 // ESP32 Pins (M5STACK)
 //#define PIN0 0 // Motion
@@ -130,6 +130,11 @@
 #define W_IMG 36
 #define H_IMG 36
 #define IMG_SIZE 1296 // W_IMG * H_IMG --> 36 * 36 = 1296
+
+// enum for sensor values
+#define AVG 0
+#define SHTR 3
+ 
 
 // Lift off buffer length
 #define LIFT_OFF_BUF_LEN 5
