@@ -35,3 +35,5 @@ Session.vim
 
 # Mac
 .DS_Store
+DotTrack/.vscode/extensions.json
+DotTrack/.vscode/settings.json
