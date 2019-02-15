@@ -4,6 +4,14 @@ import skimage
 import time
 from torus import Torus
 from PIL import Image
+# from generate_dbt import generate_dbt
+# from extract_frame import extract_frame
+
+
+# in pixel
+CAM_RESO = (36, 36)
+# in millimeter
+CAM_SIZE = (1, 1)
 
 
 def main():
@@ -13,19 +21,24 @@ def main():
     # compare to truth
     dbt_w, dbt_h, win_w, win_h = 256, 256, 4, 4
     fname = generate_dbt(dbt_w, dbt_h, win_w, win_h)
-    sf_x, sf_y, sf_w, sf_h = 127, 127, 10, 10
+    cam_topleft = (0, 0)
     rot = 0
-    subframe = get_test_frame(fname, sf_x, sf_y, sf_w, sf_h, rot)
-    subframe.show()
-    subarray = image_to_dbt_subarray(subframe)
+    subframe = get_test_frame(fname, cam_topleft, CAM_RESO, CAM_SIZE, rot=rot,
+                              dbt_dpi_overwrite=(300, 300))
+    # subframe.show()
+    # subarray = image_to_dbt_subarray(subframe)
     # print(subarray)
 
-    find_sequences_in_dbt(subarray, fname, win_w, win_h)
+    # find_sequences_in_dbt(subarray, fname, win_w, win_h)
     # Testing 2:
     # test with real images
 
-
 # Image Generation:
+# generate_dbt.py
+# import os
+# from torus import Torus
+
+
 def generate_dbt(r, s, m, n):
     if r == 256 and s == 256 and m == 4 and n == 4:
         return generate_256x256_4x4_dbt()
@@ -54,25 +67,66 @@ def generate_256x256_4x4_dbt():
     return os.path.abspath(fname)
 
 
+# get_test_frame.py
+# from PIL import Image
+
+
 # for testing the recognition pipeline
-def get_test_frame(fname, x, y, w, h, rot=0, scale=1):
-    img = Image.open(fname)
-    # TODO Value-/Boundschecks
-    rot_scale = 1
+def get_test_frame(dbt_fname, cam_topleft, cam_reso, cam_size=(1, 1), rot=0,
+                   dbt_dpi_overwrite=None):
+    # TODO Make cam_topleft an absolut position in mm or inch. Or allow an
+    # offset to test patterns being cut off
+    img = Image.open(dbt_fname)
+
+    # Convert size from millimeters to inch
+    cam_size_inch = (cam_size[0]*0.039370079, cam_size[1]*0.039370079)
+
+    # Set up DPI value
+    dpi = None
+    cam_dpi = (int(cam_reso[0]//cam_size_inch[0]),
+               int(cam_reso[1]//cam_size_inch[1]))
+    # Read out DPI value from PNG metadata.
+    for key in img.info:
+        if(key == "dpi"):
+            dpi = img.info[key]
+    if dbt_dpi_overwrite is not None:
+        # Set DPI to overwrite value
+        dpi = dbt_dpi_overwrite
+    if dpi is None:
+        # Set DPI to default value (dpi of camera/sensor)
+        # TODO: Nyquist as default?? 36 --> (36/2)-1 = 17 --> 17//size
+        dpi = cam_dpi
+
+    # Calculate scaling factors & scale accordingly.
+    # The ratio_scale variable is required to scale the DBT image to the wanted
+    # size and in correct relation to the camera size
+    ratio_scale = (int(cam_dpi[0]/dpi[0]), int(cam_dpi[1]/dpi[1]))
+    # Resize to set the image size in relation to the camera size
+    img = img.resize((img.size[0]*ratio_scale[0], img.size[1]*ratio_scale[1]))
+
+    # To prevent not intended anti aliasing (3 because of Nyquist)
+    safety_scale = 3
+    img = img.resize((img.size[0]*safety_scale, img.size[1]*safety_scale))
+
+    # TODO Value-/Boundschecks?
     if rot != 0:
-        rot_scale = 3  # TODO: what scaling is proper (emulates DPI best)
-        w, h = img.size
-        img = img.resize((w * rot_scale, h * rot_scale))
-        # img.show()
-        img = img.rotate(-rot, expand=False, center=(x*rot_scale, y*rot_scale),
+        img = img.rotate(-rot,
+                         expand=False,
+                         center=(cam_topleft[0]*safety_scale,
+                                 cam_topleft[1]*safety_scale),
                          translate=(0, 0))
-        # img.show()
-    left, upper, right, lower = x, y, x+w, y+h
-    img = img.crop(box=(left*rot_scale,
-                        upper*rot_scale,
-                        right*rot_scale,
-                        lower*rot_scale))
-    # TODO scale back down when image was rotated
+    left, top, right, bottom = (cam_topleft[0],
+                                cam_topleft[1],
+                                cam_topleft[0]+cam_reso[0],
+                                cam_topleft[1]+cam_reso[1])
+    img = img.crop(box=(left*safety_scale,
+                        top*safety_scale,
+                        right*safety_scale,
+                        bottom*safety_scale))
+    # img.show()
+    # TODO Emulate greyscale and randomize the values a bit or smooth the edges
+    # of the pattern squares.
+    img = img.resize(cam_reso)  # , resample=Image.NEAREST) TODO:filter needed?
     return img
 
 
