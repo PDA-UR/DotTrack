@@ -1,4 +1,5 @@
 import os
+import skimage
 # import numpy as np
 from PIL import Image
 from reportlab.pdfgen import canvas
@@ -7,8 +8,38 @@ from reportlab.lib.pagesizes import A4
 
 
 def main():
-    create_pdf("output-256x256-4x4.png", (36, 36), (1, 1), A4, (5, 5),
-               (1200, 1200))
+    # Used for testpage PDFs
+    create_png_dpi_examples("output-256x256-4x4.png")
+
+    # create_pdf("output-256x256-4x4.png", (36, 36), (1, 1), A4, (5, 5),
+    #            (1200, 1200))
+
+
+# Set dpi value in the PNG metadata (does not seem to be used by a lot of
+# software but inkscape does).
+def set_img_dpi(img, fname, dpi):
+    # img = Image.open(fname)
+    base, ext = os.path.splitext(fname)
+    img.save(base+f"_{dpi[0]}x{dpi[1]}dpi"+ext, dpi=dpi)
+
+
+# Used for testpage.pdf
+def create_png_dpi_examples(fname):
+    dbt_img = Image.open(fname)
+
+    # Camera resolution in pixel.
+    cam_reso = (36, 36)
+    # Camera capture area in millimeters.
+    cam_size = (1, 1)
+    # Convert size from millimeters to inch.
+    cam_size_inch = (cam_size[0]*0.039370079, cam_size[1]*0.039370079)
+
+    num_ppx_threshold = (5, 5)
+    # num_ppx_sample = []
+    for num_ppx in range(num_ppx_threshold[0], int(cam_reso[0]/3 + 1)):
+        dpi = (int(1 / (cam_size_inch[0] / num_ppx)),
+               int(1 / (cam_size_inch[1] / num_ppx)))
+        set_img_dpi(dbt_img, fname, dpi)
 
 
 def create_pdf(dbt_fname="output-256x256-4x4.png", sensor_reso=(36, 36),
@@ -65,6 +96,8 @@ def create_pdf(dbt_fname="output-256x256-4x4.png", sensor_reso=(36, 36),
     # This should be top left coordinates (because (0, 0) is bottom left) but
     # on/within the printable area.
     x, y = pa_x_bounds[0], pa_y_bounds[1]
+    # h is inverted because the PDFs origin is in the bottom left corner and
+    # positive values will go up towards the top.
     w, h = (dbt_img_size[0]/p_dpi[0])*inch, -(dbt_img_size[1]/p_dpi[1])*inch
     # TODO/FIXME/URGENT: Make bounds check and crop image accordingly
     # x+w, y-h
