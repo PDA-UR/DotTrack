@@ -86,11 +86,10 @@ def generate_256x256_4x4_dbt(dpi, mode):
 
 
 # for testing the recognition pipeline
-def get_test_frame(dbt_fname, cam_topleft, cam_reso, cam_size=(1, 1), rot=0,
+def get_test_frame(img, cam_topleft, cam_reso, cam_size=(1, 1), rot=0,
                    dbt_dpi_overwrite=None):
     # TODO Make cam_topleft an absolut position in mm or inch. Or allow an
     # offset to test patterns being cut off
-    img = Image.open(dbt_fname)
 
     # Convert size from millimeters to inch
     cam_size_inch = (cam_size[0]*0.039370079, cam_size[1]*0.039370079)
@@ -107,20 +106,20 @@ def get_test_frame(dbt_fname, cam_topleft, cam_reso, cam_size=(1, 1), rot=0,
         # Set DPI to overwrite value
         dpi = dbt_dpi_overwrite
     if dpi is None:
-        # Set DPI to default value (dpi of camera/sensor)
+        # Set DPI to default value (dpi of camera/sensor).
         # TODO: Nyquist as default?? 36 --> (36/2)-1 = 17 --> 17//size
         dpi = cam_dpi
 
     # Calculate scaling factors & scale accordingly.
     # The ratio_scale variable is required to scale the DBT image to the wanted
-    # size and in correct relation to the camera size
-    ratio_scale = (int(cam_dpi[0]/dpi[0]), int(cam_dpi[1]/dpi[1]))
-    # Resize to set the image size in relation to the camera size
-    img = img.resize((img.size[0]*ratio_scale[0], img.size[1]*ratio_scale[1]))
-
-    # To prevent not intended anti aliasing (3 because of Nyquist)
+    # size and in correct relation to the camera size.
+    ratio_scale = (cam_dpi[0]/dpi[0], cam_dpi[1]/dpi[1])
+    # To prevent not intended anti aliasing (3 because of Nyquist).
     safety_scale = 3
-    img = img.resize((img.size[0]*safety_scale, img.size[1]*safety_scale))
+    # Resize to set the image size in relation to the camera size and also
+    # scale up to retain quality.
+    img = img.resize((int(img.size[0]*safety_scale*ratio_scale[0]),
+                      int(img.size[1]*safety_scale*ratio_scale[0])))
 
     # TODO Value-/Boundschecks?
     if rot != 0:
@@ -137,9 +136,8 @@ def get_test_frame(dbt_fname, cam_topleft, cam_reso, cam_size=(1, 1), rot=0,
                         top*safety_scale,
                         right*safety_scale,
                         bottom*safety_scale))
-    # img.show()
-    # TODO Emulate greyscale and randomize the values a bit or smooth the edges
-    # of the pattern squares.
+    # The blur is supposed to emulate greyscale noise.
+    img = img.filter(ImageFilter.GaussianBlur(radius=safety_scale+1))
     img = img.resize(cam_reso)  # , resample=Image.NEAREST) TODO:filter needed?
     return img
 
