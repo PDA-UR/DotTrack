@@ -3,7 +3,7 @@ import skimage
 # import numpy as np
 import time
 from torus import Torus
-from PIL import Image
+from PIL import Image, ImageFilter
 # from generate_dbt import generate_dbt
 # from extract_frame import extract_frame
 
@@ -36,15 +36,21 @@ def main():
     # 1.1. Test frame simulation:
     cam_topleft = (0, 0)
     rot = 0
-    subframe = get_test_frame(fname, cam_topleft, CAM_RESO, CAM_SIZE, rot=rot,
-                              dbt_dpi_overwrite=(300, 300))
-    # subframe.show()
-    # subarray = image_to_dbt_subarray(subframe)
-    # print(subarray)
+    subframe = get_test_frame(img, cam_topleft, CAM_RESO, CAM_SIZE, rot=rot)
+    # subframe = get_test_frame(img, cam_topleft, CAM_RESO, CAM_SIZE, rot=rot,
+    #                           dbt_dpi_overwrite=(300, 300))
+    # subframe.show()  # DEBUG OUTPUT
 
-    # find_sequences_in_dbt(subarray, fname, win_w, win_h)
-    # Testing 2:
-    # test with real images
+    # 2. Image Analysis (extract array out of picture):
+    # subframe = unrotate_image(subframe)  # TODO
+    subframe = preprocess_image(subframe)
+    subframe.show()  # DEBUG OUTPUT
+    subarray = image_to_dbt_subarray(subframe, CAM_SIZE)
+    print(subarray)
+
+    # 3. Decode array (and get position):
+    # find_sequences_in_dbt(subarray, img, win_w, win_h)
+
 
 # 1. Image Generation:
 # generate_dbt.py
@@ -142,32 +148,60 @@ def get_test_frame(img, cam_topleft, cam_reso, cam_size=(1, 1), rot=0,
     return img
 
 
-# Image Analysis (extract array out of picture):
+# 2. Image Analysis (extract array out of picture):
 def preprocess_image(img):
-    # sharpen
-    # threshold
-    pass
+    # Sharpen
+    img = img.filter(ImageFilter.SHARPEN)
+    # Edge enhance
+    img = img.filter(ImageFilter.EDGE_ENHANCE)
+    # Mode filter
+    img = img.filter(ImageFilter.ModeFilter)
+    # Threshold
+    img = img.convert("1")
+    # TODO thresholding with img.point()?
+    return img
 
 
 def unrotate_image(img):
-    pass
+    # preprocess image for easier stabilization
+    # img = img.filter(ImageFilter.CONTOUR)
+    # img = img.filter(ImageFilter.EMBOSS)
+    pp_img = img.filter(ImageFilter.FIND_EDGES)
+    # TODO: do stuff to get assumed rotation
+    # APPROACH 1: rotate with 15° increments
+    rot = 0
+    img = img.rotate(rot,
+                     expand=False,
+                     center=(img.size[0]//2, img.size[1]//2),
+                     translate=(0, 0))
+    return img
 
 
 def remove_helper_lines(img):
     pass
 
 
-def image_to_dbt_subarray(img):
+def image_to_dbt_subarray(img, cam_size):
+    # Convert size from millimeters to inch
+    cam_size_inch = (cam_size[0]*0.039370079, cam_size[1]*0.039370079)
+    # Read out DPI value from PNG metadata.
+    dpi = img.info["dpi"]
+    # Number of pattern pixel the sensor should be able to see
+    num_ppx = (dpi[0]*cam_size_inch[0], dpi[1]*cam_size_inch[1])
+    # Ratio of camera/image pixel per pattern pixel
+    px_ppx_ratio = (int(img.size[0]/num_ppx[0]), int(img.size[1]/num_ppx[1]))
+
     # Testing code WITHOUT proper pixel accumulation/consolidation
     data = skimage.img_as_ubyte(img)
+    # Alternative: data = np.array(img)
+    # Revert with: img = Image.fromarray(data)
     return data
 
 
-# Decode array (and get position):
-def find_sequences_in_dbt(frame_array, dbt_fname, m, n):
+# 3. Decode array (and get position):
+def find_sequences_in_dbt(frame_array, dbt_img, m, n):
     start_time = time.perf_counter()
 
-    dbt_img = Image.open(dbt_fname)
     dbt_array = skimage.img_as_ubyte(dbt_img)
 
     # List comprehension for x, y and dbt_x, dbt_y produces more loops
