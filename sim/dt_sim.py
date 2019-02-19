@@ -19,8 +19,21 @@ def main():
     # generate multiple test images
     # run pipeline
     # compare to truth
+
+    # Testing 2:
+    # test with real images
+
+    # 1. Image Generation:
     dbt_w, dbt_h, win_w, win_h = 256, 256, 4, 4
-    fname = generate_dbt(dbt_w, dbt_h, win_w, win_h)
+    dpi = (300, 300)
+    # "L": 8-bit greyscale. 0 means black, 255 means white.
+    # "1": 1-bit bilevel, stored with the leftmost pixel in the most
+    # significant bit. 0 means black, 1 means white.
+    mode = "L"
+    fname = generate_dbt(dbt_w, dbt_h, win_w, win_h, dpi, mode)
+    img = Image.open(fname)
+
+    # 1.1. Test frame simulation:
     cam_topleft = (0, 0)
     rot = 0
     subframe = get_test_frame(fname, cam_topleft, CAM_RESO, CAM_SIZE, rot=rot,
@@ -33,23 +46,23 @@ def main():
     # Testing 2:
     # test with real images
 
-# Image Generation:
+# 1. Image Generation:
 # generate_dbt.py
 # import os
 # from torus import Torus
 
 
-def generate_dbt(r, s, m, n):
+def generate_dbt(r, s, m, n, dpi=(150, 150), mode="L"):
     if r == 256 and s == 256 and m == 4 and n == 4:
-        return generate_256x256_4x4_dbt()
+        return generate_256x256_4x4_dbt(dpi, mode)
     else:
         err_msg = ("Dimensions not supported yet. "
                    "Only 256x256/4x4 supported yet.")
         raise ValueError(err_msg)
 
 
-def generate_256x256_4x4_dbt():
-    fname = "output-256x256-4x4.png"
+def generate_256x256_4x4_dbt(dpi, mode):
+    fname = f"output-256x256-4x4_{dpi[0]}x{dpi[1]}dpi_{mode}.png"
     values = [
         [0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1],
         [0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1],
@@ -63,10 +76,11 @@ def generate_256x256_4x4_dbt():
     torus.make()
     torus.transpose()
     torus.make()
-    torus.save(fname)
+    torus.save(fname, dpi=dpi, mode=mode)
     return os.path.abspath(fname)
 
 
+# 1.1. Test frame simulation:
 # get_test_frame.py
 # from PIL import Image
 

@@ -242,7 +242,8 @@ class Torus():
         self.s *= num_copies
         self.m += 1
 
-    def save(self, name, tile_width=1, tile_height=1, square_size=1):
+    def save(self, name, tile_width=1, tile_height=1, square_size=1,
+             dpi=(150, 150), mode="L"):
         """Saves the torus as a monochromatic image.
 
         Converts each element in the torus to a 1-bit pixel:
@@ -300,7 +301,8 @@ class Torus():
             if tile_width == tile_height == square_size == 1:
                 data = f.read()
                 img = Image.frombytes('1', img_dim, data, 'raw', '1')
-                img.save(name)
+                img = img.convert(mode)
+                img.save(name, dpi=dpi)
                 return
 
             base, ext = os.path.splitext(name)
@@ -315,7 +317,8 @@ class Torus():
                     curr_data = bytes(curr_data)
 
                     img = Image.frombytes('1', img_dim, curr_data, 'raw', '1')
+                    img = img.convert(mode)
                     if tile_width == tile_height == 1:
-                        img.save(name)
+                        img.save(name, dpi=dpi)
                     else:
-                        img.save(f'{base}_{h+1}_{w+1}{ext}')
+                        img.save(f'{base}_{h+1}_{w+1}{ext}', dpi=dpi)
