@@ -39,10 +39,10 @@ def main():
     img = Image.open(fname)
 
     # 1.1. Test frame simulation:
-    cam_topleft = (0, 0)
+    cam_anchor = (0, 0)
     rot = 0
-    subframe = get_test_frame(img, cam_topleft, CAM_RESO, CAM_SIZE, rot=rot)
-    # subframe = get_test_frame(img, cam_topleft, CAM_RESO, CAM_SIZE, rot=rot,
+    subframe = get_test_frame(img, cam_anchor, CAM_RESO, CAM_SIZE, rot=rot)
+    # subframe = get_test_frame(img, cam_anchor, CAM_RESO, CAM_SIZE, rot=rot,
     #                           dbt_dpi_overwrite=(300, 300))
     # subframe.show()  # DEBUG OUTPUT
 
@@ -101,9 +101,9 @@ def generate_256x256_4x4_dbt(fname, dpi, mode):
 
 
 # for testing the recognition pipeline
-def get_test_frame(img, cam_topleft, cam_reso, cam_size=(1, 1), rot=0,
+def get_test_frame(img, cam_anchor, cam_reso, cam_size=(1, 1), rot=0,
                    dbt_dpi_overwrite=None):
-    # TODO Make cam_topleft an absolut position in mm or inch. Or allow an
+    # TODO Make cam_anchor an absolut position in mm or inch. Or allow an
     # offset to test patterns being cut off
 
     # Convert size from millimeters to inch
@@ -130,29 +130,33 @@ def get_test_frame(img, cam_topleft, cam_reso, cam_size=(1, 1), rot=0,
     # size and in correct relation to the camera size.
     ratio_scale = (cam_dpi[0]/dpi[0], cam_dpi[1]/dpi[1])
     # To prevent not intended anti aliasing (3 because of Nyquist).
-    safety_scale = 3
+    safety_scale = (3, 3)
+    # Complete scale.
+    scale = (ratio_scale[0]*safety_scale[0], ratio_scale[1]*safety_scale[0])
     # Resize to set the image size in relation to the camera size and also
     # scale up to retain quality.
-    img = img.resize((int(img.size[0]*safety_scale*ratio_scale[0]),
-                      int(img.size[1]*safety_scale*ratio_scale[0])))
+    img = img.resize((int(img.size[0]*scale[0]),
+                      int(img.size[1]*scale[0])))
 
     # TODO Value-/Boundschecks?
     if rot != 0:
         img = img.rotate(-rot,
                          expand=False,
-                         center=(cam_topleft[0]*safety_scale,
-                                 cam_topleft[1]*safety_scale),
+                         center=(cam_anchor[0]*scale[0],
+                                 cam_anchor[1]*scale[1]),
                          translate=(0, 0))
-    left, top, right, bottom = (cam_topleft[0],
-                                cam_topleft[1],
-                                cam_topleft[0]+cam_reso[0],
-                                cam_topleft[1]+cam_reso[1])
-    img = img.crop(box=(left*safety_scale,
-                        top*safety_scale,
-                        right*safety_scale,
-                        bottom*safety_scale))
+        # This is needed because rotate erases the dpi value.
+        img.info["dpi"] = dpi
+    left = int(cam_anchor[0]*scale[0])
+    top = int(cam_anchor[1]*scale[1])
+    right = int(cam_anchor[0]*scale[0]+cam_reso[0]*safety_scale[0])
+    bottom = int(cam_anchor[1]*scale[1]+cam_reso[1]*safety_scale[1])
+    img = img.crop(box=(int(left),
+                        int(top),
+                        int(right),
+                        int(bottom)))
     # The blur is supposed to emulate greyscale noise.
-    img = img.filter(ImageFilter.GaussianBlur(radius=safety_scale+1))
+    img = img.filter(ImageFilter.GaussianBlur(radius=min(safety_scale)+1))
     img = img.resize(cam_reso)  # , resample=Image.NEAREST) TODO:filter needed?
     return img
 
