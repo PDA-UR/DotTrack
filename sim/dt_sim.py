@@ -30,7 +30,7 @@ def main():
 
     # 1. Image Generation:
     dbt_w, dbt_h, win_w, win_h = 256, 256, 4, 4
-    dpi = (300, 300)
+    dpi = (150, 150)
     # "L": 8-bit greyscale. 0 means black, 255 means white.
     # "1": 1-bit bilevel, stored with the leftmost pixel in the most
     # significant bit. 0 means black, 1 means white.
@@ -54,7 +54,7 @@ def main():
     print(subarray)  # DEBUG OUTPUT
 
     # 3. Decode array (and get position):
-    # find_sequences_in_dbt(subarray, img, win_w, win_h)
+    find_sequences_in_dbt(subarray, img, win_w, win_h)
 
 
 # 1. Image Generation:
@@ -218,42 +218,48 @@ def extract_bitarray(img, cam_size):
     print(dpi[0]*cam_size_inch[0], img.size[0]/(dpi[0]*cam_size_inch[0]))
     print(dpi, num_ppx, px_ppx_ratio)
 
-    bit_array = np.zeros((int(num_ppx[0]), int(num_ppx[1])), dtype="uint8")
+    bit_array = np.zeros(num_ppx, dtype="uint8")
     img_array = skimage.img_as_ubyte(img)
     # Grid based extraction
     # 0. Find grid anchor (for later)
-    anchor = (0, 0)
-    # 1. Implement grid as for-loop that walks every cell
-    stop = (anchor[0]+px_ppx_ratio[0]*int(num_ppx[0]),
-            anchor[1]+px_ppx_ratio[1]*int(num_ppx[1]))
-    x_range = list(range(anchor[0], stop[0], px_ppx_ratio[0]))
-    y_range = list(range(anchor[1], stop[1], px_ppx_ratio[1]))
-    for i, x in enumerate(x_range):
-        for j, y in enumerate(y_range):
-            cell = img_array[y:y+px_ppx_ratio[1], x:x+px_ppx_ratio[0]]
-            # print(x, y)
-            # print(cell)
-            bit_color = calc_cell_bit(cell)
-            bit_array[j, i] = bit_color
-    # 2. Calculate cell binary value (count black/white pixels; optional
-    # margin)
-    # 3. Write value to bit_array
+    min_error = None
+    # offset_range_x = img.size[0] - num_ppx[0] * px_ppx_ratio[0]
+    # offset_range_y = img.size[1] - num_ppx[1] * px_ppx_ratio[1]
+    offset_range_x = px_ppx_ratio[0]
+    offset_range_y = px_ppx_ratio[1]
+    for a_x in range(offset_range_x):
+        for a_y in range(offset_range_y):
+            anchor = (a_x, a_y)
+            # print(anchor)
+            array = np.zeros(num_ppx, dtype="uint8")
+            error_count = 0
+            # 1. Implement grid as for-loop that walks every cell
+            stop = (anchor[0]+px_ppx_ratio[0]*num_ppx[0],
+                    anchor[1]+px_ppx_ratio[1]*num_ppx[1])
+            x_range = list(range(anchor[0], stop[0], px_ppx_ratio[0]))
+            y_range = list(range(anchor[1], stop[1], px_ppx_ratio[1]))
+            for i, x in enumerate(x_range):
+                for j, y in enumerate(y_range):
+                    cell = img_array[y:y+px_ppx_ratio[1], x:x+px_ppx_ratio[0]]
+                    # print(x, y)
+                    # print(cell)
+                    # 2. Calculate cell binary value (count black/white pixels;
+                    # optional margin)
+                    bit_color, err = calc_cell_bit(cell, ret_err_count=True)
+                    error_count += err
+                    # 3. Write value to bit_array
+                    array[j, i] = bit_color
+            if min_error is None or min_error > error_count:
+                min_error = error_count
+                bit_array = array
+                print(f"New min error ({min_error}) at {anchor} anchor.")
+                print(bit_array)
     return bit_array
-
-    # TODO: decide if this is still of use
-    # # Testing code WITHOUT proper pixel accumulation/consolidation
-    # data = skimage.img_as_ubyte(img)
-    # # Alternative: data = np.array(img)
-    # # Revert with: img = Image.fromarray(data)
-    # # Alternative image viewer for numpy arrays
-    # # from skimage.viewer import ImageViewer
-    # # ImageViewer(img).show()
-    # return data
 
 
 # return: 0/black or 255/white and win_lose_delta (for error variable)
-def calc_cell_bit(cell_array, error_count=False, margin=(0, 0),
-                  cross_shape_crop=False):
+def calc_cell_bit(cell_array, ret_err_count=False, margin=(0, 0),
+                  x_shaped_crop=False):
     # TODO: Crop to margin
     # TODO: Maybe count in a cross shape when there are very few pixels (3x3)
     # TODO: Make it possible to return an error count
@@ -266,9 +272,15 @@ def calc_cell_bit(cell_array, error_count=False, margin=(0, 0),
     #                                            return_counts=True)
     # col_counts = dict(zip(colors, counts))
     if col_counts[BLACK] > col_counts[WHITE]:
-        return BLACK
+        if ret_err_count:
+            return BLACK, col_counts[WHITE]
+        else:
+            return BLACK
     else:
-        return WHITE
+        if ret_err_count:
+            return WHITE, col_counts[BLACK]
+        else:
+            return WHITE
 
 
 # 3. Decode array (and get position):
