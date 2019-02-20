@@ -1,6 +1,7 @@
 import os
 import skimage
-# import numpy as np
+from skimage.filters import threshold_sauvola
+import numpy as np
 import time
 from torus import Torus
 from PIL import Image, ImageFilter
@@ -150,15 +151,33 @@ def get_test_frame(img, cam_topleft, cam_reso, cam_size=(1, 1), rot=0,
 
 # 2. Image Analysis (extract array out of picture):
 def preprocess_image(img):
-    # Sharpen
-    img = img.filter(ImageFilter.SHARPEN)
+    dpi = img.info["dpi"]
     # Edge enhance
-    img = img.filter(ImageFilter.EDGE_ENHANCE)
-    # Mode filter
-    img = img.filter(ImageFilter.ModeFilter)
-    # Threshold
-    img = img.convert("1")
-    # TODO thresholding with img.point()?
+    img = img.filter(ImageFilter.EDGE_ENHANCE_MORE)
+
+    # Thresholding
+    img = skimage.img_as_ubyte(img)
+
+    # Tests
+    # from skimage.filters import (try_all_threshold, threshold_sauvola,
+    #                              threshold_local, threshold_niblack)
+    # import matplotlib.pyplot as plt
+
+    # tmp = skimage.img_as_ubyte(img > threshold_local(img, 15))
+    # Image.fromarray(tmp).show()
+
+    # tmp = skimage.img_as_ubyte(img > threshold_niblack(img))
+    # Image.fromarray(tmp).show()
+
+    # tmp = skimage.img_as_ubyte(img > threshold_sauvola(img))
+    # Image.fromarray(tmp).show()
+
+    # fig, ax = try_all_threshold(img, verbose=False)
+    # plt.show()
+
+    img = skimage.img_as_ubyte(img > threshold_sauvola(img))
+    img = Image.fromarray(img)
+    img.info["dpi"] = dpi
     return img
 
 
