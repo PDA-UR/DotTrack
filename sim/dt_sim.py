@@ -9,10 +9,14 @@ from PIL import Image, ImageFilter
 # from extract_frame import extract_frame
 
 
-# in pixel
+# Cameras resolution in pixel.
 CAM_RESO = (36, 36)
-# in millimeter
+# Cameras capture area in millimeter.
 CAM_SIZE = (1, 1)
+# Black in greyscale.
+BLACK = 0
+# White in greyscale.
+WHITE = 255
 
 
 def main():
@@ -46,8 +50,8 @@ def main():
     # subframe = unrotate_image(subframe)  # TODO
     subframe = preprocess_image(subframe)
     subframe.show()  # DEBUG OUTPUT
-    subarray = image_to_dbt_subarray(subframe, CAM_SIZE)
-    print(subarray)
+    subarray = extract_bitarray(subframe, CAM_SIZE)
+    print(subarray)  # DEBUG OUTPUT
 
     # 3. Decode array (and get position):
     # find_sequences_in_dbt(subarray, img, win_w, win_h)
@@ -200,21 +204,71 @@ def remove_helper_lines(img):
     pass
 
 
-def image_to_dbt_subarray(img, cam_size):
+def extract_bitarray(img, cam_size):
+    # TODO: Implement solution(s) to grid alignment (e.g. minimize errors)
+
     # Convert size from millimeters to inch
     cam_size_inch = (cam_size[0]*0.039370079, cam_size[1]*0.039370079)
     # Read out DPI value from PNG metadata.
     dpi = img.info["dpi"]
     # Number of pattern pixel the sensor should be able to see
-    num_ppx = (dpi[0]*cam_size_inch[0], dpi[1]*cam_size_inch[1])
+    num_ppx = (int(dpi[0]*cam_size_inch[0]), int(dpi[1]*cam_size_inch[1]))
     # Ratio of camera/image pixel per pattern pixel
     px_ppx_ratio = (int(img.size[0]/num_ppx[0]), int(img.size[1]/num_ppx[1]))
+    print(dpi[0]*cam_size_inch[0], img.size[0]/(dpi[0]*cam_size_inch[0]))
+    print(dpi, num_ppx, px_ppx_ratio)
 
-    # Testing code WITHOUT proper pixel accumulation/consolidation
-    data = skimage.img_as_ubyte(img)
-    # Alternative: data = np.array(img)
-    # Revert with: img = Image.fromarray(data)
-    return data
+    bit_array = np.zeros((int(num_ppx[0]), int(num_ppx[1])), dtype="uint8")
+    img_array = skimage.img_as_ubyte(img)
+    # Grid based extraction
+    # 0. Find grid anchor (for later)
+    anchor = (0, 0)
+    # 1. Implement grid as for-loop that walks every cell
+    stop = (anchor[0]+px_ppx_ratio[0]*int(num_ppx[0]),
+            anchor[1]+px_ppx_ratio[1]*int(num_ppx[1]))
+    x_range = list(range(anchor[0], stop[0], px_ppx_ratio[0]))
+    y_range = list(range(anchor[1], stop[1], px_ppx_ratio[1]))
+    for i, x in enumerate(x_range):
+        for j, y in enumerate(y_range):
+            cell = img_array[y:y+px_ppx_ratio[1], x:x+px_ppx_ratio[0]]
+            # print(x, y)
+            # print(cell)
+            bit_color = calc_cell_bit(cell)
+            bit_array[j, i] = bit_color
+    # 2. Calculate cell binary value (count black/white pixels; optional
+    # margin)
+    # 3. Write value to bit_array
+    return bit_array
+
+    # TODO: decide if this is still of use
+    # # Testing code WITHOUT proper pixel accumulation/consolidation
+    # data = skimage.img_as_ubyte(img)
+    # # Alternative: data = np.array(img)
+    # # Revert with: img = Image.fromarray(data)
+    # # Alternative image viewer for numpy arrays
+    # # from skimage.viewer import ImageViewer
+    # # ImageViewer(img).show()
+    # return data
+
+
+# return: 0/black or 255/white and win_lose_delta (for error variable)
+def calc_cell_bit(cell_array, error_count=False, margin=(0, 0),
+                  cross_shape_crop=False):
+    # TODO: Crop to margin
+    # TODO: Maybe count in a cross shape when there are very few pixels (3x3)
+    # TODO: Make it possible to return an error count
+
+    col_counts = {}
+    # https://stackoverflow.com/a/35549699
+    col_counts[WHITE] = np.count_nonzero(cell_array == WHITE)
+    col_counts[BLACK] = np.count_nonzero(cell_array == BLACK)
+    # colors, counts = np.lib.arraysetops.unique(cell_array,
+    #                                            return_counts=True)
+    # col_counts = dict(zip(colors, counts))
+    if col_counts[BLACK] > col_counts[WHITE]:
+        return BLACK
+    else:
+        return WHITE
 
 
 # 3. Decode array (and get position):
