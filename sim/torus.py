@@ -129,7 +129,7 @@ class Torus():
             lines = [self._read_to_array(old) for _ in range(self.r)]
             self._write_from_array(f, self._bytes(self.r), zip(*lines))
         total_time = time.perf_counter() - start_time
-        print(f'Transposed {self.r}x{self.s} torus in {total_time:.3f}s')
+        # print(f'Transposed {self.r}x{self.s} torus in {total_time:.3f}s')
         os.remove(self.temp)
 
         self.r, self.s = self.s, self.r
@@ -173,10 +173,10 @@ class Torus():
         EVEN, ODD = 0, 1
         if self.col_sums == 0:
             MODE = EVEN
-            print('Using even construction')
+            # print('Using even construction')
         elif self.col_sums == (1 << self.s) - 1:
             MODE = ODD
-            print('Using odd construction')
+            # print('Using odd construction')
         else:
             raise ValueError('Column sums must be all even or all odd')
 
@@ -235,7 +235,7 @@ class Torus():
                         f, self._bytes(self.s * num_copies), result)
                     result.clear()
                     total_time = time.perf_counter() - start_time
-                    print(f'row {row+2}/{num_rows} time {total_time:.3f}s')
+                    # print(f'row {row+2}/{num_rows} time {total_time:.3f}s')
         os.remove(self.temp)
 
         self.r = num_rows
