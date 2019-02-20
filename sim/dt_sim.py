@@ -35,7 +35,7 @@ def main():
     # "1": 1-bit bilevel, stored with the leftmost pixel in the most
     # significant bit. 0 means black, 1 means white.
     mode = "L"
-    fname = generate_dbt(dbt_w, dbt_h, win_w, win_h, dpi, mode)
+    fname = generate_dbt(dbt_h, dbt_w, win_h, win_w, dpi, mode)
     img = Image.open(fname)
 
     # 1.1. Test frame simulation:
@@ -63,17 +63,21 @@ def main():
 # from torus import Torus
 
 
+# r is the height of the image
+# s is the width of the image
+# m is the height of the de Bruijn window
+# n is the width of the de Bruijn window
 def generate_dbt(r, s, m, n, dpi=(150, 150), mode="L"):
+    fname = f"output-{s}x{r}-{n}x{n}_{dpi[0]}x{dpi[1]}dpi_{mode}.png"
     if r == 256 and s == 256 and m == 4 and n == 4:
-        return generate_256x256_4x4_dbt(dpi, mode)
+        return generate_256x256_4x4_dbt(fname, dpi, mode)
     else:
         err_msg = ("Dimensions not supported yet. "
                    "Only 256x256/4x4 supported yet.")
         raise ValueError(err_msg)
 
 
-def generate_256x256_4x4_dbt(dpi, mode):
-    fname = f"output-256x256-4x4_{dpi[0]}x{dpi[1]}dpi_{mode}.png"
+def generate_256x256_4x4_dbt(fname, dpi, mode):
     values = [
         [0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1],
         [0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1],
@@ -205,8 +209,6 @@ def remove_helper_lines(img):
 
 
 def extract_bitarray(img, cam_size):
-    # TODO: Implement solution(s) to grid alignment (e.g. minimize errors)
-
     # Convert size from millimeters to inch
     cam_size_inch = (cam_size[0]*0.039370079, cam_size[1]*0.039370079)
     # Read out DPI value from PNG metadata.
@@ -218,7 +220,7 @@ def extract_bitarray(img, cam_size):
     print(dpi[0]*cam_size_inch[0], img.size[0]/(dpi[0]*cam_size_inch[0]))
     print(dpi, num_ppx, px_ppx_ratio)
 
-    bit_array = np.zeros(num_ppx, dtype="uint8")
+    bit_array = np.zeros((num_ppx[1], num_ppx[0]), dtype="uint8")
     img_array = skimage.img_as_ubyte(img)
     # Grid based extraction
     # 0. Find grid anchor (for later)
@@ -231,7 +233,7 @@ def extract_bitarray(img, cam_size):
         for a_y in range(offset_range_y):
             anchor = (a_x, a_y)
             # print(anchor)
-            array = np.zeros(num_ppx, dtype="uint8")
+            array = np.zeros((num_ppx[1], num_ppx[0]), dtype="uint8")
             error_count = 0
             # 1. Implement grid as for-loop that walks every cell
             stop = (anchor[0]+px_ppx_ratio[0]*num_ppx[0],
@@ -262,7 +264,6 @@ def calc_cell_bit(cell_array, ret_err_count=False, margin=(0, 0),
                   x_shaped_crop=False):
     # TODO: Crop to margin
     # TODO: Maybe count in a cross shape when there are very few pixels (3x3)
-    # TODO: Make it possible to return an error count
 
     col_counts = {}
     # https://stackoverflow.com/a/35549699
@@ -292,17 +293,17 @@ def find_sequences_in_dbt(frame_array, dbt_img, m, n):
     # List comprehension for x, y and dbt_x, dbt_y produces more loops
     # Less looping ==> bit faster
     # Caching the range variables is also a tiny bit faster
-    frame_x_range = frame_array.shape[0]-m+1
-    frame_y_range = frame_array.shape[1]-n+1
-    dbt_x_range = dbt_array.shape[0]-m+1
-    dbt_y_range = dbt_array.shape[1]-n+1
+    frame_x_range = frame_array.shape[1]-n+1
+    frame_y_range = frame_array.shape[0]-m+1
+    dbt_x_range = dbt_array.shape[1]-n+1
+    dbt_y_range = dbt_array.shape[0]-m+1
     for x in range(frame_x_range):
         for y in range(frame_y_range):
-            win = frame_array[x:x+m, y:y+n]
+            win = frame_array[y:y+n, x:x+m]
             for dbt_x in range(dbt_x_range):
                 for dbt_y in range(dbt_y_range):
                     # np.array_equal() is slower (rather big difference)
-                    if (win == dbt_array[dbt_x:dbt_x+m, dbt_y:dbt_y+n]).all():
+                    if (win == dbt_array[dbt_y:dbt_y+n, dbt_x:dbt_x+m]).all():
                         print(dbt_x, dbt_y)
 
     total_time = time.perf_counter() - start_time
