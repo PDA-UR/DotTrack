@@ -72,8 +72,8 @@ def generate_dbt(r, s, m, n, dpi=(150, 150), mode="L"):
     if r == 256 and s == 256 and m == 4 and n == 4:
         return generate_256x256_4x4_dbt(fname, dpi, mode)
     else:
-        err_msg = ("Dimensions not supported yet. "
-                   "Only 256x256/4x4 supported yet.")
+        err_msg = "Dimensions not supported yet. " \
+            "Only 256x256/4x4 supported yet."
         raise ValueError(err_msg)
 
 
@@ -311,9 +311,9 @@ def find_sequences_in_dbt(frame_array, dbt_img, m, n):
                         print(dbt_x, dbt_y)
 
     total_time = time.perf_counter() - start_time
-    print(f"Brute force lookup of",
-          f"{frame_array.shape[0]}x{frame_array.shape[1]} subarray in",
-          f"{dbt_array.shape[0]}x{dbt_array.shape[1]} DBT with {m}x{n} window",
+    print(f"Brute force lookup of "
+          f"{frame_array.shape[0]}x{frame_array.shape[1]} subarray in "
+          f"{dbt_array.shape[0]}x{dbt_array.shape[1]} DBT with {m}x{n} window "
           f"size took {total_time:.3f}s")
 
 
