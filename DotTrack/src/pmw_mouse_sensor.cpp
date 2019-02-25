@@ -546,11 +546,18 @@ void loop()
         readMotionBurst(rawMotBr, motBrLength);
         updateMotBrValues();
 
-        int avg_threshold = 5;
-        int shutter_threshold = 8;
-        int left[] = {20, 110, 20, 100};
-        int mid[] = {26, 120, 20, 81};
-        int right[] = {36, 120, 32, 75};
+        // M5Stack #8
+        //int avg_threshold = 2;
+        //int shutter_threshold = 10;
+        //int left[] = {15, 110, 20, 110};
+        //int mid[] = {20, 120, 20, 100};
+        //int right[] = {24, 120, 32, 85};
+        // M5Stack #7
+        int avg_threshold = 3;
+        int shutter_threshold = 10;
+        int left[] = {16, 110, 20, 130};
+        int mid[] = {22, 120, 20, 110};
+        int right[] = {28, 120, 32, 90};
 
         // Points are ~ 9cm apart -> 9*2.54 = 3,54in -> 3.54*5000 = 17716cpi
         if(!liftOff)
@@ -1325,11 +1332,18 @@ void findAppPosition()
 
 //  RW demo values
 // avg, max, min, shutter
-    int avg_threshold = 5;
-    int shutter_threshold = 8;
-    int left[] = {20, 110, 20, 100};
-    int mid[] = {26, 120, 20, 81};
-    int right[] = {36, 120, 32, 75};
+    // M5Stack #8
+    //int avg_threshold = 2;
+    //int shutter_threshold = 10;
+    //int left[] = {18, 110, 20, 150};
+    //int mid[] = {20, 120, 20, 110};
+    //int right[] = {25, 120, 32, 100};
+    // M5Stack #7
+    int avg_threshold = 2;
+    int shutter_threshold = 10;
+    int left[] = {18, 110, 20, 140};
+    int mid[] = {22, 120, 20, 110};
+    int right[] = {24, 120, 32, 90};
 
     if(liftOff && !prevLiftOff && !preventAppExit)
         /*if(cumLiftOff && !preventAppExit)*/
