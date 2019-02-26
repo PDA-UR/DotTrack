@@ -141,7 +141,7 @@ void setup()
     /*delay(250);*/
     /*sendRawOverSerial();*/
 
-    if(EYES_DEMO == 0) return;
+    if(EYES_DEMO == 0 || IMG_CAPTURE == 1) return;
 
     // Setup WiFi
 
@@ -519,6 +519,26 @@ void drawEye()
 
 void loop()
 {
+    // IMG_CAPTURE APP
+    if (IMG_CAPTURE == 1)
+    {
+        debug3("IMG_CAPTURE");
+        captureRawImage(rawData, rawDataLength);
+        //M5.Lcd.fillScreen(BLACK);
+        drawImageToDisplay();
+        if(M5.BtnB.wasPressed() || M5.BtnB.wasPressed() ||
+                M5.BtnB.wasPressed())
+        {
+            // Send extra byte to indicate frame analyse request
+            Serial.write(0xFD);
+        }
+        sendRawOverSerial();
+
+        M5.update();
+        return;
+    }
+
+    // EYES_DEMO
     if(EYES_DEMO == 1)
     {
         // Reset sprite to a black background
