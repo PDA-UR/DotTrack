@@ -14,8 +14,22 @@
 
 #define SIMULATE_INPUT 0
 
-#define DEBUG_LEVEL 3
+#define DEBUG_LEVEL 0
 
+// TODO: Add build defines to determine the app that should be compiled
+//#ifndef IMG_CAPTURE
+//#define IMG_CAPTURE 0
+//#endif /* ifndef IMG_CAPTURE */
+//
+//#ifndef TRIPLE_APP
+//#define TRIPLE_APP 0
+//#endif /* ifndef TRIPLE_APP */
+//
+//#ifndef GOOGLY_EYES
+//#define GOOGLY_EYES 0
+//#endif /* ifndef GOOGLY_EYES */
+
+#define IMG_CAPTURE 1
 #define EYES_DEMO 0
 
 // ESP32 Pins (M5STACK)
