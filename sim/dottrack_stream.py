@@ -2,6 +2,8 @@
 import tkinter
 import serial
 from PIL import Image, ImageTk
+import threading
+import dt_sim as sim
 
 imgsize = [36, 36]
 img_byte_len = imgsize[0] * imgsize[1]
@@ -16,14 +18,23 @@ tkimg = None
 # 270+ ms should be around the time it takes to capture another image.
 stream_loop_delay = 0
 
+first_run = True
+dbt_image = sim.get_dbt_img()
+thr = None
+analyse_frame = False
+
 
 def stream_loop():
-    global tkimg
+    global tkimg, first_run, thr, analyse_frame
     # Read serial data
     data = ser.read_until(terminator=b"\xFE")
     # Remove terminator byte
     data = data[:-1]
     # print(len(data))
+    if len(data) == img_byte_len + 1 and data[0] == 0xFD:
+        # Remove header byte (indicates frame analyse request)
+        data = data[1:]
+        analyse_frame = True
     # if data is not None:
     #     data = data[:-1]
     # else:
@@ -57,8 +68,29 @@ def stream_loop():
     # Create image
     img = Image.frombytes("L", imgsize, data)
 
+    # Analyse frame
+    if analyse_frame or first_run:
+        first_run = False
+        if analyse_frame and (thr is None or not thr.is_alive()):
+            analyse_frame = False
+            thr = threading.Thread(target=sim.analyse_frame,
+                                   args=(img,
+                                         sim.CAM_SIZE,
+                                         dbt_image,
+                                         sim.WIN_W,
+                                         sim.WIN_H))
+            thr.start()
+        # Resize img
+        # img = img.resize((imgsize[0] * img_rsz_mltpl,
+        #                   imgsize[1] * img_rsz_mltpl))
+
+        # tkimg = ImageTk.PhotoImage(img)
+        # label.config(image=tkimg)
+        # root.update_idletasks()
+
     # Resize img
-    img = img.resize((imgsize[0] * img_rsz_mltpl, imgsize[1] * img_rsz_mltpl))
+    img = img.resize((imgsize[0] * img_rsz_mltpl,
+                      imgsize[1] * img_rsz_mltpl))
 
     tkimg = ImageTk.PhotoImage(img)
     label.config(image=tkimg)
@@ -67,7 +99,7 @@ def stream_loop():
 
 
 def main():
-    global ser
+    global ser, thr
     # Open serial port
     # ser = serial.Serial("/dev/ttyUSB0", 2000000, timeout=1)
     # ser = serial.Serial("/dev/ttyUSB0", 250000, timeout=1)
@@ -79,6 +111,11 @@ def main():
 
     # close serial port
     ser.close()
+
+    # wait for threads to finish running
+    if thr is not None:
+        thr.join()
+
 
 if __name__ == "__main__":
     main()
