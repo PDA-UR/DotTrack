@@ -13,6 +13,10 @@ from PIL import Image, ImageFilter
 CAM_RESO = (36, 36)
 # Cameras capture area in millimeter.
 CAM_SIZE = (1, 1)
+# De Bruijn torus width & height.
+DBT_W, DBT_H = 256, 256
+# De Bruijn torus window width & height.
+WIN_W, WIN_H = 4, 4
 # Black in greyscale.
 BLACK = 0
 # White in greyscale.
@@ -29,20 +33,29 @@ def main():
     # test with real images
 
     # 1. Image Generation:
-    dbt_w, dbt_h, win_w, win_h = 256, 256, 4, 4
+    # dbt_w, dbt_h, win_w, win_h = 256, 256, 4, 4
+    dbt_w, dbt_h, win_w, win_h = DBT_W, DBT_H, WIN_W, WIN_H
     dpi = (150, 150)
     # "L": 8-bit greyscale. 0 means black, 255 means white.
     # "1": 1-bit bilevel, stored with the leftmost pixel in the most
     # significant bit. 0 means black, 1 means white.
     mode = "L"
-    fname = generate_dbt(dbt_h, dbt_w, win_h, win_w, dpi, mode)
-    img = Image.open(fname)
+    dbt_fname = generate_dbt(dbt_h, dbt_w, win_h, win_w, dpi, mode)
+    dbt_img = Image.open(dbt_fname)
 
     # 1.1. Test frame simulation:
     cam_anchor = (0, 0)
     rot = 0
-    subframe = get_test_frame(img, cam_anchor, CAM_RESO, CAM_SIZE, rot=rot)
-    # subframe = get_test_frame(img, cam_anchor, CAM_RESO, CAM_SIZE, rot=rot,
+    subframe = get_test_frame(dbt_img,
+                              cam_anchor,
+                              CAM_RESO,
+                              CAM_SIZE,
+                              rot=rot)
+    # subframe = get_test_frame(dbt_img,
+    #                           cam_anchor,
+    #                           CAM_RESO,
+    #                           CAM_SIZE,
+    #                           rot=rot,
     #                           dbt_dpi_overwrite=(300, 300))
     # subframe.show()  # DEBUG OUTPUT
 
@@ -54,7 +67,7 @@ def main():
     print(subarray)  # DEBUG OUTPUT
 
     # 3. Decode array (and get position):
-    find_sequences_in_dbt(subarray, img, win_w, win_h)
+    find_sequences_in_dbt(subarray, dbt_img, win_w, win_h)
 
 
 # 1. Image Generation:
@@ -197,7 +210,7 @@ def unrotate_image(img):
     # preprocess image for easier stabilization
     # img = img.filter(ImageFilter.CONTOUR)
     # img = img.filter(ImageFilter.EMBOSS)
-    pp_img = img.filter(ImageFilter.FIND_EDGES)
+    img = img.filter(ImageFilter.FIND_EDGES)
     # TODO: do stuff to get assumed rotation
     # APPROACH 1: rotate with 15° increments
     rot = 0
@@ -276,6 +289,9 @@ def calc_cell_bit(cell_array, ret_err_count=False, margin=(0, 0),
     # colors, counts = np.lib.arraysetops.unique(cell_array,
     #                                            return_counts=True)
     # col_counts = dict(zip(colors, counts))
+
+    # Currently biased towards white:
+    # (if white_count == black_count: return WHITE)
     if col_counts[BLACK] > col_counts[WHITE]:
         if ret_err_count:
             return BLACK, col_counts[WHITE]
