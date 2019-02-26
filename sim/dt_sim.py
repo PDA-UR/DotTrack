@@ -12,7 +12,7 @@ from PIL import Image, ImageFilter
 # Cameras resolution in pixel.
 CAM_RESO = (36, 36)
 # Cameras capture area in millimeter.
-# Calculated/Exstimated as explained in
+# Calculated/Estimated as explained in
 # https://github.com/PDA-UR/DotTrack/commit/fb9fb1e
 CAM_SIZE = (1.135, 1.135)
 # De Bruijn torus width & height.
