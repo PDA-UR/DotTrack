@@ -86,6 +86,8 @@ def get_dbt_img():
 
 
 def analyse_frame(frame, cam_size, dbt_img, win_w, win_h):
+    start_time = time.perf_counter()
+
     frame.show()  # DEBUG OUTPUT
     frame = set_frame_dpi(frame, cam_size)
     # 2. Image Analysis (extract array out of picture):
@@ -98,6 +100,9 @@ def analyse_frame(frame, cam_size, dbt_img, win_w, win_h):
 
     # 3. Decode array (and get position):
     find_sequences_in_dbt(subarray, dbt_img, win_w, win_h)
+
+    total_time = time.perf_counter() - start_time
+    print(f"Frame analysing took {total_time:.3f}s")
 
 
 def set_frame_dpi(frame, cam_size):
