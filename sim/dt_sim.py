@@ -12,7 +12,7 @@ from PIL import Image, ImageFilter
 # Cameras resolution in pixel.
 CAM_RESO = (36, 36)
 # Cameras capture area in millimeter.
-CAM_SIZE = (1, 1)
+CAM_SIZE = (1.135, 1.135)
 # De Bruijn torus width & height.
 DBT_W, DBT_H = 256, 256
 # De Bruijn torus window width & height.
