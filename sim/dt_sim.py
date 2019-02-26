@@ -70,6 +70,43 @@ def main():
     find_sequences_in_dbt(subarray, dbt_img, win_w, win_h)
 
 
+def get_dbt_img():
+    # 1. Image Generation:
+    dbt_w, dbt_h, win_w, win_h = DBT_W, DBT_H, WIN_W, WIN_H
+    dpi = (150, 150)
+    # "L": 8-bit greyscale. 0 means black, 255 means white.
+    # "1": 1-bit bilevel, stored with the leftmost pixel in the most
+    # significant bit. 0 means black, 1 means white.
+    mode = "L"
+    fname = generate_dbt(dbt_h, dbt_w, win_h, win_w, dpi, mode)
+    img = Image.open(fname)
+    return img
+
+
+def analyse_frame(frame, cam_size, dbt_img, win_w, win_h):
+    frame.show()  # DEBUG OUTPUT
+    frame = set_frame_dpi(frame, cam_size)
+    # 2. Image Analysis (extract array out of picture):
+    # frame = unrotate_image(frame)  # TODO
+    frame = preprocess_image(frame)
+    frame.show()  # DEBUG OUTPUT
+    subarray = extract_bitarray(frame, cam_size, dbt_img.info["dpi"])
+    # print(subarray)  # DEBUG OUTPUT
+    Image.fromarray(subarray).show()
+
+    # 3. Decode array (and get position):
+    find_sequences_in_dbt(subarray, dbt_img, win_w, win_h)
+
+
+def set_frame_dpi(frame, cam_size):
+    # Convert size from millimeters to inch
+    cam_size_inch = (cam_size[0]*0.039370079, cam_size[1]*0.039370079)
+    cam_dpi = (int(frame.size[0]//cam_size_inch[0]),
+               int(frame.size[1]//cam_size_inch[1]))
+    frame.info["dpi"] = cam_dpi
+    return frame
+
+
 # 1. Image Generation:
 # generate_dbt.py
 # import os
@@ -158,8 +195,6 @@ def get_test_frame(img, cam_anchor, cam_reso, cam_size=(1, 1), rot=0,
                          center=(cam_anchor[0]*scale[0],
                                  cam_anchor[1]*scale[1]),
                          translate=(0, 0))
-        # This is needed because rotate erases the dpi value.
-        img.info["dpi"] = dpi
     left = int(cam_anchor[0]*scale[0])
     top = int(cam_anchor[1]*scale[1])
     right = int(cam_anchor[0]*scale[0]+cam_reso[0]*safety_scale[0])
@@ -171,6 +206,9 @@ def get_test_frame(img, cam_anchor, cam_reso, cam_size=(1, 1), rot=0,
     # The blur is supposed to emulate greyscale noise.
     img = img.filter(ImageFilter.GaussianBlur(radius=min(safety_scale)+1))
     img = img.resize(cam_reso)  # , resample=Image.NEAREST) TODO:filter needed?
+    # Since img is now the camera frame it should set the dpi value to the
+    # cameras dpi value (cam_dpi).
+    img.info["dpi"] = cam_dpi
     return img
 
 
@@ -225,17 +263,17 @@ def remove_helper_lines(img):
     pass
 
 
-def extract_bitarray(img, cam_size):
+def extract_bitarray(img, cam_size, dbt_img_dpi):
     # Convert size from millimeters to inch
     cam_size_inch = (cam_size[0]*0.039370079, cam_size[1]*0.039370079)
-    # Read out DPI value from PNG metadata.
-    dpi = img.info["dpi"]
     # Number of pattern pixel the sensor should be able to see
-    num_ppx = (int(dpi[0]*cam_size_inch[0]), int(dpi[1]*cam_size_inch[1]))
+    num_ppx = (int(dbt_img_dpi[0]*cam_size_inch[0]),
+               int(dbt_img_dpi[1]*cam_size_inch[1]))
     # Ratio of camera/image pixel per pattern pixel
     px_ppx_ratio = (int(img.size[0]/num_ppx[0]), int(img.size[1]/num_ppx[1]))
-    print(dpi[0]*cam_size_inch[0], img.size[0]/(dpi[0]*cam_size_inch[0]))
-    print(dpi, num_ppx, px_ppx_ratio)
+    print(dbt_img_dpi[0]*cam_size_inch[0],
+          img.size[0]/(dbt_img_dpi[0]*cam_size_inch[0]))
+    print(dbt_img_dpi, num_ppx, px_ppx_ratio)
 
     bit_array = np.zeros((num_ppx[1], num_ppx[0]), dtype="uint8")
     img_array = skimage.img_as_ubyte(img)
