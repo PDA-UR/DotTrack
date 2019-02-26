@@ -23,7 +23,7 @@ def stream_loop():
     data = ser.read_until(terminator=b"\xFE")
     # Remove terminator byte
     data = data[:-1]
-    print(len(data))
+    # print(len(data))
     # if data is not None:
     #     data = data[:-1]
     # else:
@@ -35,21 +35,20 @@ def stream_loop():
     # Shorten bytes
     if data_len > img_byte_len:
         data = data[data_len-img_byte_len:]
-        print("{} bytes long. Shortened to {}!".format(data_len, len(data)))
+        # print("{} bytes long. Shortened to {}!".format(data_len, len(data)))
     # Fill up bytes
     elif data_len < img_byte_len:
-        byte_count = 0
-        while len(data) != img_byte_len:
-            byte_count += 1
-            data += b"\xFF"
-        print("Only {} bytes long. Fill up with {} to {}!".format(data_len,
-                                                                  byte_count,
-                                                                  len(data)))
+        byte_count = img_byte_len - data_len
+        data += b"\xFF" * byte_count
+        # print("Only {} bytes long. Fill up with {} to {}!".format(data_len,
+        #                                                           byte_count,
+        #                                                           len(data)))
 
     # Error out if the length is still not correct
     if len(data) != img_byte_len:
-        print("Under {} bytes long ({} bytes). Aborting!".format(img_byte_len,
-                                                                 len(data)))
+        # print("Under {} bytes long ({} bytes). Aborting!".format(
+        #     img_byte_len,
+        #     len(data)))
         return
 
     # Expand bytes to full range (0-255)
