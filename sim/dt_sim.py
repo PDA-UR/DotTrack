@@ -36,6 +36,9 @@ def main():
     # Testing 2:
     # test with real images
 
+    pipeline_id = "baseline"
+    # pipeline_id = "direct_bit_extract"
+
     # 1. Image Generation:
     # dbt_w, dbt_h, win_w, win_h = 256, 256, 4, 4
     dbt_w, dbt_h, win_w, win_h = DBT_W, DBT_H, WIN_W, WIN_H
@@ -65,9 +68,9 @@ def main():
 
     # 2. Image Analysis (extract array out of picture):
     # subframe = unrotate_image(subframe)  # TODO
-    subframe = preprocess_image(subframe)
+    subframe = preprocess_image(subframe, pipeline_id)
     subframe.show()  # DEBUG OUTPUT
-    subarray = extract_bitarray(subframe, CAM_SIZE, dpi)
+    subarray = extract_bitarray(subframe, CAM_SIZE, dpi, pipeline_id)
     print(subarray)  # DEBUG OUTPUT
 
     # 3. Decode array (and get position):
@@ -87,16 +90,17 @@ def get_dbt_img():
     return img
 
 
-def analyse_frame(frame, cam_size, dbt_img, win_w, win_h):
+def analyse_frame(pipeline_id, frame, cam_size, dbt_img, win_w, win_h):
     start_time = time.perf_counter()
 
     frame.show()  # DEBUG OUTPUT
     frame = set_frame_dpi(frame, cam_size)
     # 2. Image Analysis (extract array out of picture):
     # frame = unrotate_image(frame)  # TODO
-    frame = preprocess_image(frame)
+    frame = preprocess_image(frame, pipeline_id)
     frame.show()  # DEBUG OUTPUT
-    subarray = extract_bitarray(frame, cam_size, dbt_img.info["dpi"])
+    subarray = extract_bitarray(frame, cam_size, dbt_img.info["dpi"],
+                                pipeline_id)
     # print(subarray)  # DEBUG OUTPUT
     Image.fromarray(subarray).show()
 
@@ -244,7 +248,11 @@ def get_test_frame(img, cam_anchor, cam_reso, cam_size=(1, 1), rot=0,
 
 
 # 2. Image Analysis (extract array out of picture):
-def preprocess_image(img):
+def preprocess_image(img, pipeline_id="baseline"):
+    if pipeline_id == "direct_bit_extract":
+        # No preprocessing wanted
+        return img
+
     dpi = img.info["dpi"]
     # Edge enhance
     img = img.filter(ImageFilter.EDGE_ENHANCE_MORE)
@@ -294,7 +302,7 @@ def remove_helper_lines(img):
     pass
 
 
-def extract_bitarray(img, cam_size, dbt_img_dpi):
+def extract_bitarray(img, cam_size, dbt_img_dpi, pipeline_id="baseline"):
     # Convert size from millimeters to inch
     cam_size_inch = (cam_size[0]*0.039370079, cam_size[1]*0.039370079)
     # Number of pattern pixel the sensor should be able to see
@@ -308,6 +316,29 @@ def extract_bitarray(img, cam_size, dbt_img_dpi):
 
     bit_array = np.zeros((num_ppx[1], num_ppx[0]), dtype="uint8")
     img_array = skimage.img_as_ubyte(img)
+
+    # Calculate threshold value (with Otsus method)
+    if pipeline_id == "direct_bit_extract":
+        threshold = skimage.filters.threshold_isodata(img_array)
+        print("isodata:{}".format(threshold))
+        threshold = skimage.filters.threshold_li(img_array)
+        print("li:{}".format(threshold))
+        threshold = skimage.filters.threshold_mean(img_array)
+        print("mean:{}".format(threshold))
+        threshold = skimage.filters.threshold_minimum(img_array)
+        print("minimum:{}".format(threshold))
+        threshold = skimage.filters.threshold_otsu(img_array)
+        print("otsu:{}".format(threshold))
+        threshold = skimage.filters.threshold_triangle(img_array)
+        print("triangle:{}".format(threshold))
+        threshold = skimage.filters.threshold_yen(img_array)
+        print("yen:{}".format(threshold))
+        print("255 // 2 = 127")
+        threshold = 127
+    else:
+        # default value (255 // 2)
+        threshold = 127
+
     # Grid based extraction
     # 0. Find grid anchor (for later)
     min_error = None
@@ -333,7 +364,10 @@ def extract_bitarray(img, cam_size, dbt_img_dpi):
                     # print(cell)
                     # 2. Calculate cell binary value (count black/white pixels;
                     # optional margin)
-                    bit_color, err = calc_cell_bit(cell, ret_err_count=True)
+                    bit_color, err = calc_cell_bit(cell,
+                                                   ret_err_count=True,
+                                                   threshold=threshold,
+                                                   pipeline_id=pipeline_id)
                     error_count += err
                     # 3. Write value to bit_array
                     array[j, i] = bit_color
@@ -347,30 +381,72 @@ def extract_bitarray(img, cam_size, dbt_img_dpi):
 
 # return: 0/black or 255/white and win_lose_delta (for error variable)
 def calc_cell_bit(cell_array, ret_err_count=False, margin=(0, 0),
-                  x_shaped_crop=False):
+                  x_shaped_crop=False, threshold=127, pipeline_id="baseline"):
     # TODO: Crop to margin
     # TODO: Maybe count in a cross shape when there are very few pixels (3x3)
 
-    col_counts = {}
-    # https://stackoverflow.com/a/35549699
-    col_counts[WHITE] = np.count_nonzero(cell_array == WHITE)
-    col_counts[BLACK] = np.count_nonzero(cell_array == BLACK)
-    # colors, counts = np.lib.arraysetops.unique(cell_array,
-    #                                            return_counts=True)
-    # col_counts = dict(zip(colors, counts))
+    if pipeline_id == "baseline":
+        col_counts = {}
+        # https://stackoverflow.com/a/35549699
+        col_counts[WHITE] = np.count_nonzero(cell_array == WHITE)
+        col_counts[BLACK] = np.count_nonzero(cell_array == BLACK)
+        # colors, counts = np.lib.arraysetops.unique(cell_array,
+        #                                            return_counts=True)
+        # col_counts = dict(zip(colors, counts))
 
-    # Currently biased towards white:
-    # (if white_count == black_count: return WHITE)
-    if col_counts[BLACK] > col_counts[WHITE]:
-        if ret_err_count:
-            return BLACK, col_counts[WHITE]
+        # Currently biased towards white:
+        # (if white_count == black_count: return WHITE)
+        if col_counts[BLACK] > col_counts[WHITE]:
+            if ret_err_count:
+                return BLACK, col_counts[WHITE]
+            else:
+                return BLACK
         else:
-            return BLACK
-    else:
-        if ret_err_count:
-            return WHITE, col_counts[BLACK]
+            if ret_err_count:
+                return WHITE, col_counts[BLACK]
+            else:
+                return WHITE
+    elif pipeline_id == "direct_bit_extract":
+        # 1. Get threshold value of entire image (Otsu)
+        # Given by extract_bitarray function.
+
+        # 2. Calculate greyscale errors
+        # 2.1. Determine if bigger or smaller than threshold
+        # 2.2. Calculate difference from threshold
+        # 2.3. Normalize threshold-difference (because we use Otsu and don't
+        # split right in the middle)
+
+        err_sum = 0.0
+        for x in range(cell_array.shape[1]):
+            for y in range(cell_array.shape[0]):
+                px = cell_array[y, x]
+                if px > threshold:
+                    # normalized delta error of white pixels (positive values)
+                    # 255 = maximal possible value of (whole) image
+                    # TODO: use maximal value of whole image?
+                    # TODO: use maximal value of cell image?
+                    err = (px - threshold) / (255 - threshold)
+                else:
+                    # normalized delta error of black pixels (negative values)
+                    err = (px - threshold) / threshold
+                err_sum += err
+
+        # 3. Extract bit (and error count)
+        # 3.1 Summarise all pixel error values -> cell error value
+        # 3.2 Determine bit color
+
+        if err_sum > 0.0:
+            # white / 255 value
+            if ret_err_count:
+                return WHITE, err_sum
+            else:
+                return WHITE
         else:
-            return WHITE
+            # black / zero value
+            if ret_err_count:
+                return BLACK, err_sum
+            else:
+                return BLACK
 
 
 # 3. Decode array (and get position):

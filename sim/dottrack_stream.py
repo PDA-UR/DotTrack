@@ -22,6 +22,7 @@ first_run = True
 dbt_image = sim.get_dbt_img()
 thr = None
 analyse_frame = False
+pipeline_id = "baseline"
 
 
 def stream_loop():
@@ -74,7 +75,8 @@ def stream_loop():
         if analyse_frame and (thr is None or not thr.is_alive()):
             analyse_frame = False
             thr = threading.Thread(target=sim.analyse_frame,
-                                   args=(img,
+                                   args=(pipeline_id,
+                                         img,
                                          sim.CAM_SIZE,
                                          dbt_image,
                                          sim.WIN_W,
