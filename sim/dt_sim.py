@@ -65,7 +65,7 @@ def main():
     # subframe = unrotate_image(subframe)  # TODO
     subframe = preprocess_image(subframe)
     subframe.show()  # DEBUG OUTPUT
-    subarray = extract_bitarray(subframe, CAM_SIZE)
+    subarray = extract_bitarray(subframe, CAM_SIZE, dpi)
     print(subarray)  # DEBUG OUTPUT
 
     # 3. Decode array (and get position):
