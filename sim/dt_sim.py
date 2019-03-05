@@ -374,7 +374,7 @@ def calc_cell_bit(cell_array, ret_err_count=False, margin=(0, 0),
 
 
 # 3. Decode array (and get position):
-def find_sequences_in_dbt(frame_array, dbt_img, m, n):
+def find_sequences_in_dbt(frame_array, dbt_img, win_w, win_h):
     start_time = time.perf_counter()
 
     dbt_array = skimage.img_as_ubyte(dbt_img)
@@ -382,24 +382,25 @@ def find_sequences_in_dbt(frame_array, dbt_img, m, n):
     # List comprehension for x, y and dbt_x, dbt_y produces more loops
     # Less looping ==> bit faster
     # Caching the range variables is also a tiny bit faster
-    frame_x_range = frame_array.shape[1]-n+1
-    frame_y_range = frame_array.shape[0]-m+1
-    dbt_x_range = dbt_array.shape[1]-n+1
-    dbt_y_range = dbt_array.shape[0]-m+1
+    frame_x_range = frame_array.shape[1]-win_w+1
+    frame_y_range = frame_array.shape[0]-win_h+1
+    dbt_x_range = dbt_array.shape[1]-win_w+1
+    dbt_y_range = dbt_array.shape[0]-win_h+1
     for x in range(frame_x_range):
         for y in range(frame_y_range):
-            win = frame_array[y:y+n, x:x+m]
+            win = frame_array[y:y+win_h, x:x+win_w]
             for dbt_x in range(dbt_x_range):
                 for dbt_y in range(dbt_y_range):
                     # np.array_equal() is slower (rather big difference)
-                    if (win == dbt_array[dbt_y:dbt_y+n, dbt_x:dbt_x+m]).all():
+                    if (win == dbt_array[dbt_y:dbt_y+win_h,
+                                         dbt_x:dbt_x+win_w]).all():
                         print(dbt_x, dbt_y)
 
     total_time = time.perf_counter() - start_time
     print(f"Brute force lookup of "
-          f"{frame_array.shape[0]}x{frame_array.shape[1]} subarray in "
-          f"{dbt_array.shape[0]}x{dbt_array.shape[1]} DBT with {m}x{n} window "
-          f"size took {total_time:.3f}s")
+          f"{frame_array.shape[1]}x{frame_array.shape[0]} subarray in "
+          f"{dbt_array.shape[1]}x{dbt_array.shape[0]} DBT with {win_w}x{win_h}"
+          f" window size took {total_time:.3f}s")
 
 
 if __name__ == "__main__":
