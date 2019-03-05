@@ -17,8 +17,10 @@ CAM_RESO = (36, 36)
 CAM_SIZE = (1.135, 1.135)
 # De Bruijn torus width & height.
 DBT_W, DBT_H = 256, 256
+# DBT_W, DBT_H = 8192, 4096
 # De Bruijn torus window width & height.
 WIN_W, WIN_H = 4, 4
+# WIN_W, WIN_H = 5, 5
 # Black in greyscale.
 BLACK = 0
 # White in greyscale.
@@ -128,9 +130,10 @@ def generate_dbt(r, s, m, n, dpi=(150, 150), mode="L"):
     fname = f"output-{s}x{r}-{n}x{n}_{dpi[0]}x{dpi[1]}dpi_{mode}.png"
     if r == 256 and s == 256 and m == 4 and n == 4:
         return generate_256x256_4x4_dbt(fname, dpi, mode)
+    elif r == 4096 and s == 8192 and m == 5 and n == 5:
+        return generate_8192x4096_5x5_dbt(fname, dpi, mode)
     else:
-        err_msg = "Dimensions not supported yet. " \
-            "Only 256x256/4x4 supported yet."
+        err_msg = "Dimensions not supported yet."
         raise ValueError(err_msg)
 
 
@@ -143,6 +146,27 @@ def generate_256x256_4x4_dbt(fname, dpi, mode):
     ]
     m, n = 3, 2
     torus = Torus(values, m, n, "storage.txt")
+    torus.transpose()
+    torus.make()
+    torus.make()
+    torus.transpose()
+    torus.make()
+    torus.save(fname, dpi=dpi, mode=mode)
+    return os.path.abspath(fname)
+
+
+def generate_8192x4096_5x5_dbt(fname, dpi, mode):
+    values = [
+        [0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1],
+        [0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1],
+        [0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0],
+        [1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1],
+    ]
+    m, n = 3, 2
+    torus = Torus(values, m, n, "storage.txt")
+    torus.transpose()
+    torus.make()
+    torus.make()
     torus.transpose()
     torus.make()
     torus.make()
