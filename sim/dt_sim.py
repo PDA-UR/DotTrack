@@ -1,5 +1,6 @@
 import os
 import skimage
+from skimage import io
 from skimage.filters import threshold_sauvola
 import numpy as np
 import time
@@ -67,14 +68,25 @@ def main():
     # subframe.show()  # DEBUG OUTPUT
 
     # 2. Image Analysis (extract array out of picture):
+    start_time = time.perf_counter()
+
     # subframe = unrotate_image(subframe)  # TODO
     subframe = preprocess_image(subframe, pipeline_id)
-    subframe.show()  # DEBUG OUTPUT
+    # subframe.show()  # DEBUG OUTPUT
     subarray = extract_bitarray(subframe, CAM_SIZE, dpi, pipeline_id)
-    print(subarray)  # DEBUG OUTPUT
+    # print(subarray)  # DEBUG OUTPUT
 
     # 3. Decode array (and get position):
-    find_sequences_in_dbt(subarray, dbt_img, win_w, win_h)
+    # Brute force
+    positions = find_sequences_in_dbt(subarray, dbt_img, win_w, win_h)
+
+    # Decoding alogrithm according to Shiu
+    # positions = decode_dbt_positions(subarray, win_w, win_h)
+
+    print(positions)
+
+    total_time = time.perf_counter() - start_time
+    print(f"Frame analysing took {total_time:.3f}s")
 
 
 def get_dbt_img():
@@ -93,19 +105,25 @@ def get_dbt_img():
 def analyse_frame(pipeline_id, frame, cam_size, dbt_img, win_w, win_h):
     start_time = time.perf_counter()
 
-    frame.show()  # DEBUG OUTPUT
+    # frame.show()  # DEBUG OUTPUT
     frame = set_frame_dpi(frame, cam_size)
     # 2. Image Analysis (extract array out of picture):
     # frame = unrotate_image(frame)  # TODO
     frame = preprocess_image(frame, pipeline_id)
-    frame.show()  # DEBUG OUTPUT
+    # frame.show()  # DEBUG OUTPUT
     subarray = extract_bitarray(frame, cam_size, dbt_img.info["dpi"],
                                 pipeline_id)
     # print(subarray)  # DEBUG OUTPUT
-    Image.fromarray(subarray).show()
+    # Image.fromarray(subarray).show()  # DEBUG OUTPUT
 
     # 3. Decode array (and get position):
-    find_sequences_in_dbt(subarray, dbt_img, win_w, win_h)
+    # Brute force
+    positions = find_sequences_in_dbt(subarray, dbt_img, win_w, win_h)
+
+    # Decoding alogrithm according to Shiu
+    # positions = decode_dbt_positions(subarray, win_w, win_h)
+
+    print(positions)
 
     total_time = time.perf_counter() - start_time
     print(f"Frame analysing took {total_time:.3f}s")
@@ -453,6 +471,8 @@ def calc_cell_bit(cell_array, ret_err_count=False, margin=(0, 0),
 def find_sequences_in_dbt(frame_array, dbt_img, win_w, win_h):
     start_time = time.perf_counter()
 
+    positions = []
+
     dbt_array = skimage.img_as_ubyte(dbt_img)
 
     # List comprehension for x, y and dbt_x, dbt_y produces more loops
@@ -470,13 +490,208 @@ def find_sequences_in_dbt(frame_array, dbt_img, win_w, win_h):
                     # np.array_equal() is slower (rather big difference)
                     if (win == dbt_array[dbt_y:dbt_y+win_h,
                                          dbt_x:dbt_x+win_w]).all():
-                        print(dbt_x, dbt_y)
+                        positions.append((dbt_x, dbt_y))
+
+    # positions = find_windowsarray_in_array(frame_array,
+    #                                        win_w,
+    #                                        win_h,
+    #                                        dbt_array)
+    # print(positions)
 
     total_time = time.perf_counter() - start_time
     print(f"Brute force lookup of "
           f"{frame_array.shape[1]}x{frame_array.shape[0]} subarray in "
           f"{dbt_array.shape[1]}x{dbt_array.shape[0]} DBT with {win_w}x{win_h}"
           f" window size took {total_time:.3f}s")
+
+    return positions
+
+
+def find_windowsarray_in_array(wins_array, win_w, win_h, array):
+    positions = []
+    x_range = wins_array.shape[1] - win_w + 1
+    y_range = wins_array.shape[0] - win_h + 1
+    for x in range(x_range):
+        for y in range(y_range):
+            win = wins_array[y:y+win_h, x:x+win_w]
+            x_pos, y_pos = find_in_array(win, array)
+            if x_pos != -1:
+                positions.append((x_pos, y_pos))
+    return positions
+
+
+def find_in_array(win, array):
+    x_range = array.shape[1] - win.shape[1] + 1
+    y_range = array.shape[0] - win.shape[0] + 1
+    for x in range(x_range):
+        for y in range(y_range):
+            # np.array_equal() is slower (rather big difference)
+            subarray = array[y:y+win.shape[0], x:x+win.shape[1]]
+            if (win == subarray).all():
+                return x, y
+    return -1, -1
+
+
+def find_in_seq(win, sequence):
+    pos = -1
+    seq_range = len(sequence) - len(win) - 1
+    for i in range(seq_range):
+        if (win == sequence[i:i+len(win)]).all():
+            pos = i
+            break
+    return pos
+
+
+def decode_dbt_positions(wins_array, win_w, win_h):
+    start_time = time.perf_counter()
+
+    # TODO: Should I match every possible window? Or just one after the first
+    # to check the position?
+
+    positions = []
+
+    x_range = wins_array.shape[1] - win_w + 1
+    y_range = wins_array.shape[0] - win_h + 1
+    # Check if number of possible window positions is sound
+    if x_range < 1 or y_range < 1:
+        raise ValueError("Windows array too small for requested window.")
+    elif x_range == 1 and y_range == 1:
+        print("The windows array in its whole is the (single) window.")
+    else:
+        print(f"There are {x_range*y_range} possible windows.")
+
+    # TODO/FIXME: Make it work for (256, 256, 4, 4) array first:
+    # A = (256, 256, 4, 4)
+    # A1 = (256, 16, 3, 4)
+    src_dbt = io.imread("output-4x3_transposed.png")
+    for x in range(x_range):
+        for y in range(y_range):
+            win = wins_array[y:y+win_h, x:x+win_w]
+            # TODO: How to save/communicate generation data/protocol.
+            # x_pos, y_pos = decode_dbt_pos(win)
+
+            # TODO/FIXME: Make it work for (256, 256, 4, 4) array first:
+            # A = (256, 256, 4, 4)
+            # A1 = (256, 16, 3, 4)
+            x_pos, y_pos = decode_dbt_pos(win, src_dbt)
+
+            if x_pos != -1:
+                positions.append((x_pos, y_pos))
+
+    dbt_array = io.imread("output-256x256-4x4.png")
+    total_time = time.perf_counter() - start_time
+    print(f"Decoding de Bruijn torus positions according to Shiu "
+          f"{wins_array.shape[1]}x{wins_array.shape[0]} subarray in "
+          f"{dbt_array.shape[1]}x{dbt_array.shape[0]} DBT with {win_w}x{win_h}"
+          f" window size took {total_time:.3f}s")
+
+    # returns dbt position(s) (not physical position)
+    return positions
+
+
+# TODO/FIXME:
+# * Generalize data acquisition (src_dbt, transposed, r, s, m, n, seed). -->
+# Needs data recording on generation.
+# * Enable recursion.
+# * Make it work with type 2 arrays. Low priority because the generation ONLY
+# uses type 1 arrays.
+
+# Decoding algorithm according to Shiu ("Decoding de Bruijn arrays as
+# constructed by Fan et al.")
+def decode_dbt_pos(win, src_dbt=None):
+    # Variables needed:
+    # * Window matrix (win).
+    # * Generation protocol/data object. Holds all pertinent information needed
+    # for decoding the dbt position and should allow for recursion along the
+    # recorded protocol.
+    # * array_type (or a value from which you can reverse the array type; e.g.
+    # construction type, col_sums, ODD/EVEN, etc.)
+    # * Source dbt which was used to generate the final dbt (src_dbt). This
+    # should indicate that there is no more recursion wanted and that D(M)
+    # should be searched by brute force. Maybe can be part of the generation
+    # data/protocol object.
+
+    x, y = -1, -1
+
+    # => 4x4 (and 5x5) DBTs are **type 1** arrays. -> focus on type 1 decoding
+    # first
+
+    # Decoding algorithm seems to be rekursive (find in step 2) and needs the
+    # matrices that were used for construction.
+
+    # We need the source DBT (values), which eventually gets searched. The make
+    # and transpose steps need to record the pertinent information.
+
+    # Be aware/cautious of the different initial values for positional values.
+    # In the math world you start counting at 1 (origin is at (1, 1)) but in
+    # informatics you start at 0 (origin is at (0, 0)).
+    # Therefore when there are +1 or -1 calculations that don't show up in
+    # Shius algorithm it is most likely to compensate for differing positional
+    # values.
+
+    # Decoding algorithm for arrays of type 1:
+    r, s = src_dbt.shape  # TODO: Get from TorusGenerator object
+    m, n = win.shape[0] - 1, win.shape[1]
+    m, n = win.shape
+    m -= 1
+    dbs_seed = Torus.debruijn(n)
+    dbs_seed = dbs_seed[1:]
+    dbs_seed = dbs_seed + dbs_seed[:n-1]
+    dbs_seed = np.array(dbs_seed) * WHITE
+
+    # Step 1: Compute D(M)
+    dm = compute_dm(win)
+
+    # Step 2: Find the location of D(M) in A. Get i, j.
+    if src_dbt is not None:
+        # Brute force lookup if src_dbt is given.
+        j, i = find_in_array(dm, src_dbt)
+    else:
+        # TODO: do recursion
+        # j, i = decode_dbt_pos(dm)
+        pass
+
+    # Step 3: Calculate -a>.
+    a_vec = np.zeros(win[0, ].shape, dtype=np.uint8)
+    a_vec |= win[0, ]
+    for i_tmp in range(i):
+        a_vec ^= src_dbt[i_tmp, j:j+n]
+    zero_vec = np.zeros(a_vec.shape, dtype=np.uint8)
+
+    # Step 4:
+    #       if -a> == -0>:
+    #           k = j
+    #       else:
+    #           Find g in alpha (de Bruijn sequence)
+    if (a_vec == zero_vec).all():
+        k = j
+    else:
+        g = find_in_seq(a_vec, dbs_seed) + 1
+        if not 1 <= g <= 2**n - 1:
+            raise ValueError(f"The g variable ({g}) is not in the right " +
+                             f"value range.")
+
+        # Step 5: Solve congruence equation: g+(2**n-1)*x === j (mod s),
+        # 0<=x<=s–1.
+        x_tmp = ((j+1 - g) * (2**n - 1)) % s
+        if not 0 <= x_tmp <= s-1:
+            raise ValueError(f"The x_tmp variable ({x_tmp}) is not in the " +
+                             f"right value range.")
+
+        # Step 6: Calculate k: k = s + g + (2**n - 1) * x
+        k = (s + g + (2**n - 1) * x_tmp) - 1
+
+    # Step 7: The top left hand corner of M is the (i,k)-th entry of A1.
+    x, y = k, i
+
+    return x, y
+
+
+def compute_dm(array):
+    dm = []
+    for y in range(array.shape[0] - 1):
+        dm.append(array[y, ] ^ array[y+1, ])
+    return np.vstack(dm)
 
 
 if __name__ == "__main__":
