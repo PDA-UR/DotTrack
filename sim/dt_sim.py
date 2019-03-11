@@ -1,4 +1,4 @@
-import os
+# import os
 import skimage
 from skimage import io
 from skimage.filters import threshold_sauvola
@@ -6,7 +6,7 @@ import numpy as np
 import time
 from torus import Torus
 from PIL import Image, ImageFilter
-# from generate_dbt import generate_dbt
+from generate_dbt import TorusGenerator
 # from extract_frame import extract_frame
 
 
@@ -27,8 +27,12 @@ BLACK = 0
 # White in greyscale.
 WHITE = 255
 
+dbt_log = None
+
 
 def main():
+    global dbt_log
+
     # Testing:
     # generate multiple test images
     # run pipeline
@@ -48,11 +52,23 @@ def main():
     # "1": 1-bit bilevel, stored with the leftmost pixel in the most
     # significant bit. 0 means black, 1 means white.
     mode = "L"
-    dbt_fname = generate_dbt(dbt_h, dbt_w, win_h, win_w, dpi, mode)
-    dbt_img = Image.open(dbt_fname)
+    # dbt_fname = generate_dbt(dbt_h, dbt_w, win_h, win_w, dpi, mode)
+    # dbt_img = Image.open(dbt_fname)
+
+    dbt_gen = TorusGenerator(dbt_w, dbt_h, win_w, win_h)
+    dbt_log = dbt_gen.constr_log
+    dbt_img = Image.open(dbt_log[-1].fname)
+    dbt_img = dbt_img.convert(mode)
+    dbt_img.info["dpi"] = dpi
 
     # 1.1. Test frame simulation:
+    # TODO/FIXME/URGENT: (248, 248) does not work with decoding algo
+    # [(249, 249), (249, 250), (249, 251), (250, 249), (250, 250), (250, 251),
+    # (251, 249), (251, 250), (251, 251)]
     cam_anchor = (0, 0)
+    # TODO/FIXME: (0, 248) returns bad values for the first row (fix image
+    # analysis / bit extraction)
+    # cam_anchor = (0, 248)
     rot = 0
     subframe = get_test_frame(dbt_img,
                               cam_anchor,
@@ -78,18 +94,52 @@ def main():
 
     # 3. Decode array (and get position):
     # Brute force
-    positions = find_sequences_in_dbt(subarray, dbt_img, win_w, win_h)
+    # positions = find_sequences_in_dbt(subarray, dbt_img, win_w, win_h)
 
     # Decoding alogrithm according to Shiu
-    # positions = decode_dbt_positions(subarray, win_w, win_h)
+    positions = decode_dbt_positions(subarray, win_w, win_h, dbt_log)
 
     print(positions)
 
     total_time = time.perf_counter() - start_time
     print(f"Frame analysing took {total_time:.3f}s")
 
+    # Test to compare correctness of brute force vs. Shius decoding algorithm
+    # positions_bf = []
+    # positions_shiu = []
+    # dbt_array = io.imread(dbt_log[-1].fname)
+    # dbt_img = Image.fromarray(dbt_array)
+    # # print(f"dbt_array.shape: {dbt_array.shape}")
+    # x_range = dbt_array.shape[1] - win_w + 1
+    # y_range = dbt_array.shape[0] - win_h + 1
+    # for x in range(x_range):
+    #     for y in range(y_range):
+    #         subarray = dbt_array[y:y+win_h, x:x+win_w]
+    #         # Brute force
+    #         # positions_bf.extend(find_sequences_in_dbt(subarray,
+    #         #                                           dbt_img,
+    #         #                                           win_w,
+    #         #                                           win_h))
+    #         positions_bf.extend([(x, y)])
+    #         # Decoding alogrithm according to Shiu
+    #         positions_shiu.extend(decode_dbt_positions(subarray,
+    #                                                    win_w,
+    #                                                    win_h,
+    #                                                    dbt_log))
+    #         # print(positions_bf)
+    #         # print(positions_shiu)
+    # if len(positions_shiu) != len(positions_bf):
+    #     raise ValueError(f"Different length of positions arrays. Should not " +
+    #                      f"happen!")
+    # for i in range(len(positions_shiu)):
+    #     if positions_shiu[i] != positions_bf[i]:
+    #         print(f"MISMATCH:\nBrute force: {positions_bf[i]}\n" +
+    #               f"Shiu: {positions_shiu[i]}")
+
 
 def get_dbt_img():
+    global dbt_log
+
     # 1. Image Generation:
     dbt_w, dbt_h, win_w, win_h = DBT_W, DBT_H, WIN_W, WIN_H
     dpi = (150, 150)
@@ -97,12 +147,21 @@ def get_dbt_img():
     # "1": 1-bit bilevel, stored with the leftmost pixel in the most
     # significant bit. 0 means black, 1 means white.
     mode = "L"
-    fname = generate_dbt(dbt_h, dbt_w, win_h, win_w, dpi, mode)
-    img = Image.open(fname)
+    # fname = generate_dbt(dbt_h, dbt_w, win_h, win_w, dpi, mode)
+    # img = Image.open(fname)
+
+    dbt_gen = TorusGenerator(dbt_w, dbt_h, win_w, win_h)
+    dbt_log = dbt_gen.constr_log
+    img = Image.open(dbt_log[-1].fname)
+    img = img.convert(mode)
+    img.info["dpi"] = dpi
+
     return img
 
 
 def analyse_frame(pipeline_id, frame, cam_size, dbt_img, win_w, win_h):
+    global dbt_log
+
     start_time = time.perf_counter()
 
     # frame.show()  # DEBUG OUTPUT
@@ -118,10 +177,10 @@ def analyse_frame(pipeline_id, frame, cam_size, dbt_img, win_w, win_h):
 
     # 3. Decode array (and get position):
     # Brute force
-    positions = find_sequences_in_dbt(subarray, dbt_img, win_w, win_h)
+    # positions = find_sequences_in_dbt(subarray, dbt_img, win_w, win_h)
 
     # Decoding alogrithm according to Shiu
-    # positions = decode_dbt_positions(subarray, win_w, win_h)
+    positions = decode_dbt_positions(subarray, win_w, win_h, dbt_log)
 
     print(positions)
 
@@ -148,54 +207,54 @@ def set_frame_dpi(frame, cam_size):
 # s is the width of the image
 # m is the height of the de Bruijn window
 # n is the width of the de Bruijn window
-def generate_dbt(r, s, m, n, dpi=(150, 150), mode="L"):
-    fname = f"output-{s}x{r}-{n}x{n}_{dpi[0]}x{dpi[1]}dpi_{mode}.png"
-    if r == 256 and s == 256 and m == 4 and n == 4:
-        return generate_256x256_4x4_dbt(fname, dpi, mode)
-    elif r == 4096 and s == 8192 and m == 5 and n == 5:
-        return generate_8192x4096_5x5_dbt(fname, dpi, mode)
-    else:
-        err_msg = "Dimensions not supported yet."
-        raise ValueError(err_msg)
+# def generate_dbt(r, s, m, n, dpi=(150, 150), mode="L"):
+#     fname = f"output-{s}x{r}-{n}x{n}_{dpi[0]}x{dpi[1]}dpi_{mode}.png"
+#     if r == 256 and s == 256 and m == 4 and n == 4:
+#         return generate_256x256_4x4_dbt(fname, dpi, mode)
+#     elif r == 4096 and s == 8192 and m == 5 and n == 5:
+#         return generate_8192x4096_5x5_dbt(fname, dpi, mode)
+#     else:
+#         err_msg = "Dimensions not supported yet."
+#         raise ValueError(err_msg)
 
 
-def generate_256x256_4x4_dbt(fname, dpi, mode):
-    values = [
-        [0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1],
-        [0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1],
-        [0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0],
-        [1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1],
-    ]
-    m, n = 3, 2
-    torus = Torus(values, m, n, "storage.txt")
-    torus.transpose()
-    torus.make()
-    torus.make()
-    torus.transpose()
-    torus.make()
-    torus.save(fname, dpi=dpi, mode=mode)
-    return os.path.abspath(fname)
+# def generate_256x256_4x4_dbt(fname, dpi, mode):
+#     values = [
+#         [0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1],
+#         [0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1],
+#         [0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0],
+#         [1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1],
+#     ]
+#     m, n = 3, 2
+#     torus = Torus(values, m, n, "storage.txt")
+#     torus.transpose()
+#     torus.make()
+#     torus.make()
+#     torus.transpose()
+#     torus.make()
+#     torus.save(fname, dpi=dpi, mode=mode)
+#     return os.path.abspath(fname)
 
 
-def generate_8192x4096_5x5_dbt(fname, dpi, mode):
-    values = [
-        [0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1],
-        [0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1],
-        [0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0],
-        [1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1],
-    ]
-    m, n = 3, 2
-    torus = Torus(values, m, n, "storage.txt")
-    torus.transpose()
-    torus.make()
-    torus.make()
-    torus.transpose()
-    torus.make()
-    torus.make()
-    torus.transpose()
-    torus.make()
-    torus.save(fname, dpi=dpi, mode=mode)
-    return os.path.abspath(fname)
+# def generate_8192x4096_5x5_dbt(fname, dpi, mode):
+#     values = [
+#         [0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1],
+#         [0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1],
+#         [0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0],
+#         [1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1],
+#     ]
+#     m, n = 3, 2
+#     torus = Torus(values, m, n, "storage.txt")
+#     torus.transpose()
+#     torus.make()
+#     torus.make()
+#     torus.transpose()
+#     torus.make()
+#     torus.make()
+#     torus.transpose()
+#     torus.make()
+#     torus.save(fname, dpi=dpi, mode=mode)
+#     return os.path.abspath(fname)
 
 
 # 1.1. Test frame simulation:
@@ -328,30 +387,30 @@ def extract_bitarray(img, cam_size, dbt_img_dpi, pipeline_id="baseline"):
                int(dbt_img_dpi[1]*cam_size_inch[1]))
     # Ratio of camera/image pixel per pattern pixel
     px_ppx_ratio = (int(img.size[0]/num_ppx[0]), int(img.size[1]/num_ppx[1]))
-    print(dbt_img_dpi[0]*cam_size_inch[0],
-          img.size[0]/(dbt_img_dpi[0]*cam_size_inch[0]))
-    print(dbt_img_dpi, num_ppx, px_ppx_ratio)
+    # print(dbt_img_dpi[0]*cam_size_inch[0],
+    #       img.size[0]/(dbt_img_dpi[0]*cam_size_inch[0]))
+    # print(dbt_img_dpi, num_ppx, px_ppx_ratio)
 
     bit_array = np.zeros((num_ppx[1], num_ppx[0]), dtype="uint8")
     img_array = skimage.img_as_ubyte(img)
 
     # Calculate threshold value (with Otsus method)
     if pipeline_id == "direct_bit_extract":
-        threshold = skimage.filters.threshold_isodata(img_array)
-        print("isodata:{}".format(threshold))
-        threshold = skimage.filters.threshold_li(img_array)
-        print("li:{}".format(threshold))
-        threshold = skimage.filters.threshold_mean(img_array)
-        print("mean:{}".format(threshold))
-        threshold = skimage.filters.threshold_minimum(img_array)
-        print("minimum:{}".format(threshold))
-        threshold = skimage.filters.threshold_otsu(img_array)
-        print("otsu:{}".format(threshold))
-        threshold = skimage.filters.threshold_triangle(img_array)
-        print("triangle:{}".format(threshold))
-        threshold = skimage.filters.threshold_yen(img_array)
-        print("yen:{}".format(threshold))
-        print("255 // 2 = 127")
+        # threshold = skimage.filters.threshold_isodata(img_array)
+        # print("isodata:{}".format(threshold))
+        # threshold = skimage.filters.threshold_li(img_array)
+        # print("li:{}".format(threshold))
+        # threshold = skimage.filters.threshold_mean(img_array)
+        # print("mean:{}".format(threshold))
+        # threshold = skimage.filters.threshold_minimum(img_array)
+        # print("minimum:{}".format(threshold))
+        # threshold = skimage.filters.threshold_otsu(img_array)
+        # print("otsu:{}".format(threshold))
+        # threshold = skimage.filters.threshold_triangle(img_array)
+        # print("triangle:{}".format(threshold))
+        # threshold = skimage.filters.threshold_yen(img_array)
+        # print("yen:{}".format(threshold))
+        # print("255 // 2 = 127")
         threshold = 127
     else:
         # default value (255 // 2)
@@ -392,8 +451,8 @@ def extract_bitarray(img, cam_size, dbt_img_dpi, pipeline_id="baseline"):
             if min_error is None or min_error > error_count:
                 min_error = error_count
                 bit_array = array
-                print(f"New min error ({min_error}) at {anchor} anchor.")
-                print(bit_array)
+                # print(f"New min error ({min_error}) at {anchor} anchor.")
+                # print(bit_array)
     return bit_array
 
 
@@ -521,8 +580,22 @@ def find_windowsarray_in_array(wins_array, win_w, win_h, array):
 
 
 def find_in_array(win, array):
+    # print(f"find_in_array:\nwin:\n{win},\narray.shape(extended): " +
+    #       f"{array.shape}")
     x_range = array.shape[1] - win.shape[1] + 1
     y_range = array.shape[0] - win.shape[0] + 1
+
+    # TODO/FIXME/URGENT: Extend edges. Should be done to PNGs. (NOT AT RUNTIME)
+    # top_rows = array[0:win.shape[0]-1, ]
+    # left_cols = array[:, 0:win.shape[1]-1]
+    # top_left_corner = array[0:win.shape[0]-1, 0:win.shape[1]-1]
+    # bottom = np.hstack((top_rows, top_left_corner))
+    # left_added = np.hstack((array, left_cols))
+    # bottom_added = np.vstack((left_added, bottom))
+    # new_array = bottom_added
+    # print(new_array)
+    # print(f"find_in_array:\nwin: {win},\narray.shape: {array.shape}")
+
     for x in range(x_range):
         for y in range(y_range):
             # np.array_equal() is slower (rather big difference)
@@ -534,7 +607,7 @@ def find_in_array(win, array):
 
 def find_in_seq(win, sequence):
     pos = -1
-    seq_range = len(sequence) - len(win) - 1
+    seq_range = len(sequence) - len(win) + 1
     for i in range(seq_range):
         if (win == sequence[i:i+len(win)]).all():
             pos = i
@@ -542,7 +615,7 @@ def find_in_seq(win, sequence):
     return pos
 
 
-def decode_dbt_positions(wins_array, win_w, win_h):
+def decode_dbt_positions(wins_array, win_w, win_h, dbt_log):
     start_time = time.perf_counter()
 
     # TODO: Should I match every possible window? Or just one after the first
@@ -555,15 +628,15 @@ def decode_dbt_positions(wins_array, win_w, win_h):
     # Check if number of possible window positions is sound
     if x_range < 1 or y_range < 1:
         raise ValueError("Windows array too small for requested window.")
-    elif x_range == 1 and y_range == 1:
-        print("The windows array in its whole is the (single) window.")
-    else:
-        print(f"There are {x_range*y_range} possible windows.")
+    # elif x_range == 1 and y_range == 1:
+    #     print("The windows array in its whole is the (single) window.")
+    # else:
+    #     print(f"There are {x_range*y_range} possible windows.")
 
     # TODO/FIXME: Make it work for (256, 256, 4, 4) array first:
     # A = (256, 256, 4, 4)
     # A1 = (256, 16, 3, 4)
-    src_dbt = io.imread("output-4x3_transposed.png")
+    # src_dbt = io.imread("output-4x3_transposed.png")
     for x in range(x_range):
         for y in range(y_range):
             win = wins_array[y:y+win_h, x:x+win_w]
@@ -573,16 +646,19 @@ def decode_dbt_positions(wins_array, win_w, win_h):
             # TODO/FIXME: Make it work for (256, 256, 4, 4) array first:
             # A = (256, 256, 4, 4)
             # A1 = (256, 16, 3, 4)
-            x_pos, y_pos = decode_dbt_pos(win, src_dbt)
+            # x_pos, y_pos = decode_dbt_pos(win, src_dbt)
+            x_pos, y_pos = decode_dbt_pos(win, dbt_log)
+            # print((x_pos, y_pos))
+            # print("="*80)
 
             if x_pos != -1:
                 positions.append((x_pos, y_pos))
 
-    dbt_array = io.imread("output-256x256-4x4.png")
+    # dbt_array = io.imread("output-256x256-4x4.png")
     total_time = time.perf_counter() - start_time
     print(f"Decoding de Bruijn torus positions according to Shiu "
           f"{wins_array.shape[1]}x{wins_array.shape[0]} subarray in "
-          f"{dbt_array.shape[1]}x{dbt_array.shape[0]} DBT with {win_w}x{win_h}"
+          f"{dbt_log[-1].s}x{dbt_log[-1].r} DBT with {win_w}x{win_h}"
           f" window size took {total_time:.3f}s")
 
     # returns dbt position(s) (not physical position)
@@ -598,7 +674,7 @@ def decode_dbt_positions(wins_array, win_w, win_h):
 
 # Decoding algorithm according to Shiu ("Decoding de Bruijn arrays as
 # constructed by Fan et al.")
-def decode_dbt_pos(win, src_dbt=None):
+def decode_dbt_pos(win, log):  # , src_dbt=None):
     # Variables needed:
     # * Window matrix (win).
     # * Generation protocol/data object. Holds all pertinent information needed
@@ -630,10 +706,18 @@ def decode_dbt_pos(win, src_dbt=None):
     # values.
 
     # Decoding algorithm for arrays of type 1:
-    r, s = src_dbt.shape  # TODO: Get from TorusGenerator object
-    m, n = win.shape[0] - 1, win.shape[1]
-    m, n = win.shape
-    m -= 1
+    # r, s = src_dbt.shape  # TODO: Get from TorusGenerator object
+    # m, n = win.shape[0] - 1, win.shape[1]
+    # m, n = win.shape
+    # m -= 1
+    log_entry = log[-2]
+    # print(win)
+    # print(log_entry)
+    src_dbt = None
+    r, s, m, n = log_entry.dimensions
+    # if log[-1].transposed:
+    #     r, s = s, r
+    #     m, n = n, m
     dbs_seed = Torus.debruijn(n)
     dbs_seed = dbs_seed[1:]
     dbs_seed = dbs_seed + dbs_seed[:n-1]
@@ -641,22 +725,40 @@ def decode_dbt_pos(win, src_dbt=None):
 
     # Step 1: Compute D(M)
     dm = compute_dm(win)
+    # print(f"dm:\n{dm}")
 
     # Step 2: Find the location of D(M) in A. Get i, j.
-    if src_dbt is not None:
-        # Brute force lookup if src_dbt is given.
+    # if src_dbt is not None:
+    if len(log) == 2:
+        # print("BRUTE FORCE LOOKUP:")
+        # Brute force lookup if it is the last two log entry.
+        src_dbt = io.imread(log_entry.fname)
         j, i = find_in_array(dm, src_dbt)
+        # print(f"BRUTE FORCE LOOKUP ENDED: {j}, {i}")
     else:
         # TODO: do recursion
-        # j, i = decode_dbt_pos(dm)
-        pass
+        # print(f"RECURSION {len(log)}:")
+        if log_entry.transposed:
+            # print("Transposed!")
+            i, j = decode_dbt_pos(dm.transpose(), log[:-1])
+        else:
+            # print("NOT transposed!")
+            j, i = decode_dbt_pos(dm, log[:-1])
+        # print(f"RECURSION {len(log)} ENDED:")
+    # print(f"win:\n{win}")
+    # print(f"r: {r}, s: {s}, m: {m}, n: {n}")
+    # print(f"i: {i}, j: {j}")
 
     # Step 3: Calculate -a>.
+    if src_dbt is None:
+        src_dbt = io.imread(log_entry.fname)
     a_vec = np.zeros(win[0, ].shape, dtype=np.uint8)
     a_vec |= win[0, ]
     for i_tmp in range(i):
         a_vec ^= src_dbt[i_tmp, j:j+n]
     zero_vec = np.zeros(a_vec.shape, dtype=np.uint8)
+    # print(f"a_vec:\n{a_vec}")
+    # print(f"dbs_seed:\n{dbs_seed}")
 
     # Step 4:
     #       if -a> == -0>:
@@ -670,19 +772,54 @@ def decode_dbt_pos(win, src_dbt=None):
         if not 1 <= g <= 2**n - 1:
             raise ValueError(f"The g variable ({g}) is not in the right " +
                              f"value range.")
+        # print(f"g: {g}")
 
         # Step 5: Solve congruence equation: g+(2**n-1)*x === j (mod s),
         # 0<=x<=s–1.
-        x_tmp = ((j+1 - g) * (2**n - 1)) % s
+
+        # Found in this thread:
+        # https://stackoverflow.com/a/16044630
+        # Not sure about license:
+        # https://www.algorithmist.com/index.php/Modular_inverse
+        # Implemented according to Wikipedias pseudocode:
+        # https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Modular_integers
+        def inverse(a, n):
+            t, newt = 0, 1
+            r, newr = n, a
+            while newr != 0:
+                quotient = r // newr
+                t, newt = newt, t - quotient * newt
+                r, newr = newr, r - quotient * newr
+            if r > 1:
+                raise ValueError(f"a ({a}) is not invertible")
+            if t < 0:
+                t = t + n
+            return t
+
+        x_tmp = inverse((2**n - 1), s)
+        if x_tmp is None:
+            raise ValueError(f"inverse({2**n-1}, {s}) is not solvable")
+        b = ((j+1) - g)
+        x_tmp *= b
+        x_tmp %= s
+        # if ((b * (2**n - 1)) % s) != (j+1):
+        #     raise ValueError(f"Check not working!")
+        # x_tmp = (((j+1) - g) * (2**n - 1)) % s
         if not 0 <= x_tmp <= s-1:
             raise ValueError(f"The x_tmp variable ({x_tmp}) is not in the " +
                              f"right value range.")
+        # print(f"x_tmp: {x_tmp}")
 
         # Step 6: Calculate k: k = s + g + (2**n - 1) * x
         k = (s + g + (2**n - 1) * x_tmp) - 1
+    # print(f"k: {k}")
 
     # Step 7: The top left hand corner of M is the (i,k)-th entry of A1.
     x, y = k, i
+    # print(f"x: {x}, y: {y}")
+
+    # if log[-1].transposed:
+    #     x, y = y, x
 
     return x, y
 
