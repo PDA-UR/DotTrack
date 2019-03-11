@@ -9,10 +9,11 @@ from reportlab.lib.pagesizes import A4
 
 def main():
     # Used for testpage PDFs
-    create_png_dpi_examples("output-256x256-4x4.png")
+    # create_png_dpi_examples("output-256x256-4x4.png")
 
     # create_pdf("output-256x256-4x4.png", (36, 36), (1, 1), A4, (5, 5),
     #            (1200, 1200))
+    create_pdf("output-8192x4096-5x5_150x150dpi_L.png")
 
 
 # Set dpi value in the PNG metadata (does not seem to be used by a lot of
@@ -42,9 +43,9 @@ def create_png_dpi_examples(fname):
         set_img_dpi(dbt_img, fname, dpi)
 
 
-def create_pdf(dbt_fname="output-256x256-4x4.png", sensor_reso=(36, 36),
-               capture_area=(1, 1), pagesize=A4, printable_area=(5, 5),
-               max_print_dpi=(1200, 1200)):
+def create_pdf(dbt_fname="output-256x256-4x4.png", dpi=None,
+               sensor_reso=(36, 36), capture_area=(1, 1), pagesize=A4,
+               printable_area=(5, 5), max_print_dpi=(1200, 1200)):
     # Variables:
     # dbt_fname = "output-256x256-4x4.png"  # file name of de Bruijn torus
     # image (with a 1:1 dot-pixel-ratio) that should be placed on the pdf
@@ -101,11 +102,68 @@ def create_pdf(dbt_fname="output-256x256-4x4.png", sensor_reso=(36, 36),
     w, h = (dbt_img_size[0]/p_dpi[0])*inch, -(dbt_img_size[1]/p_dpi[1])*inch
     # TODO/FIXME/URGENT: Make bounds check and crop image accordingly
     # x+w, y-h
+    for key in dbt_img.info:
+        if(key == "dpi"):
+            dpi = dbt_img.info[key]
+    if dpi is None:
+        dpi = (150, 150)
+    print(f"dpi: {dpi}")
+    print(f"pagesize: {pagesize}")
+    print(f"(x+w)*mm: {(x+w)*mm}")
+    print(f"pa_x_bounds: {pa_x_bounds}")
+    print(f"(y+h)*mm: {(y+h)*mm}")
+    print(f"pa_y_bounds: {pa_y_bounds}")
+    if x+w > pa_x_bounds[1]:
+        crop_x = True
+        # CROP X
+        print("CROP X")
+        # reportlab delta -> inch -> full pixel
+        x_delta = pa_x_bounds[1] - pa_x_bounds[0]
+        x_delta_inch = x_delta / inch
+        px_w = x_delta_inch * dpi[0]
+        w = x_delta
+    if y+h < pa_y_bounds[1]:
+        crop_y = True
+        # CROP Y
+        print("CROP Y")
+        y_delta = pa_y_bounds[1] - pa_y_bounds[0]
+        y_delta_inch = y_delta / inch
+        px_h = y_delta_inch * dpi[1]
+        h = -y_delta
+
+    if crop_x or crop_y:
+        # do the crop
+        left = 0
+        top = 0
+        if crop_x:
+            print(f"px_w: {px_w}")
+            right = int(px_w)
+        else:
+            right = dbt_img.size[0]
+        if crop_y:
+            print(f"px_h: {px_h}")
+            bottom = int(px_h)
+        else:
+            bottom = dbt_img.size[1]
+        print(f"left, top, right, bottom: {left}, {top}, {right}, {bottom}")
+        crop_img = dbt_img.crop(box=(left,
+                                     top,
+                                     right,
+                                     bottom))
+
+        # save the crop
+        crop_fname = os.path.splitext(dbt_fname)[0] + "_crop" + ".png"
+        crop_img.save(crop_fname, mode="1")
+
     # TODO: calculate the scaling factor to see that it does not morph the
     # pattern pixels in weird ways.
 
     # 3. Place image on PDF (within printable area; clip if needed)
-    c.drawImage(dbt_fname, x, y, w, h)
+    print(f"x, y, w, h: {x}, {y}, {w}, {h}")
+    if crop_x or crop_y:
+        c.drawImage(crop_fname, x, y, w, h)
+    else:
+        c.drawImage(dbt_fname, x, y, w, h)
 
     # 4. Output PDF
     c.showPage()
