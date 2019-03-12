@@ -3,6 +3,7 @@ from torus import Torus
 import numpy as np
 from skimage import io
 from enum import Enum, auto
+from PIL import Image
 
 
 class TorusGenerator(object):
@@ -152,7 +153,7 @@ class TorusGenerator(object):
         if src_dbt is not None:
             if transposed:
                 src_dbt = src_dbt.transpose()
-            io.imsave(fname, src_dbt, mode="1")
+            Image.fromarray(src_dbt).convert("1").save(fname)
         else:
             torus.save(fname)
         self._extend_png(fname, n, m)
@@ -188,7 +189,7 @@ class TorusGenerator(object):
         bottom_added = np.vstack((left_added, bottom))
         new_array = bottom_added
         # print(new_array)
-        io.imsave(fname, new_array, mode="1")
+        Image.fromarray(new_array).convert("1").save(fname)
 
 
 # TODO/FIXME: Maybe inherit from the list type to get append(), __iter__(),
