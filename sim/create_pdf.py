@@ -1,19 +1,17 @@
 import os
-import skimage
-# import numpy as np
 from PIL import Image
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch, mm
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
 
 
 def main():
     # Used for testpage PDFs
     # create_png_dpi_examples("output-256x256-4x4.png")
 
-    # create_pdf("output-256x256-4x4.png", (36, 36), (1, 1), A4, (5, 5),
-    #            (1200, 1200))
-    create_pdf("output-8192x4096-5x5_150x150dpi_L.png")
+    create_pdf("output-256x256_4x4.png")
+    create_pdf("output-8192x4096_5x5.png", (150, 150))
 
 
 # Set dpi value in the PNG metadata (does not seem to be used by a lot of
@@ -27,6 +25,7 @@ def set_img_dpi(img, fname, dpi):
 # Used for testpage.pdf
 def create_png_dpi_examples(fname):
     dbt_img = Image.open(fname)
+    print(f"dbt_img.mode: {dbt_img.mode}")
 
     # Camera resolution in pixel.
     cam_reso = (36, 36)
@@ -43,256 +42,126 @@ def create_png_dpi_examples(fname):
         set_img_dpi(dbt_img, fname, dpi)
 
 
-def create_pdf(dbt_fname="output-256x256-4x4.png", dpi=None,
-               sensor_reso=(36, 36), capture_area=(1, 1), pagesize=A4,
-               printable_area=(5, 5), max_print_dpi=(1200, 1200)):
-    # Variables:
-    # dbt_fname = "output-256x256-4x4.png"  # file name of de Bruijn torus
-    # image (with a 1:1 dot-pixel-ratio) that should be placed on the pdf
-    # sensor_reso = (36, 36)  # (w, h) of sensor image in pixel (resolution)
-    # capture_area = (1mm, 1mm)  # (w, h) of captured area in millimeters
-    # pagesize = A4  # pagesize of the output PDF (use reportlab.lib.pagesizes;
-    # the short edge seems to be always the first element of the tuple ->
-    # portrait orientation is assumed)
-    # printable_area = (5mm, 5mm)  # (horizontal, vertical) distance in
-    # millimeters from the edge of the paper to the start of the area where the
-    # printer can start printing. The border is included so better use a
-    # sensible value at least a little bit greater than the absolute minimum.
-    # MAYBE: max_print_dpi = (1200, 1200)  # (horizontal, vertical) printer dpi
-    # from edge to printable area in millimeters
-    # Print instructions (printing driver settings):
-    # * Page Handling > Page Scaling: None
-    # * Image Quality > Resolution: 1200x1200 DPI (best use max resolution)
+def create_pdf(fname, dpi=(150, 150), pagesize=A4, margin=(5, 5),
+               save_cropped_img=False, max_print_dpi=None):
+    """Create a PDF file from a de Bruijn torus image.
 
-    # 0. General setup
-    out_fname = os.path.splitext(dbt_fname)[0] + ".pdf"
+    @param fname: File name of the de Bruijn torus image that should be placed
+    on the PDF file.
+    @type  fname: str
+
+    @param dpi: The dpi with which the de Bruijn torus image should be placed.
+    It is a tuple with two elements. The first element holds the dpi on the
+    x-axis and the second element the dpi on the y-axis.
+    @type  dpi: tuple
+
+    @param pagesize: This is the pagesize of the PDF. It is a tuple with two
+    elements (width and height). It uses reportlab unit system therefore you
+    should be using the pagesizes of the reportlab library:
+    e.g. `from reportlab.lib.pagesizes import A4`.
+    @type  pagesize: tuple
+
+    @param margin: This is the margin used to determine the printable area. It
+    is a tuple with two elements. The tuple holds the horizontal and vertical
+    distance in millimeters from the edge of the paper to the start of the area
+    where the printer can start printing. The border is included so better use
+    a sensible value at least a little bit greater than the absolute minimum.
+    @type  margin: tuple
+
+    @param save_cropped_img: Determines if the cropped image will be saved to
+    the filesystem. If the image is not being cropped there will be nothing to
+    save.
+    @type  save_cropped_img: bool
+
+    @param max_print_dpi: If set it will check and raise a ValueError if the
+    printing dpi is below the theoretical minimum (Nyquist-Shannon sampling
+    theorem) to accurately print the image. It is a tuple with two elements.
+    The tuple holds the horizontal and vertical printer dpi. Does nothing if it
+    is not set.
+    @type  max_print_dpi: tuple
+    """
+
+    # 1. General setup
+    out_fname = os.path.splitext(fname)[0] + ".pdf"
     c = canvas.Canvas(out_fname, pagesize=pagesize)
 
-    # 1. Calculate pattern-pixel-DPI
-    # Calculate effective/readable pixels with the Nyquist-Shannon sampling
-    # theorem (for practical reasons we try not to completely max out the
-    # theoretical sample rate but be save and divide by 3).
-    nyq_reso = (sensor_reso[0]/3, sensor_reso[1]/3)
-    # Convert capture_area to inch.
-    capture_area = (capture_area[0]*0.03937008, capture_area[1]*0.03937008)
-    # Calculate pattern-pixel-DPI.
-    # Use p_dpi to check that the pattern/image dpi/density is not to big but
-    # still close to that density.
-    p_dpi = (1/(capture_area[0]/nyq_reso[0]), 1/(capture_area[1]/nyq_reso[1]))
-    # Check if max_print_dpi is enough to be able to print the patterns /
-    # pattern-dpi accurately (also uses the Nyquist-Shannon sampling theorem).
-    if max_print_dpi[0] <= p_dpi[0]*2 or max_print_dpi[1] <= p_dpi[1]*2:
-        raise ValueError(("The printers DPI/resolution is to low to print the",
-                          "pattern accurately."))
-
-    # 2. Set image size to that DPI (check if printer dpi can handle this)
-    # Get image
-    dbt_img = Image.open(dbt_fname)
-    # Get image size
-    dbt_img_size = dbt_img.size
     # Calculate printable area bounds for bounds check
-    pa_x_bounds = (printable_area[0]*mm, pagesize[0] - printable_area[0]*mm)
-    pa_y_bounds = (printable_area[1]*mm, pagesize[1] - printable_area[1]*mm)
+    x_bounds = (margin[0]*mm, pagesize[0] - margin[0]*mm)
+    y_bounds = (margin[1]*mm, pagesize[1] - margin[1]*mm)
+    # Calculate printable areas width / height
+    print_w = x_bounds[1] - x_bounds[0]
+    print_h = y_bounds[1] - y_bounds[0]
+
+    # Check if max_print_dpi (when set) is enough to be able to print the
+    # patterns / pattern-dpi accurately (at least theoretically; uses the
+    # Nyquist-Shannon sampling theorem for estimation).
+    if max_print_dpi is not None:
+        if max_print_dpi[0] <= dpi[0]*2 or max_print_dpi[1] <= dpi[1]*2:
+            raise ValueError("The printers DPI/resolution is too low to" +
+                             " print the pattern accurately.")
+
+    # 2. Set image size to the given dpi
+    # Get image
+    img = Image.open(fname)
 
     # This should be top left coordinates (because (0, 0) is bottom left) but
     # on/within the printable area.
-    x, y = pa_x_bounds[0], pa_y_bounds[1]
+    x, y = x_bounds[0], y_bounds[1]
     # h is inverted because the PDFs origin is in the bottom left corner and
     # positive values will go up towards the top.
-    w, h = (dbt_img_size[0]/p_dpi[0])*inch, -(dbt_img_size[1]/p_dpi[1])*inch
-    # TODO/FIXME/URGENT: Make bounds check and crop image accordingly
-    # x+w, y-h
-    for key in dbt_img.info:
-        if(key == "dpi"):
-            dpi = dbt_img.info[key]
-    if dpi is None:
-        dpi = (150, 150)
-    print(f"dpi: {dpi}")
-    print(f"pagesize: {pagesize}")
-    print(f"(x+w)*mm: {(x+w)*mm}")
-    print(f"pa_x_bounds: {pa_x_bounds}")
-    print(f"(y+h)*mm: {(y+h)*mm}")
-    print(f"pa_y_bounds: {pa_y_bounds}")
-    if x+w > pa_x_bounds[1]:
-        crop_x = True
-        # CROP X
-        print("CROP X")
-        # reportlab delta -> inch -> full pixel
-        x_delta = pa_x_bounds[1] - pa_x_bounds[0]
-        x_delta_inch = x_delta / inch
-        px_w = x_delta_inch * dpi[0]
-        w = x_delta
-    if y+h < pa_y_bounds[1]:
-        crop_y = True
-        # CROP Y
-        print("CROP Y")
-        y_delta = pa_y_bounds[1] - pa_y_bounds[0]
-        y_delta_inch = y_delta / inch
-        px_h = y_delta_inch * dpi[1]
-        h = -y_delta
+    w, h = (img.size[0]/dpi[0])*inch, -((img.size[1]/dpi[1])*inch)
 
+    # 3. Crop image (if necessary)
+    crop_x = w > print_w
+    crop_y = h < -print_h
+    # Calculate values for the crop operation on the x-axis
+    if crop_x:
+        # Get number of pixels that fit on the x-axis of the printable area
+        px_w = int((print_w / inch) * dpi[0])
+        # Set new width for image placement in the pdf
+        w = (px_w / dpi[0]) * inch
+    # Calculate values for the crop operation on the y-axis
+    if crop_y:
+        # Get number of pixels that fit on the y-axis of the printable area
+        px_h = int((print_h / inch) * dpi[1])
+        # Set new height for image placement in the pdf
+        h = -((px_h / dpi[1]) * inch)
+
+    # Execute the crop operation
     if crop_x or crop_y:
-        # do the crop
         left = 0
         top = 0
         if crop_x:
-            print(f"px_w: {px_w}")
-            right = int(px_w)
+            right = px_w
         else:
-            right = dbt_img.size[0]
+            right = img.size[0]
         if crop_y:
-            print(f"px_h: {px_h}")
-            bottom = int(px_h)
+            bottom = px_h
         else:
-            bottom = dbt_img.size[1]
-        print(f"left, top, right, bottom: {left}, {top}, {right}, {bottom}")
-        crop_img = dbt_img.crop(box=(left,
-                                     top,
-                                     right,
-                                     bottom))
+            bottom = img.size[1]
+        img = img.crop(box=(left, top, right, bottom))
 
-        # save the crop
-        crop_fname = os.path.splitext(dbt_fname)[0] + "_crop" + ".png"
-        crop_img.save(crop_fname, mode="1")
+        # Save the cropped image
+        if save_cropped_img:
+            fname = os.path.splitext(fname)[0] + "_crop" + ".png"
+            img.convert("1").save(fname)
 
     # TODO: calculate the scaling factor to see that it does not morph the
     # pattern pixels in weird ways.
 
-    # 3. Place image on PDF (within printable area; clip if needed)
-    print(f"x, y, w, h: {x}, {y}, {w}, {h}")
-    if crop_x or crop_y:
-        c.drawImage(crop_fname, x, y, w, h)
-    else:
-        c.drawImage(dbt_fname, x, y, w, h)
+    # 4. Place image on PDF (within printable area; clip if needed)
+    c.drawImage(ImageReader(img), x, y, w, h)
 
-    # 4. Output PDF
+    # 5. Save/Output PDF
     c.showPage()
     c.save()
 
     # MAYBE: 5. Start print with required settings
 
+    # Print instructions (printing driver settings):
+    # * Page Handling > Page Scaling: None
+    # * Image Quality > Resolution: 1200x1200 DPI (best use max resolution)
 
-# ===============================================================================
-# # TODO: def create_image(pattern, dpi):
-# # Consts
-# GS_WHITE = 255  # white in greyscale
-# GS_BLACK = 0  # black in greyscale
-# # Variables
-# out_file_png = "test.png"
-# out_file_pdf = "test.pdf"
-# out_format = "PNG"
-# mode = "L"  # "L": 8bit B/W Colors (for EPS) "1": 1bit B/W (for BMP, PPM)
-# bg_color = "white"  # default: "black"
-# fill_color = "black"
-# # TODO base img_size on sequence matrix
-# img_size = (16, 16)  # number of pixels on (x, y)
-# w, h = img_size
-# dpi = (500, 500)  # dpi is basically pixels per inch
-
-# data = np.zeros((h, w), dtype=np.uint8)
-# for i in range(0, w, 2):
-#     data[i, i] = GS_WHITE
-# img = Image.fromarray(data, mode)
-# img.save(out_file_png, format=out_format, dpi=dpi)
-# img.show()
-
-
-# c = canvas.Canvas(out_file_pdf, pagesize=A4)
-# # use image from testarray (data)
-# pdf_x, pdf_y = 350, 400  # (0, 0) is bottom left
-# pdf_img_w, pdf_img_h = w, h  # 8, 8
-# c.drawImage(out_file_png, pdf_x, pdf_y, pdf_img_w, pdf_img_h,
-#             preserveAspectRatio=True, anchor="nw")
-# # The showPage method finishes the current page. All additional drawing will
-# # be done on another page.
-# c.showPage()
-# c.save()
-# ===============================================================================
-
-# ===============================================================================
-# out_file_pdf = "test.pdf"
-# c = canvas.Canvas(out_file_pdf, pagesize=A4)
-# # use image from DBT-repo (output-5x5.png)
-# pdf_x, pdf_y = 0, 0  # (0, 0) is bottom left
-# pdf_img_w, pdf_img_h = 8192, 4096  # 8, 8
-
-
-# # If results are not multiples of the input w, h it might scale the pixels
-# # weirdly so maybe just stick to multiples (e.g. half or double size)
-# def scale(w, h, scaler):
-#     w *= scaler
-#     h *= scaler
-#     return int(w), int(h)
-
-
-# scaler = 1  # .5 scale down/half pixel size; 2 scale up/double pixel size
-# pdf_img_w, pdf_img_h = scale(pdf_img_w, pdf_img_h, scaler)
-# out_file_png = "output-5x5.png"
-# c.drawImage(out_file_png, pdf_x, pdf_y, pdf_img_w, pdf_img_h)
-# c.showPage()
-# c.save()
-# ===============================================================================
-
-# Multiplier
-# multiplier = 1  # ~6x6mm should grow to ~12x12cm
-# img_size = img_size[0] * multiplier, img_size[1] * multiplier
-
-# sequence = []
-# sequence.append((1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0)*multiplier)
-# sequence.append((1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0)*multiplier)
-# sequence.append((1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0)*multiplier)
-# sequence.append((1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0)*multiplier)
-# sequence.append((1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0)*multiplier)
-# sequence.append((0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1)*multiplier)
-# sequence.append((1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0)*multiplier)
-# sequence.append((0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1)*multiplier)
-# sequence.append((1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0)*multiplier)
-# sequence.append((1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0)*multiplier)
-# sequence.append((0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1)*multiplier)
-# sequence.append((1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0)*multiplier)
-# sequence.append((1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0)*multiplier)
-# sequence.append((1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0)*multiplier)
-# sequence.append((0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1)*multiplier)
-# sequence.append((0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1)*multiplier)
-# sequence *= multiplier
-
-# """
-# (T, T, T, T, F, F, F, F, T, F, F, T, T, F, T, F)
-# (T, T, T, T, F, F, F, F, T, F, F, T, T, F, T, F)
-# (T, T, T, T, F, F, F, F, T, F, F, T, T, F, T, F)
-# (T, T, T, T, F, F, F, F, T, F, F, T, T, F, T, F)
-# (T, T, T, T, F, F, F, F, T, F, F, T, T, F, T, F)
-# (F, F, F, F, T, T, T, T, F, T, T, F, F, T, F, T)
-# (T, T, T, T, F, F, F, F, T, F, F, T, T, F, T, F)
-# (F, F, F, F, T, T, T, T, F, T, T, F, F, T, F, T)
-# (T, T, T, T, F, F, F, F, T, F, F, T, T, F, T, F)
-# (T, T, T, T, F, F, F, F, T, F, F, T, T, F, T, F)
-# (F, F, F, F, T, T, T, T, F, T, T, F, F, T, F, T)
-# (T, T, T, T, F, F, F, F, T, F, F, T, T, F, T, F)
-# (T, T, T, T, F, F, F, F, T, F, F, T, T, F, T, F)
-# (T, T, T, T, F, F, F, F, T, F, F, T, T, F, T, F)
-# (F, F, F, F, T, T, T, T, F, T, T, F, F, T, F, T)
-# (F, F, F, F, T, T, T, T, F, T, T, F, F, T, F, T)
-# """
-
-
-# # Create image and drawable image
-# img = Image.new(mode, img_size, bg_color)
-# draw = ImageDraw.Draw(img)
-
-# # Draw sequence matrix
-# for i in range(len(sequence)):
-#     for j in range(len(sequence[i])):
-#         if sequence[i][j] == 1:
-#             # Without multiplier
-#             draw.rectangle([(i, j), (i, j)], fill=fill_color)
-#             # With multiplier
-#             # for m in range(1, multiplier+1):
-#                 # draw.rectangle([(i*m, j), (i*m, j)], fill=fill_color)
-
-
-# img.save(out_file, format=out_format, dpi=dpi)
-# img.show()
 
 if __name__ == "__main__":
     main()
