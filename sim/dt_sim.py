@@ -4,6 +4,7 @@ from skimage import io
 from skimage.filters import threshold_sauvola
 import numpy as np
 import time
+import math
 from torus import Torus
 from PIL import Image, ImageFilter
 from generate_dbt import TorusGenerator
@@ -17,11 +18,11 @@ CAM_RESO = (36, 36)
 # https://github.com/PDA-UR/DotTrack/commit/fb9fb1e
 CAM_SIZE = (1.135, 1.135)
 # De Bruijn torus width & height.
-DBT_W, DBT_H = 256, 256
-# DBT_W, DBT_H = 8192, 4096
+# DBT_W, DBT_H = 256, 256
+DBT_W, DBT_H = 8192, 4096
 # De Bruijn torus window width & height.
-WIN_W, WIN_H = 4, 4
-# WIN_W, WIN_H = 5, 5
+# WIN_W, WIN_H = 4, 4
+WIN_W, WIN_H = 5, 5
 # Image dpi of the de Bruijn torus.
 DPI = (150, 150)
 # Black in greyscale.
@@ -52,10 +53,10 @@ def main():
     dbt_fname = dbt_log[-1].fname
 
     # 1.1. Test frame simulation:
-    # TODO/FIXME/URGENT: (248, 248) does not work with decoding algo
-    # [(249, 249), (249, 250), (249, 251), (250, 249), (250, 250), (250, 251),
-    # (251, 249), (251, 250), (251, 251)]
     cam_anchor = (0, 0)
+    # TODO/FIXME: With 5x5 DBT (999, 999) good results (1000, 1000) bad results
+    # cam_anchor = (999, 999)
+    # cam_anchor = (1000, 1000)
     # TODO/FIXME: (0, 248) returns bad values for the first row (fix image
     # analysis / bit extraction)
     # cam_anchor = (0, 248)
@@ -182,22 +183,6 @@ def get_test_frame(fname, dpi, cam_anchor, cam_reso, cam_size=(1, 1), rot=0):
     cam_dpi = (int(cam_reso[0]//cam_size_inch[0]),
                int(cam_reso[1]//cam_size_inch[1]))
 
-    # Set up DPI value
-    # dpi = None
-    # cam_dpi = (int(cam_reso[0]//cam_size_inch[0]),
-    #            int(cam_reso[1]//cam_size_inch[1]))
-    # # Read out DPI value from PNG metadata.
-    # for key in img.info:
-    #     if(key == "dpi"):
-    #         dpi = img.info[key]
-    # if dbt_dpi_overwrite is not None:
-    #     # Set DPI to overwrite value
-    #     dpi = dbt_dpi_overwrite
-    # if dpi is None:
-    #     # Set DPI to default value (dpi of camera/sensor).
-    #     # TODO: Nyquist as default?? 36 --> (36/2)-1 = 17 --> 17//size
-    #     dpi = cam_dpi
-
     # Calculate scaling factors & scale accordingly.
     # The ratio_scale variable is required to scale the DBT image to the wanted
     # size and in correct relation to the camera size.
@@ -206,12 +191,31 @@ def get_test_frame(fname, dpi, cam_anchor, cam_reso, cam_size=(1, 1), rot=0):
     safety_scale = (3, 3)
     # Complete scale.
     scale = (ratio_scale[0]*safety_scale[0], ratio_scale[1]*safety_scale[0])
+
+    # Crop to relevant area and scale only that area. This prevents that the
+    # memory usage will explode when scaling/resizing bigger de Bruijn torus
+    # images.
+    # For example the (4096, 8192; 5, 5) de Bruijn torus at 150 dpi would take
+    # up around ~8.7GB of memory when scaled up (this can actually lead to the
+    # process being killed by the oom killer).
+    # First calculate the maximum radius of the camera frame (when rotated).
+    max_radius = math.sqrt(cam_reso[0]**2 + cam_reso[1]**2)
+    # Scale radius to the amount of pattern pixel the camera will capture.
+    max_radius = (math.ceil(max_radius / ratio_scale[0]),
+                  math.ceil(max_radius / ratio_scale[0]))
+    # Crop out the relevant area around the cameras anchor point.
+    left = int((cam_anchor[0] - max_radius[0]))
+    top = int((cam_anchor[1] - max_radius[1]))
+    right = int((cam_anchor[0] + max_radius[0]))
+    bottom = int((cam_anchor[1] + max_radius[1]))
+    img = Image.open(fname).crop(box=(left, top, right, bottom))
+    # Set anchor point of camera to the center of the image which should
+    # represent the position on the de Bruijn torus before the crop to the
+    # relevant area.
+    cam_anchor = img.size[0]//2, img.size[1]//2
+
     # Resize to set the image size in relation to the camera size and also
     # scale up to retain quality.
-    img = Image.open(fname)
-    # TODO/FIXME: Resize takes too much memory (OOM killer bad).
-    # At 150dpi it would resize 5x5 DBT to 131955*66009 => ~8.7 GB
-    # Solution: Maybe directly crop to relevant area and scale that area.
     img = img.resize((int(img.size[0]*scale[0]),
                       int(img.size[1]*scale[0])))
 
@@ -219,8 +223,6 @@ def get_test_frame(fname, dpi, cam_anchor, cam_reso, cam_size=(1, 1), rot=0):
     if rot != 0:
         img = img.rotate(-rot,
                          expand=False,
-                         # center=(cam_anchor[0],
-                         #         cam_anchor[1]),
                          center=(cam_anchor[0]*scale[0],
                                  cam_anchor[1]*scale[1]),
                          translate=(0, 0))
@@ -228,18 +230,11 @@ def get_test_frame(fname, dpi, cam_anchor, cam_reso, cam_size=(1, 1), rot=0):
     top = int(cam_anchor[1]*scale[1])
     right = int(cam_anchor[0]*scale[0]+cam_reso[0]*safety_scale[0])
     bottom = int(cam_anchor[1]*scale[1]+cam_reso[1]*safety_scale[1])
-    # left = int(cam_anchor[0]/scale[0])
-    # top = int(cam_anchor[1]/scale[1])
-    # right = int(cam_anchor[0]/scale[0]+cam_reso[0]/safety_scale[0])
-    # bottom = int(cam_anchor[1]/scale[1]+cam_reso[1]/safety_scale[1])
     img = img.crop(box=(int(left),
                         int(top),
                         int(right),
                         int(bottom)))
-    # img.show()
-    # img = img.resize((int(img.size[0]*scale[0]),
-    #                   int(img.size[1]*scale[0])))
-    # img.show()
+
     # "L": 8-bit greyscale. 0 means black, 255 means white.
     # "1": 1-bit bilevel, stored with the leftmost pixel in the most
     # significant bit. 0 means black, 1 means white.
@@ -248,10 +243,7 @@ def get_test_frame(fname, dpi, cam_anchor, cam_reso, cam_size=(1, 1), rot=0):
     img = img.convert(mode)
     # The blur is supposed to emulate greyscale noise.
     img = img.filter(ImageFilter.GaussianBlur(radius=min(safety_scale)+1))
-    img = img.resize(cam_reso)  # , resample=Image.NEAREST) TODO:filter needed?
-    # Since img is now the camera frame it should set the dpi value to the
-    # cameras dpi value (cam_dpi).
-    # img.info["dpi"] = cam_dpi
+    img = img.resize(cam_reso)
     return img
 
 
