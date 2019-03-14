@@ -22,17 +22,15 @@ DBT_W, DBT_H = 256, 256
 # De Bruijn torus window width & height.
 WIN_W, WIN_H = 4, 4
 # WIN_W, WIN_H = 5, 5
+# Image dpi of the de Bruijn torus.
+DPI = (150, 150)
 # Black in greyscale.
 BLACK = 0
 # White in greyscale.
 WHITE = 255
 
-dbt_log = None
-
 
 def main():
-    global dbt_log
-
     # Testing:
     # generate multiple test images
     # run pipeline
@@ -47,19 +45,11 @@ def main():
     # 1. Image Generation:
     # dbt_w, dbt_h, win_w, win_h = 256, 256, 4, 4
     dbt_w, dbt_h, win_w, win_h = DBT_W, DBT_H, WIN_W, WIN_H
-    dpi = (150, 150)
-    # "L": 8-bit greyscale. 0 means black, 255 means white.
-    # "1": 1-bit bilevel, stored with the leftmost pixel in the most
-    # significant bit. 0 means black, 1 means white.
-    mode = "L"
-    # dbt_fname = generate_dbt(dbt_h, dbt_w, win_h, win_w, dpi, mode)
-    # dbt_img = Image.open(dbt_fname)
+    dpi = DPI
 
     dbt_gen = TorusGenerator(dbt_w, dbt_h, win_w, win_h)
     dbt_log = dbt_gen.constr_log
-    dbt_img = Image.open(dbt_log[-1].fname)
-    dbt_img = dbt_img.convert(mode)
-    dbt_img.info["dpi"] = dpi
+    dbt_fname = dbt_log[-1].fname
 
     # 1.1. Test frame simulation:
     # TODO/FIXME/URGENT: (248, 248) does not work with decoding algo
@@ -70,17 +60,12 @@ def main():
     # analysis / bit extraction)
     # cam_anchor = (0, 248)
     rot = 0
-    subframe = get_test_frame(dbt_img,
+    subframe = get_test_frame(dbt_fname,
+                              dpi,
                               cam_anchor,
                               CAM_RESO,
                               CAM_SIZE,
                               rot=rot)
-    # subframe = get_test_frame(dbt_img,
-    #                           cam_anchor,
-    #                           CAM_RESO,
-    #                           CAM_SIZE,
-    #                           rot=rot,
-    #                           dbt_dpi_overwrite=(300, 300))
     # subframe.show()  # DEBUG OUTPUT
 
     # 2. Image Analysis (extract array out of picture):
@@ -94,7 +79,7 @@ def main():
 
     # 3. Decode array (and get position):
     # Brute force
-    # positions = find_sequences_in_dbt(subarray, dbt_img, win_w, win_h)
+    # positions = find_sequences_in_dbt(subarray, dbt_fname, win_w, win_h)
 
     # Decoding alogrithm according to Shiu
     positions = decode_dbt_positions(subarray, win_w, win_h, dbt_log)
@@ -129,55 +114,40 @@ def main():
     #         # print(positions_bf)
     #         # print(positions_shiu)
     # if len(positions_shiu) != len(positions_bf):
-    #     raise ValueError(f"Different length of positions arrays. Should not " +
-    #                      f"happen!")
+    #     raise ValueError(f"Different length of positions arrays. Should " +
+    #                      f"not happen!")
     # for i in range(len(positions_shiu)):
     #     if positions_shiu[i] != positions_bf[i]:
     #         print(f"MISMATCH:\nBrute force: {positions_bf[i]}\n" +
     #               f"Shiu: {positions_shiu[i]}")
 
 
-def get_dbt_img():
-    global dbt_log
-
-    # 1. Image Generation:
-    dbt_w, dbt_h, win_w, win_h = DBT_W, DBT_H, WIN_W, WIN_H
-    dpi = (150, 150)
-    # "L": 8-bit greyscale. 0 means black, 255 means white.
-    # "1": 1-bit bilevel, stored with the leftmost pixel in the most
-    # significant bit. 0 means black, 1 means white.
-    mode = "L"
-    # fname = generate_dbt(dbt_h, dbt_w, win_h, win_w, dpi, mode)
-    # img = Image.open(fname)
-
+def get_dbt_log(dbt_w, dbt_h, win_w, win_h):
+    # 1. DBT/Log Generation:
     dbt_gen = TorusGenerator(dbt_w, dbt_h, win_w, win_h)
     dbt_log = dbt_gen.constr_log
-    img = Image.open(dbt_log[-1].fname)
-    img = img.convert(mode)
-    img.info["dpi"] = dpi
-
-    return img
+    return dbt_log
 
 
-def analyse_frame(pipeline_id, frame, cam_size, dbt_img, win_w, win_h):
-    global dbt_log
-
+def analyse_frame(frame, cam_size, dbt_log, dbt_dpi, win_w, win_h,
+                  pipeline_id):
     start_time = time.perf_counter()
 
     # frame.show()  # DEBUG OUTPUT
-    frame = set_frame_dpi(frame, cam_size)
+    # frame = set_frame_dpi(frame, cam_size)
     # 2. Image Analysis (extract array out of picture):
     # frame = unrotate_image(frame)  # TODO
     frame = preprocess_image(frame, pipeline_id)
     # frame.show()  # DEBUG OUTPUT
-    subarray = extract_bitarray(frame, cam_size, dbt_img.info["dpi"],
+    subarray = extract_bitarray(frame, cam_size, dbt_dpi,
                                 pipeline_id)
     # print(subarray)  # DEBUG OUTPUT
     # Image.fromarray(subarray).show()  # DEBUG OUTPUT
 
     # 3. Decode array (and get position):
     # Brute force
-    # positions = find_sequences_in_dbt(subarray, dbt_img, win_w, win_h)
+    # dbt_fname = dbt_log[-1].fname
+    # positions = find_sequences_in_dbt(subarray, dbt_fname, win_w, win_h)
 
     # Decoding alogrithm according to Shiu
     positions = decode_dbt_positions(subarray, win_w, win_h, dbt_log)
@@ -188,73 +158,13 @@ def analyse_frame(pipeline_id, frame, cam_size, dbt_img, win_w, win_h):
     print(f"Frame analysing took {total_time:.3f}s")
 
 
-def set_frame_dpi(frame, cam_size):
-    # Convert size from millimeters to inch
-    cam_size_inch = (cam_size[0]*0.039370079, cam_size[1]*0.039370079)
-    cam_dpi = (int(frame.size[0]//cam_size_inch[0]),
-               int(frame.size[1]//cam_size_inch[1]))
-    frame.info["dpi"] = cam_dpi
-    return frame
-
-
-# 1. Image Generation:
-# generate_dbt.py
-# import os
-# from torus import Torus
-
-
-# r is the height of the image
-# s is the width of the image
-# m is the height of the de Bruijn window
-# n is the width of the de Bruijn window
-# def generate_dbt(r, s, m, n, dpi=(150, 150), mode="L"):
-#     fname = f"output-{s}x{r}-{n}x{n}_{dpi[0]}x{dpi[1]}dpi_{mode}.png"
-#     if r == 256 and s == 256 and m == 4 and n == 4:
-#         return generate_256x256_4x4_dbt(fname, dpi, mode)
-#     elif r == 4096 and s == 8192 and m == 5 and n == 5:
-#         return generate_8192x4096_5x5_dbt(fname, dpi, mode)
-#     else:
-#         err_msg = "Dimensions not supported yet."
-#         raise ValueError(err_msg)
-
-
-# def generate_256x256_4x4_dbt(fname, dpi, mode):
-#     values = [
-#         [0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1],
-#         [0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1],
-#         [0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0],
-#         [1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1],
-#     ]
-#     m, n = 3, 2
-#     torus = Torus(values, m, n, "storage.txt")
-#     torus.transpose()
-#     torus.make()
-#     torus.make()
-#     torus.transpose()
-#     torus.make()
-#     torus.save(fname, dpi=dpi, mode=mode)
-#     return os.path.abspath(fname)
-
-
-# def generate_8192x4096_5x5_dbt(fname, dpi, mode):
-#     values = [
-#         [0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1],
-#         [0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1],
-#         [0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0],
-#         [1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1],
-#     ]
-#     m, n = 3, 2
-#     torus = Torus(values, m, n, "storage.txt")
-#     torus.transpose()
-#     torus.make()
-#     torus.make()
-#     torus.transpose()
-#     torus.make()
-#     torus.make()
-#     torus.transpose()
-#     torus.make()
-#     torus.save(fname, dpi=dpi, mode=mode)
-#     return os.path.abspath(fname)
+# def set_frame_dpi(frame, cam_size):
+#     # Convert size from millimeters to inch
+#     cam_size_inch = (cam_size[0]*0.039370079, cam_size[1]*0.039370079)
+#     cam_dpi = (int(frame.size[0]//cam_size_inch[0]),
+#                int(frame.size[1]//cam_size_inch[1]))
+#     frame.info["dpi"] = cam_dpi
+#     return frame
 
 
 # 1.1. Test frame simulation:
@@ -263,29 +173,30 @@ def set_frame_dpi(frame, cam_size):
 
 
 # for testing the recognition pipeline
-def get_test_frame(img, cam_anchor, cam_reso, cam_size=(1, 1), rot=0,
-                   dbt_dpi_overwrite=None):
+def get_test_frame(fname, dpi, cam_anchor, cam_reso, cam_size=(1, 1), rot=0):
     # TODO Make cam_anchor an absolut position in mm or inch. Or allow an
     # offset to test patterns being cut off
 
     # Convert size from millimeters to inch
     cam_size_inch = (cam_size[0]*0.039370079, cam_size[1]*0.039370079)
-
-    # Set up DPI value
-    dpi = None
     cam_dpi = (int(cam_reso[0]//cam_size_inch[0]),
                int(cam_reso[1]//cam_size_inch[1]))
-    # Read out DPI value from PNG metadata.
-    for key in img.info:
-        if(key == "dpi"):
-            dpi = img.info[key]
-    if dbt_dpi_overwrite is not None:
-        # Set DPI to overwrite value
-        dpi = dbt_dpi_overwrite
-    if dpi is None:
-        # Set DPI to default value (dpi of camera/sensor).
-        # TODO: Nyquist as default?? 36 --> (36/2)-1 = 17 --> 17//size
-        dpi = cam_dpi
+
+    # Set up DPI value
+    # dpi = None
+    # cam_dpi = (int(cam_reso[0]//cam_size_inch[0]),
+    #            int(cam_reso[1]//cam_size_inch[1]))
+    # # Read out DPI value from PNG metadata.
+    # for key in img.info:
+    #     if(key == "dpi"):
+    #         dpi = img.info[key]
+    # if dbt_dpi_overwrite is not None:
+    #     # Set DPI to overwrite value
+    #     dpi = dbt_dpi_overwrite
+    # if dpi is None:
+    #     # Set DPI to default value (dpi of camera/sensor).
+    #     # TODO: Nyquist as default?? 36 --> (36/2)-1 = 17 --> 17//size
+    #     dpi = cam_dpi
 
     # Calculate scaling factors & scale accordingly.
     # The ratio_scale variable is required to scale the DBT image to the wanted
@@ -297,6 +208,10 @@ def get_test_frame(img, cam_anchor, cam_reso, cam_size=(1, 1), rot=0,
     scale = (ratio_scale[0]*safety_scale[0], ratio_scale[1]*safety_scale[0])
     # Resize to set the image size in relation to the camera size and also
     # scale up to retain quality.
+    img = Image.open(fname)
+    # TODO/FIXME: Resize takes too much memory (OOM killer bad).
+    # At 150dpi it would resize 5x5 DBT to 131955*66009 => ~8.7 GB
+    # Solution: Maybe directly crop to relevant area and scale that area.
     img = img.resize((int(img.size[0]*scale[0]),
                       int(img.size[1]*scale[0])))
 
@@ -304,6 +219,8 @@ def get_test_frame(img, cam_anchor, cam_reso, cam_size=(1, 1), rot=0,
     if rot != 0:
         img = img.rotate(-rot,
                          expand=False,
+                         # center=(cam_anchor[0],
+                         #         cam_anchor[1]),
                          center=(cam_anchor[0]*scale[0],
                                  cam_anchor[1]*scale[1]),
                          translate=(0, 0))
@@ -311,16 +228,30 @@ def get_test_frame(img, cam_anchor, cam_reso, cam_size=(1, 1), rot=0,
     top = int(cam_anchor[1]*scale[1])
     right = int(cam_anchor[0]*scale[0]+cam_reso[0]*safety_scale[0])
     bottom = int(cam_anchor[1]*scale[1]+cam_reso[1]*safety_scale[1])
+    # left = int(cam_anchor[0]/scale[0])
+    # top = int(cam_anchor[1]/scale[1])
+    # right = int(cam_anchor[0]/scale[0]+cam_reso[0]/safety_scale[0])
+    # bottom = int(cam_anchor[1]/scale[1]+cam_reso[1]/safety_scale[1])
     img = img.crop(box=(int(left),
                         int(top),
                         int(right),
                         int(bottom)))
+    # img.show()
+    # img = img.resize((int(img.size[0]*scale[0]),
+    #                   int(img.size[1]*scale[0])))
+    # img.show()
+    # "L": 8-bit greyscale. 0 means black, 255 means white.
+    # "1": 1-bit bilevel, stored with the leftmost pixel in the most
+    # significant bit. 0 means black, 1 means white.
+    mode = "L"
+    # Convert to greyscale (which is needed for the blur filter)
+    img = img.convert(mode)
     # The blur is supposed to emulate greyscale noise.
     img = img.filter(ImageFilter.GaussianBlur(radius=min(safety_scale)+1))
     img = img.resize(cam_reso)  # , resample=Image.NEAREST) TODO:filter needed?
     # Since img is now the camera frame it should set the dpi value to the
     # cameras dpi value (cam_dpi).
-    img.info["dpi"] = cam_dpi
+    # img.info["dpi"] = cam_dpi
     return img
 
 
@@ -330,7 +261,7 @@ def preprocess_image(img, pipeline_id="baseline"):
         # No preprocessing wanted
         return img
 
-    dpi = img.info["dpi"]
+    # dpi = img.info["dpi"]
     # Edge enhance
     img = img.filter(ImageFilter.EDGE_ENHANCE_MORE)
 
@@ -356,7 +287,7 @@ def preprocess_image(img, pipeline_id="baseline"):
 
     img = skimage.img_as_ubyte(img > threshold_sauvola(img))
     img = Image.fromarray(img)
-    img.info["dpi"] = dpi
+    # img.info["dpi"] = dpi
     return img
 
 
@@ -527,12 +458,12 @@ def calc_cell_bit(cell_array, ret_err_count=False, margin=(0, 0),
 
 
 # 3. Decode array (and get position):
-def find_sequences_in_dbt(frame_array, dbt_img, win_w, win_h):
+def find_sequences_in_dbt(frame_array, dbt_fname, win_w, win_h):
     start_time = time.perf_counter()
 
     positions = []
 
-    dbt_array = skimage.img_as_ubyte(dbt_img)
+    dbt_array = io.imread(dbt_fname)
 
     # List comprehension for x, y and dbt_x, dbt_y produces more loops
     # Less looping ==> bit faster

@@ -19,7 +19,10 @@ tkimg = None
 stream_loop_delay = 0
 
 first_run = True
-dbt_image = sim.get_dbt_img()
+cam_size = sim.CAM_SIZE
+dbt_w, dbt_h, win_w, win_h = sim.DBT_W, sim.DBT_H, sim.WIN_W, sim.WIN_H
+dbt_log = sim.get_dbt_log(dbt_w, dbt_h, win_w, win_h)
+dbt_dpi = sim.DPI
 thr = None
 analyse_frame = False
 pipeline_id = "baseline"
@@ -75,12 +78,13 @@ def stream_loop():
         if analyse_frame and (thr is None or not thr.is_alive()):
             analyse_frame = False
             thr = threading.Thread(target=sim.analyse_frame,
-                                   args=(pipeline_id,
-                                         img,
-                                         sim.CAM_SIZE,
-                                         dbt_image,
-                                         sim.WIN_W,
-                                         sim.WIN_H))
+                                   args=(img,
+                                         cam_size,
+                                         dbt_log,
+                                         dbt_dpi,
+                                         win_w,
+                                         win_h,
+                                         pipeline_id))
             thr.start()
         # Resize img
         # img = img.resize((imgsize[0] * img_rsz_mltpl,
