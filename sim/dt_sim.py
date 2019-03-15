@@ -13,7 +13,7 @@ from generate_dbt import TorusGenerator
 
 # Cameras resolution in pixel.
 CAM_RESO = (36, 36)
-# Cameras capture area in millimeter.
+# Cameras capture area in millimeters.
 # Calculated/Estimated as explained in
 # https://github.com/PDA-UR/DotTrack/commit/fb9fb1e
 CAM_SIZE = (1.135, 1.135)
@@ -80,12 +80,23 @@ def main():
 
     # 3. Decode array (and get position):
     # Brute force
-    # positions = find_sequences_in_dbt(subarray, dbt_fname, win_w, win_h)
+    # dbt_positions = find_sequences_in_dbt(subarray, dbt_fname, win_w, win_h)
+    # dbt_positions = find_sequences_in_dbt(subarray, dbt_fname, win_w, win_h,
+    #                                       cam_anchor)
+    # print(dbt_positions)
 
     # Decoding alogrithm according to Shiu
-    positions = decode_dbt_positions(subarray, win_w, win_h, dbt_log)
+    dbt_positions = decode_dbt_positions(subarray, win_w, win_h, dbt_log)
+    print(dbt_positions)
 
-    print(positions)
+    # 4. Calculate actual positions on the page (in millimeters)
+    # Variables:
+    # * dbt/pixel positions
+    # * dpi
+    # * margin (hardcoded for now; assumes (5, 5) mm)
+    margin = (5, 5)
+    real_positions = calculate_real_positions(dbt_positions, dpi, margin)
+    print(real_positions)
 
     total_time = time.perf_counter() - start_time
     print(f"Frame analysing took {total_time:.3f}s")
@@ -130,7 +141,7 @@ def get_dbt_log(dbt_w, dbt_h, win_w, win_h):
     return dbt_log
 
 
-def analyse_frame(frame, cam_size, dbt_log, dbt_dpi, win_w, win_h,
+def analyse_frame(frame, cam_size, dbt_log, dpi, win_w, win_h,
                   pipeline_id):
     start_time = time.perf_counter()
 
@@ -140,7 +151,7 @@ def analyse_frame(frame, cam_size, dbt_log, dbt_dpi, win_w, win_h,
     # frame = unrotate_image(frame)  # TODO
     frame = preprocess_image(frame, pipeline_id)
     # frame.show()  # DEBUG OUTPUT
-    subarray = extract_bitarray(frame, cam_size, dbt_dpi,
+    subarray = extract_bitarray(frame, cam_size, dpi,
                                 pipeline_id)
     # print(subarray)  # DEBUG OUTPUT
     # Image.fromarray(subarray).show()  # DEBUG OUTPUT
@@ -148,12 +159,22 @@ def analyse_frame(frame, cam_size, dbt_log, dbt_dpi, win_w, win_h,
     # 3. Decode array (and get position):
     # Brute force
     # dbt_fname = dbt_log[-1].fname
-    # positions = find_sequences_in_dbt(subarray, dbt_fname, win_w, win_h)
+    # dbt_positions = find_sequences_in_dbt(subarray, dbt_fname, win_w, win_h)
+    # print(dbt_positions)
 
     # Decoding alogrithm according to Shiu
-    positions = decode_dbt_positions(subarray, win_w, win_h, dbt_log)
+    dbt_positions = decode_dbt_positions(subarray, win_w, win_h, dbt_log)
+    print(dbt_positions)
 
-    print(positions)
+    # 4. Calculate actual positions on the page (in millimeters)
+    # Variables:
+    # * dbt/pixel positions
+    # * dpi
+    # * margin (hardcoded for now; assumes (5, 5) mm)
+    # TODO: Use margin from create_pdf.py script.
+    margin = (5, 5)
+    real_positions = calculate_real_positions(dbt_positions, dpi, margin)
+    print(real_positions)
 
     total_time = time.perf_counter() - start_time
     print(f"Frame analysing took {total_time:.3f}s")
@@ -752,6 +773,22 @@ def compute_dm(array):
     for y in range(array.shape[0] - 1):
         dm.append(array[y, ] ^ array[y+1, ])
     return np.vstack(dm)
+
+
+# 4. Calculate actual positions on the page (in millimeters)
+def calculate_real_positions(px_positions, dpi, margin):
+    # TODO: Use the center of the dbt window instead of the top left position.
+    # TODO: Improve real position based on window anchor.
+    # TODO: Check if real position is possible with help of pagesize and/or
+    # cropped_area.
+    # , win_w, win_h, win_anchor, cam_reso, cam_size, pagesize=None,
+    # cropped_area=None):
+    positions = []
+    for px_pos in px_positions:
+        x = ((px_pos[0] / dpi[0]) * 25.4) + margin[0]
+        y = ((px_pos[1] / dpi[1]) * 25.4) + margin[1]
+        positions.append((x, y))
+    return positions
 
 
 if __name__ == "__main__":
