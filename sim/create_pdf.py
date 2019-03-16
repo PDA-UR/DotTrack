@@ -82,7 +82,7 @@ def create_pdf(fname, dpi=(150, 150), pagesize=A4, margin=(5, 5),
     """
 
     # 1. General setup
-    out_fname = os.path.splitext(fname)[0] + ".pdf"
+    out_fname = os.path.splitext(fname)[0] + f"{dpi[0]}x{dpi[1]}dpi.pdf"
     c = canvas.Canvas(out_fname, pagesize=pagesize)
 
     # Calculate printable area bounds for bounds check
@@ -147,7 +147,8 @@ def create_pdf(fname, dpi=(150, 150), pagesize=A4, margin=(5, 5),
             img.convert("1").save(fname)
 
     # TODO: calculate the scaling factor to see that it does not morph the
-    # pattern pixels in weird ways.
+    # pattern pixels in weird ways. Because reportlabs unit system is based on
+    # the PDF having a base dpi of 72.
 
     # 4. Place image on PDF (within printable area; clip if needed)
     c.drawImage(ImageReader(img), x, y, w, h)
