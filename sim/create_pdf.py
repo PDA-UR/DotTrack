@@ -11,7 +11,7 @@ def main():
     # create_png_dpi_examples("output-256x256-4x4.png")
 
     create_pdf("output-256x256_4x4.png")
-    create_pdf("output-8192x4096_5x5.png", (150, 150))
+    create_pdf("output-8192x4096_5x5.png", (150, 150), save_cropped_img=True)
 
 
 # Set dpi value in the PNG metadata (does not seem to be used by a lot of
@@ -82,7 +82,7 @@ def create_pdf(fname, dpi=(150, 150), pagesize=A4, margin=(5, 5),
     """
 
     # 1. General setup
-    out_fname = os.path.splitext(fname)[0] + f"{dpi[0]}x{dpi[1]}dpi.pdf"
+    out_fname = os.path.splitext(fname)[0] + f"_{dpi[0]}x{dpi[1]}dpi.pdf"
     c = canvas.Canvas(out_fname, pagesize=pagesize)
 
     # Calculate printable area bounds for bounds check
@@ -143,7 +143,7 @@ def create_pdf(fname, dpi=(150, 150), pagesize=A4, margin=(5, 5),
 
         # Save the cropped image
         if save_cropped_img:
-            fname = os.path.splitext(fname)[0] + "_crop" + ".png"
+            fname = os.path.splitext(out_fname)[0] + "_crop" + ".png"
             img.convert("1").save(fname)
 
     # TODO: calculate the scaling factor to see that it does not morph the
