@@ -32,7 +32,7 @@ def create_png_dpi_examples(fname):
     # Camera capture area in millimeters.
     cam_size = (1, 1)
     # Convert size from millimeters to inch.
-    cam_size_inch = (cam_size[0]*0.039370079, cam_size[1]*0.039370079)
+    cam_size_inch = (cam_size[0] / 25.4, cam_size[1] / 25.4)
 
     num_ppx_threshold = (5, 5)
     # num_ppx_sample = []

@@ -182,7 +182,7 @@ def analyse_frame(frame, cam_size, dbt_log, dpi, win_w, win_h,
 
 # def set_frame_dpi(frame, cam_size):
 #     # Convert size from millimeters to inch
-#     cam_size_inch = (cam_size[0]*0.039370079, cam_size[1]*0.039370079)
+#     cam_size_inch = (cam_size[0] / 25.4, cam_size[1] / 25.4)
 #     cam_dpi = (int(frame.size[0]//cam_size_inch[0]),
 #                int(frame.size[1]//cam_size_inch[1]))
 #     frame.info["dpi"] = cam_dpi
@@ -200,7 +200,7 @@ def get_test_frame(fname, dpi, cam_anchor, cam_reso, cam_size=(1, 1), rot=0):
     # offset to test patterns being cut off
 
     # Convert size from millimeters to inch
-    cam_size_inch = (cam_size[0]*0.039370079, cam_size[1]*0.039370079)
+    cam_size_inch = (cam_size[0] / 25.4, cam_size[1] / 25.4)
     cam_dpi = (int(cam_reso[0]//cam_size_inch[0]),
                int(cam_reso[1]//cam_size_inch[1]))
 
@@ -325,7 +325,7 @@ def remove_helper_lines(img):
 
 def extract_bitarray(img, cam_size, dbt_img_dpi, pipeline_id="baseline"):
     # Convert size from millimeters to inch
-    cam_size_inch = (cam_size[0]*0.039370079, cam_size[1]*0.039370079)
+    cam_size_inch = (cam_size[0] / 25.4, cam_size[1] / 25.4)
     # Number of pattern pixel the sensor should be able to see
     num_ppx = (int(dbt_img_dpi[0]*cam_size_inch[0]),
                int(dbt_img_dpi[1]*cam_size_inch[1]))
