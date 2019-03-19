@@ -16,7 +16,7 @@ class AutoCapture(object):
 
     """Automatically capture camera/sensor frames with help of the AxiDraw."""
 
-    def __init__(self, w, h, win_w, win_h, dpi):
+    def __init__(self, w, h, win_w, win_h, dpi, m5stack_port="/dev/ttyUSB0"):
         """Initialize AutoCapture object.
 
         @return: AutoCapture object.
@@ -24,7 +24,7 @@ class AutoCapture(object):
         """
         self._pdf_id = 0
         self._init_axidraw()
-        self._init_m5stack()
+        self._init_m5stack(m5stack_port)
         self._init_misc()
 
     # Setup AxiDraw
@@ -107,9 +107,9 @@ class AutoCapture(object):
         self._down, self._left = 1, 1
 
     # Setup serial connection to M5Stack (and setup frame capturing)
-    def _init_m5stack(self):
+    def _init_m5stack(self, port):
         # Open serial port
-        self._ser = serial.Serial("/dev/ttyUSB0", 115200, timeout=1)
+        self._ser = serial.Serial(port, 115200, timeout=1)
         self._imgsize = [36, 36]
         self._img_byte_len = self._imgsize[0] * self._imgsize[1]
 
