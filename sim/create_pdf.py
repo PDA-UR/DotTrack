@@ -7,11 +7,18 @@ from reportlab.lib.utils import ImageReader
 
 
 def main():
-    # Used for testpage PDFs
-    # create_png_dpi_examples("output-256x256-4x4.png")
-
-    create_pdf("output-256x256_4x4.png")
-    create_pdf("output-8192x4096_5x5.png", (150, 150), save_cropped_img=True)
+    # DPI values for evaluation
+    dpis = [(400, 400),
+            (350, 350),
+            (300, 300),
+            (250, 250),
+            (200, 200),
+            (175, 175),
+            (150, 150),
+            (125, 125),
+            (100, 100)]
+    for dpi in dpis:
+        create_pdf("output-8192x4096_5x5.png", dpi, save_cropped_img=True)
 
 
 # Set dpi value in the PNG metadata (does not seem to be used by a lot of
