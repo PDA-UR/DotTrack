@@ -66,8 +66,8 @@ class AutoCapture(object):
         # x_mm = 82
         # y_mm = 85
         # Manual testing over full DIN A4 papers yielded these results:
-        self._x_mm = 80
-        self._y_mm = 80
+        self._x_mm = 80.45
+        self._y_mm = 80.45
         # https://github.com/ertdfgcvb/Genau
         # This libraries README also states the same values:
         # "where 80 steps = 1mm"
