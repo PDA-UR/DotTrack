@@ -251,7 +251,7 @@ class AutoCapture(object):
         # TODO: Use directories? Use pathlib?
         # directory = f"frames/{printer_id}/{pdf_id}/"
         # return directory + fname + "_".join(params)
-        params = [f"{self._rel_x:3.3f}x{self._rel_y:3.3f}pos"]
+        params = [f"{self._rel_x:07.3f}x{self._rel_y:07.3f}pos"]
         params.append(f"{self._printer_id}")
         params.append(f"{self._pdf_id}")
         return "frame-" + "_".join(params) + ".png"
