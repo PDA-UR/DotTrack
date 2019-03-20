@@ -8,6 +8,7 @@ import numpy as np
 import serial
 from PIL import Image
 import re
+import os
 
 
 class AutoCapture(object):
@@ -251,10 +252,16 @@ class AutoCapture(object):
         # TODO: Use directories? Use pathlib?
         # directory = f"frames/{printer_id}/{pdf_id}/"
         # return directory + fname + "_".join(params)
+        base_fname = "frame-"
+        ext = ".png"
         params = [f"{self._rel_x:07.3f}x{self._rel_y:07.3f}pos"]
         params.append(f"{self._printer_id}")
         params.append(f"{self._pdf_id}")
-        return "frame-" + "_".join(params) + ".png"
+        path = "/".join(params[1:]) + "/"
+        # Create path if it does not exist
+        if not os.path.exists(path):
+            os.makedirs(path)
+        return path + base_fname + "_".join(params) + ext
 
     def run(self):
         # 4. Calibrate AxiDraw position
