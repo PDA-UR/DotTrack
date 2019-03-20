@@ -75,29 +75,38 @@ class AutoCapture(object):
         # From the "EBB (EiBotBoard) Command Set" documentation:
         # "Minimum speed is 1.31 steps/second."
         # "Maximum speed is 25k Steps/second."
-        # max_vel = 25000
-        # min_vel = 1.31
-        # Calculate maximum and minimum millisecond divider (with added
-        # padding for the maximum)
-        # max_ms_per_step = int((max_vel / 1000) * 0.8)
-        # min_ms_per_step = min_vel / 1000
+        self._max_vel = 25000
+        self._min_vel = 1.31
+        # Calculate maximum and minimum millisecond divider
+        self._max_ms = self._max_vel / 1000
+        self._min_ms = self._min_vel / 1000
         # Manual/Sensible maximum and minimum values for millisecond divider
         # These are not the absolute maximum and minimum values but should be
         # more than enough for our purposes.
-        max_ms_per_step = 20
-        min_ms_per_step = 0.1
-        one_percent_vel = (max_ms_per_step - min_ms_per_step) / 100
+        # self._max_ms = 20
+        # self._min_ms = 0.1
         # max_duration does not really matter in our context
         # min_duration = 4 @ 80 move points => 20 ms/step
         # BUT:
         # our min_steps are 26 => duration = math.ceil(1.3) = 2 @ 20 ms/step
+        # TODO: Maybe use the same maximum/minimum as in the AxiDraw Inkscape
+        # plugin
+        # Maximum:
+        # Would decrement self._ms by 1 until it is smaller than self._max_ms.
+        # https://github.com/evil-mad/axidraw/blob/master/inkscape%20driver/axidraw_conf.py#L112
+        # Minimum (is hardcoded):
+        # If self._ms value is smaller than 0.002 it would jump to 0.
+        # https://github.com/evil-mad/axidraw/blob/master/inkscape%20driver/axidraw.py#L2373
+        # self._max_ms = 24.995
+        # self._min_ms = 0.002
 
         # According to the User Guide lower percentages are better for accuracy
         # (p. 35).
-        # 0% will be min_ms_per_step and 100% max_ms_per_step. That means that
+        # 0% will be self._min_ms and 100% self._max_ms. That means that
         # even if self._vel_percent is 0 that the AxiDraw will still move at
         # the minimum velocity.
-        # The 15% value should work pretty well for small and big distances.
+        # The 15% value should give pretty good accuracy and work pretty well
+        # for small and big distances.
         self._vel_percent = 15
         if self._vel_percent < 0 or self._vel_percent > 100:
             raise ValueError("The self._vel_percent variable " +
@@ -107,7 +116,26 @@ class AutoCapture(object):
         # Time divider
         # Divide by the max_steps value to get the move duration in
         # milliseconds.
-        self._ms = (one_percent_vel * self._vel_percent) + min_ms_per_step
+        min_max_delta = self._max_ms - self._min_ms
+        self._ms = (min_max_delta * (self._vel_percent / 100)) + self._min_ms
+        # TODO/FIXME: This calculation with vel_percent value does not seem to
+        # do the same as the AxiDraws with the drawing speed percentage.
+        # In the AxiDraw Inkscape plugin code the ms value at high resolution
+        # and 15% drawing speed seems to be around ~2.41
+        # Example:
+        # # TODO: Not confirmed yet from AxiDraw code. Should be extremely
+        # # close though because it works very well in tests.
+        # steps_per_mm = 80
+        # # drawing speed pecentage (needs to be between 1 and 110 [for some
+        # # reason]) Default: 25
+        # pen_down_speed = 15
+        # # Maximum XY speed allowed when in High Resolution mode, in inches
+        # # per second. Default: 8.6979, Max: 8.6979
+        # SpeedLimXY_HR = 8.6979
+        # # Speed given as maximum inches/second in XY plane
+        # inch_per_s = pen_down_speed * SpeedLimXY_HR / 110.0
+        # ms = (inch_per_s / 1000) * 25.4 * steps_per_mm  # == ~2.41010
+        self._ms = 2.41
 
         # Direction factor. Multiply with move value to get right sign for
         # direction.
