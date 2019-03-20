@@ -318,6 +318,8 @@ class AutoCapture(object):
         time.sleep(math.ceil(duration / 1000))
 
     def _calc_duration(self, x, y):
+        # Duration calculated according to:
+        # https://evil-mad.github.io/EggBot/ebb.html#XM
         axis_steps_1 = y + x
         axis_steps_2 = y - x
         max_steps = max(abs(axis_steps_1), abs(axis_steps_2))
