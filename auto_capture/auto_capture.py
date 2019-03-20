@@ -33,9 +33,10 @@ class AutoCapture(object):
                              "\npdf_fname: " +
                              "output-8192x4096_5x5_150x150dpi.pdf\npdf_id " +
                              "(extracted): 8192x4096_5x5_150x150dpi")
+        self._m5stack_port = m5stack_port
         self._init_misc()
         self._init_axidraw()
-        self._init_m5stack(m5stack_port)
+        self._init_m5stack()
 
     # Setup AxiDraw
     def _init_axidraw(self):
@@ -186,9 +187,7 @@ class AutoCapture(object):
         # print(f"self._y_move_delta_sum: {self._y_move_delta_sum}")
 
     # Setup serial connection to M5Stack (and setup frame capturing)
-    def _init_m5stack(self, port):
-        # Open serial port
-        self._ser = serial.Serial(port, 115200, timeout=1)
+    def _init_m5stack(self):
         self._imgsize = [36, 36]
         self._img_byte_len = self._imgsize[0] * self._imgsize[1]
 
@@ -226,6 +225,9 @@ class AutoCapture(object):
         self._ser.close()
 
     def _save_img(self):
+        # Open serial port
+        self._ser = serial.Serial(self._m5stack_port, 115200, timeout=1)
+
         while True:
             # Read serial data
             data = self._ser.read_until(terminator=b"\xFE")
@@ -240,6 +242,9 @@ class AutoCapture(object):
                 print("Received bad data from image capture. Trying again...")
                 continue
             break
+
+        # Close serial port
+        self._ser.close()
 
         # Expand bytes to full range (0-255)
         data = bytes([min(b * 2, 255) for b in data])
