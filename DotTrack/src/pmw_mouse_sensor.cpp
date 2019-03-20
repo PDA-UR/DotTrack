@@ -523,13 +523,15 @@ void loop()
     if (IMG_CAPTURE == 1)
     {
         debug3("IMG_CAPTURE");
+
         captureRawImage(rawData, rawDataLength);
+        if(M5.BtnB.wasPressed() || M5.BtnC.wasPressed())
+        {
+            // Send extra byte to indicate frame analyse request
+            Serial.write(0xFD);
+        }
         sendRawOverSerial();
 
-        if (app == 3)
-        {
-            drawImageToDisplay();
-        }
         if(M5.BtnA.wasPressed())
         {
             if (app == 0)
@@ -542,11 +544,11 @@ void loop()
                 M5.Lcd.fillScreen(BLACK);
             }
         }
-        if(M5.BtnB.wasPressed() || M5.BtnC.wasPressed())
+        if (app == 3)
         {
-            // Send extra byte to indicate frame analyse request
-            Serial.write(0xFD);
+            drawImageToDisplay();
         }
+
         M5.update();
         return;
     }
