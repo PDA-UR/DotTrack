@@ -303,7 +303,7 @@ class AutoCapture(object):
 
         # End AxiDraw movement
         ebb_motion.sendDisableMotors(self._port)
-        self._close_serial()
+        # self._close_serial()
 
         total_time = time.perf_counter() - start_time
         print(f"Auto capture took {total_time:.3f}s")
@@ -345,6 +345,7 @@ def main():
             pdf_fname = f"output-8192x4096_5x5_{dpi[0]}x{dpi[1]}dpi.pdf"
             ac = AutoCapture(printer_id, pdf_fname, "/dev/ttyUSB0")
             ac.run()
+    ac._close_serial()
 
 
 if __name__ == "__main__":
