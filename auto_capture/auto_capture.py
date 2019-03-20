@@ -4,28 +4,37 @@ import ebb_motion
 import ebb_serial
 import time
 import math
-# from reportlab.lib.pagesizes import A4
-# from reportlab.lib.units import mm
 import numpy as np
 import serial
 from PIL import Image
-# import dt_sim as sim
+import re
 
 
 class AutoCapture(object):
 
     """Automatically capture camera/sensor frames with help of the AxiDraw."""
 
-    def __init__(self, w, h, win_w, win_h, dpi, m5stack_port="/dev/ttyUSB0"):
+    def __init__(self, printer_id, pdf_fname, m5stack_port="/dev/ttyUSB0"):
         """Initialize AutoCapture object.
 
         @return: AutoCapture object.
         @rtype : <class 'auto_capture.AutoCapture'>
         """
-        self._pdf_id = 0
+        self._printer_id = printer_id
+        self._pdf_fname = pdf_fname
+        self._pdf_id = re.findall(r"\d+x\d+_\d+x\d+_\d+x\d+dpi",
+                                  self._pdf_fname)
+        if len(self._pdf_id) == 1:
+            self._pdf_id = self._pdf_id[-1]
+        else:
+            raise ValueError(f"PDF file name ({self._pdf_fname}) does not " +
+                             "contain pdf_id (or multiple).\nValid example:" +
+                             "\npdf_fname: " +
+                             "output-8192x4096_5x5_150x150dpi.pdf\npdf_id " +
+                             "(extracted): 8192x4096_5x5_150x150dpi")
+        self._init_misc()
         self._init_axidraw()
         self._init_m5stack(m5stack_port)
-        self._init_misc()
 
     # Setup AxiDraw
     def _init_axidraw(self):
@@ -106,6 +115,47 @@ class AutoCapture(object):
         self._up, self._right = -1, -1
         self._down, self._left = 1, 1
 
+        # Use 5 columns and take 20 frames per column to get 100 frames total
+        # per page.
+        num_cols = 5
+        frames_per_col = 20
+
+        # Calculate column move deltas
+        x_points = np.linspace(0, self._move_size[0], num_cols)
+        # Calculate millimeter deltas for columns.
+        self._x_deltas = np.diff(x_points)
+        # self._x_delta_sum = np.sum(self._x_deltas)
+        # print(f"self._x_deltas: {self._x_deltas}")
+        # print(f"self._x_delta_sum: {self._x_delta_sum}")
+        # Calculate move value deltas for columns.
+        # Because of rounding errors there is a difference between the full
+        # page move (move_size * mm) and the move_delta_sum. Since this error
+        # is very small it is ignored.
+        # TODO: Maybe handle these errors better.
+        self._x_move_deltas = (self._x_deltas * self._x_mm).astype(int)
+        # self._x_move_delta_sum = np.sum(self._x_move_deltas)
+        # print(f"self._x_move_deltas: {self._x_move_deltas}")
+        # print(f"self._x_move_delta_sum: {self._x_move_delta_sum}")
+
+        # Decrease the distance between frames within a column to also get an
+        # idea of the accuracy of the readings.
+        # Space out values logarithmically
+        y_points = np.geomspace(self._move_size[1]+1, 1, frames_per_col)
+        # Calculate millimeter deltas.
+        self._y_deltas = np.abs(np.diff(y_points))
+        # self._y_delta_sum = np.sum(self._y_deltas)
+        # print(f"self._y_deltas: {self._y_deltas}")
+        # print(f"self._y_delta_sum: {self._y_delta_sum}")
+        # Calculate move value deltas.
+        # Because of rounding errors there is a difference between the full
+        # page move (move_size * mm) and the move_delta_sum. Since this error
+        # is very small it is ignored.
+        # TODO: Maybe handle these errors better.
+        self._y_move_deltas = (self._y_deltas * self._y_mm).astype(int)
+        # self._y_move_delta_sum = np.sum(self._y_move_deltas)
+        # print(f"self._y_move_deltas: {self._y_move_deltas}")
+        # print(f"self._y_move_delta_sum: {self._y_move_delta_sum}")
+
     # Setup serial connection to M5Stack (and setup frame capturing)
     def _init_m5stack(self, port):
         # Open serial port
@@ -166,129 +216,76 @@ class AutoCapture(object):
         data = bytes([min(b * 2, 255) for b in data])
         # Create image
         img = Image.frombytes("L", self._imgsize, data)
-        img.show()
         # Save image
-        # img.save(self._get_fname())
+        img.save(self._get_fname())
 
-    # TODO/FIXME: Create schema for file name and implement it here.
     def _get_fname(self):
-        # TODO: mkdir? import pathlib?
-        # directory = "frames/{pdf_id}/"
-        fname = "frame-"
-        params = ["{self._pdf_id}"]
-        params.append("{mm_pos[0]}x{mm_pos[1]}")
-        params.append("{move_pos[0]}x{move_pos[1]}")
+        # TODO: Use directories? Use pathlib?
+        # directory = f"frames/{printer_id}/{pdf_id}/"
         # return directory + fname + "_".join(params)
-        return fname + "_".join(params)
+        params = [f"{self._rel_x:3.3f}x{self._rel_y:3.3f}pos"]
+        params.append(f"{self._printer_id}")
+        params.append(f"{self._pdf_id}")
+        return "frame-" + "_".join(params) + ".png"
 
     def run(self):
         # 4. Calibrate AxiDraw position
         # * Maybe use AxiDraw home position if page setup/fixation allows for
         # moving the M5Stack over the edge of the page.
-        input("Please move AxiDraw/M5Stack to the top left corner of the " +
-              "page. The sides of the M5Stack should align with the " +
-              "printable area (page margin).")
+        input(f"AutoCapture of {self._pdf_fname} printed by " +
+              f"{self._printer_id} printer. Please move AxiDraw/M5Stack to " +
+              "the top left corner of the page. The sides of the M5Stack " +
+              "should align with the printable area (page margin).")
         # * Otherwise use readouts and ask the user for a manual check if the
         # position is correct.
         # TODO: Move to the top left corner of the page. (Low Prio. Not worth
         # the effort.)
 
         # 5. Start capturing test data.
-        # TODO Maybe move this initialisation step to __init__
-        # Use 5 columns and take 20 frames per column to get 100 frames total
-        # per page.
-        num_cols = 5
-        frames_per_col = 20
-
-        # Calculate column move deltas
-        col_points = np.linspace(0, self._move_size[0], num_cols)
-        # Calculate millimeter deltas for columns.
-        col_deltas = np.diff(col_points)
-        col_delta_sum = np.sum(col_deltas)
-        print(f"col_deltas: {col_deltas}")
-        print(f"col_delta_sum: {col_delta_sum}")
-        # Calculate move value deltas for columns.
-        col_move_deltas = (col_deltas * self._x_mm).astype(int)
-        col_move_delta_sum = np.sum(col_move_deltas)
-        print(f"col_move_deltas: {col_move_deltas}")
-        print(f"col_move_delta_sum: {col_move_delta_sum}")
-        # TODO/FIXME: What should I do with missing move steps? Add to first
-        # move?
-        # Maybe just ignore this.
-
-        # Decrease the distance between frames within a column to also get an
-        # idea of the accuracy of the readings.
-        # Space out values logarithmically
-        spaced_points = np.geomspace(self._move_size[1]+1, 1, frames_per_col)
-        # Calculate millimeter deltas.
-        deltas = np.abs(np.diff(spaced_points))
-        delta_sum = np.sum(deltas)
-        print(f"deltas: {deltas}")
-        print(f"delta_sum: {delta_sum}")
-        # Calculate move value deltas.
-        move_deltas = (deltas * self._y_mm).astype(int)
-        move_delta_sum = np.sum(move_deltas)
-        print(f"move_deltas: {move_deltas}")
-        print(f"move_delta_sum: {move_delta_sum}")
-        # TODO/FIXME: What should I do with missing move steps? Add to first
-        # move?
-        # Maybe just ignore this.
-
         start_time = time.perf_counter()
+
         # Capture initial img
-        # self._save_img()
+        self._rel_x, self._rel_y = 0.0, 0.0
+        self._save_img()
         # Setup initial y_direction
         y_direction = self._down
-        for col_d in col_move_deltas:
-            print("="*80)
-            for d in move_deltas:
+        # Run columns and rows
+        for i, x_delta in enumerate(self._x_move_deltas):
+            for j, y_delta in enumerate(self._y_move_deltas):
                 x = 0
-                y = d * y_direction
+                y = y_delta * y_direction
+                self._rel_y += self._y_deltas[j] * y_direction
                 self._capture_next_img(x, y)
             # flip y_direction
             if y_direction == self._down:
                 y_direction = self._up
             else:
                 y_direction = self._down
-            x = col_d * self._right
+            x = x_delta * self._right
             y = 0
+            self._rel_x += self._x_deltas[i]
             self._capture_next_img(x, y)
         # TODO/FIXME proper fix:
         # Run last column
-        print("="*80)
-        for d in move_deltas:
+        for j, y_delta in enumerate(self._y_move_deltas):
             x = 0
-            y = d * y_direction
+            y = y_delta * y_direction
+            self._rel_y += self._y_deltas[j] * y_direction
             self._capture_next_img(x, y)
 
         # End AxiDraw movement
         ebb_motion.sendDisableMotors(self._port)
         self._close_serial()
+
         total_time = time.perf_counter() - start_time
         print(f"Auto capture took {total_time:.3f}s")
-
-        # # Example:
-        # # Move one millimeter to the right and one millimeter down.
-        # x = 1*self._x_mm*self._right
-        # y = 1*self._y_mm*self._down
-        # duration = math.ceil(max(abs(x), abs(y)) / self._ms)
-        # # Set 100ms as minimum for the duration value
-        # duration = max(duration, 100)
-        # ebb_motion.doABMove(self._port, y, x, duration)
-        # time.sleep(math.ceil(duration / 1000))
-        # # End AxiDraw movement
-        # ebb_motion.sendDisableMotors(self._port)
 
     def _capture_next_img(self, x, y):
         self._make_move(x, y)
         self._save_img()
 
     def _make_move(self, x, y):
-        # duration = math.ceil(max(abs(x), abs(y)) / self._ms)
-        # # Set 100ms as minimum for the duration value
-        # duration = max(duration, 100)
         duration = self._calc_duration(x, y)
-        print(x, y, duration)
         ebb_motion.doABMove(self._port, y, x, duration)
         time.sleep(math.ceil(duration / 1000))
 
@@ -301,9 +298,23 @@ class AutoCapture(object):
 
 
 def main():
-    ac = AutoCapture(8192, 4096, 5, 5, (150, 150))
-    # print(ac)
-    ac.run()
+    # Printer names (used in file names)
+    printer_ids = ["BrotherHLL8360CDW", "LexmarkMS510dn"]
+    for printer_id in printer_ids:
+        # DPI values for evaluation
+        dpis = [(400, 400),
+                (350, 350),
+                (300, 300),
+                (250, 250),
+                (200, 200),
+                (175, 175),
+                (150, 150),
+                (125, 125),
+                (100, 100)]
+        for dpi in dpis:
+            pdf_fname = f"output-8192x4096_5x5_{dpi[0]}x{dpi[1]}dpi.pdf"
+            ac = AutoCapture(printer_id, pdf_fname, "/dev/ttyUSB0")
+            ac.run()
 
 
 if __name__ == "__main__":
