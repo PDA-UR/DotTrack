@@ -536,11 +536,11 @@ void loop()
         {
             if (app == 0)
             {
-                app = 3
+                app = 3;
             }
             else
             {
-                app = 0
+                app = 0;
                 M5.Lcd.fillScreen(BLACK);
             }
         }
