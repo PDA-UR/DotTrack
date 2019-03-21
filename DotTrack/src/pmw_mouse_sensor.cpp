@@ -525,14 +525,14 @@ void loop()
         debug3("IMG_CAPTURE");
 
         captureRawImage(rawData, rawDataLength);
-        if(M5.BtnB.wasPressed() || M5.BtnC.wasPressed())
+        if(M5.BtnA.wasPressed() || M5.BtnB.wasPressed())
         {
             // Send extra byte to indicate frame analyse request
             Serial.write(0xFD);
         }
         sendRawOverSerial();
 
-        if(M5.BtnA.wasPressed())
+        if(M5.BtnC.wasPressed())
         {
             if (app == 0)
             {
