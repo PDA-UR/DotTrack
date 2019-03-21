@@ -268,8 +268,32 @@ class AutoCapture(object):
             os.makedirs(path)
         return path + base_fname + "_".join(params) + ext
 
+    def run_right_angle_check(self):
+        yes = ""
+        while yes not in ["y", "Y", "yes"]:
+            direction = input("This is the right angle alignment check.\n" +
+                              "Enter direction to move (move_size == " +
+                              "distance) or skip with \"s\" or \"skip\": ")
+            x, y = 0, 0
+            if direction in ["s", "skip"]:
+                break
+            elif direction in ["l", "left"]:
+                x = round(self._move_size[0] * self._x_mm * self._left)
+            elif direction in ["r", "right"]:
+                x = round(self._move_size[0] * self._x_mm * self._right)
+            elif direction in ["d", "down"]:
+                y = round(self._move_size[1] * self._y_mm * self._down)
+            elif direction in ["u", "up"]:
+                y = round(self._move_size[1] * self._y_mm * self._up)
+            else:
+                continue
+            self._make_move(x, y)
+            # End AxiDraw movement
+            ebb_motion.sendDisableMotors(self._port)
+
     def run(self):
         # 4. Calibrate AxiDraw position
+        self.run_right_angle_check()
         # * Maybe use AxiDraw home position if page setup/fixation allows for
         # moving the M5Stack over the edge of the page.
         input(f"AutoCapture of {self._pdf_fname} printed by " +
