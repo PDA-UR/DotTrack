@@ -75,7 +75,7 @@ def main():
     # subframe = unrotate_image(subframe)  # TODO
     subframe = preprocess_image(subframe, pipeline_id)
     # subframe.show()  # DEBUG OUTPUT
-    subarray = extract_bitarray(subframe, CAM_SIZE, dpi, pipeline_id)
+    subarray, anchor = extract_bitarray(subframe, CAM_SIZE, dpi, pipeline_id)
     # print(subarray)  # DEBUG OUTPUT
 
     # 3. Decode array (and get position):
@@ -151,8 +151,7 @@ def analyse_frame(frame, cam_size, dbt_log, dpi, win_w, win_h,
     # frame = unrotate_image(frame)  # TODO
     frame = preprocess_image(frame, pipeline_id)
     # frame.show()  # DEBUG OUTPUT
-    subarray = extract_bitarray(frame, cam_size, dpi,
-                                pipeline_id)
+    subarray, anchor = extract_bitarray(frame, cam_size, dpi, pipeline_id)
     # print(subarray)  # DEBUG OUTPUT
     # Image.fromarray(subarray).show()  # DEBUG OUTPUT
 
@@ -395,9 +394,11 @@ def extract_bitarray(img, cam_size, dbt_img_dpi, pipeline_id="baseline"):
             if min_error is None or min_error > error_count:
                 min_error = error_count
                 bit_array = array
+                final_anchor = anchor
                 # print(f"New min error ({min_error}) at {anchor} anchor.")
                 # print(bit_array)
-    return bit_array
+    # print(f"Final anchor at {final_anchor}.")
+    return bit_array, final_anchor
 
 
 # return: 0/black or 255/white and win_lose_delta (for error variable)
