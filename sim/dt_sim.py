@@ -85,7 +85,7 @@ def main():
     #                                       cam_anchor)
     # print(dbt_positions)
 
-    # Decoding alogrithm according to Shiu
+    # Decoding algorithm according to Shiu
     dbt_positions = decode_dbt_positions(subarray, win_w, win_h, dbt_log)
     print(dbt_positions)
 
@@ -118,7 +118,7 @@ def main():
     #         #                                           win_w,
     #         #                                           win_h))
     #         positions_bf.extend([(x, y)])
-    #         # Decoding alogrithm according to Shiu
+    #         # Decoding algorithm according to Shiu
     #         positions_shiu.extend(decode_dbt_positions(subarray,
     #                                                    win_w,
     #                                                    win_h,
@@ -162,7 +162,7 @@ def analyse_frame(frame, cam_size, dbt_log, dpi, win_w, win_h,
     # dbt_positions = find_sequences_in_dbt(subarray, dbt_fname, win_w, win_h)
     # print(dbt_positions)
 
-    # Decoding alogrithm according to Shiu
+    # Decoding algorithm according to Shiu
     dbt_positions = decode_dbt_positions(subarray, win_w, win_h, dbt_log)
     print(dbt_positions)
 
