@@ -33,16 +33,16 @@ def main():
     pos_pattern = r"(\d+\.\d+)x(\d+\.\d+)pos"
 
     glob_pattern = "*/**/*.png"
-    # glob_pattern = "frames/BrotherHLL8360CDW/8192x4096_5x5_400x400dpi/*"
-    # glob_pattern = "frames/LexmarkMS510dn/8192x4096_5x5_400x400dpi/*"
-    # glob_pattern = "frames/BrotherHLL8360CDW/8192x4096_5x5_200x200dpi/*"
-    # glob_pattern = "frames/LexmarkMS510dn/8192x4096_5x5_200x200dpi/*"
-    # glob_pattern = "frames/BrotherHLL8360CDW/8192x4096_5x5_175x175dpi/*"
-    # glob_pattern = "frames/LexmarkMS510dn/8192x4096_5x5_175x175dpi/*"
-    # glob_pattern = "frames/BrotherHLL8360CDW/8192x4096_5x5_150x150dpi/*"
-    # glob_pattern = "frames/LexmarkMS510dn/8192x4096_5x5_150x150dpi/*"
-    # glob_pattern = "frames/BrotherHLL8360CDW/8192x4096_5x5_125x125dpi/*"
-    # glob_pattern = "frames/LexmarkMS510dn/8192x4096_5x5_125x125dpi/*"
+    # glob_pattern = "BrotherHLL8360CDW/8192x4096_5x5_400x400dpi/*"
+    # glob_pattern = "LexmarkMS510dn/8192x4096_5x5_400x400dpi/*"
+    # glob_pattern = "BrotherHLL8360CDW/8192x4096_5x5_200x200dpi/*"
+    # glob_pattern = "LexmarkMS510dn/8192x4096_5x5_200x200dpi/*"
+    # glob_pattern = "BrotherHLL8360CDW/8192x4096_5x5_175x175dpi/*"
+    # glob_pattern = "LexmarkMS510dn/8192x4096_5x5_175x175dpi/*"
+    # glob_pattern = "BrotherHLL8360CDW/8192x4096_5x5_150x150dpi/*"
+    # glob_pattern = "LexmarkMS510dn/8192x4096_5x5_150x150dpi/*"
+    # glob_pattern = "BrotherHLL8360CDW/8192x4096_5x5_125x125dpi/*"
+    # glob_pattern = "LexmarkMS510dn/8192x4096_5x5_125x125dpi/*"
     files = glob.glob(glob_pattern, recursive=True)
 
     num_p = 0
