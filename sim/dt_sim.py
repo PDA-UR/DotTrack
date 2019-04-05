@@ -1,12 +1,14 @@
 # import os
+from PIL import Image, ImageFilter
 import skimage
 from skimage import io
 from skimage.filters import threshold_sauvola
 import numpy as np
 import time
 import math
+# from reportlab.lib.units import mm, inch
+# from reportlab.lib.pagesizes import A4
 from torus import Torus
-from PIL import Image, ImageFilter
 from generate_dbt import TorusGenerator
 # from extract_frame import extract_frame
 
