@@ -91,6 +91,22 @@ def main():
     dbt_positions = decode_dbt_positions(subarray, win_w, win_h, dbt_log)
     print(dbt_positions)
 
+    # If there are multiple positions find matching positions which can be used
+    # to deduce a correct reading. Although bad readings can still happen this
+    # might give you higher confidence.
+    # If there is only one position or if you find multiple matching positions
+    # of the same length it will return an empty array because at that point
+    # you can only guess between those multiple matching positions.
+    matching_positions = get_matching_positions(dbt_positions,
+                                                (subarray.shape[1],
+                                                 subarray.shape[0]),
+                                                win_w,
+                                                win_h)
+    redundancy_confidence = len(matching_positions) / len(dbt_positions)
+    print(f"matching_positions:\n{matching_positions}")
+    print(f"redundancy_confidence: {redundancy_confidence:%} with a " +
+          f"redundancy size of {len(dbt_positions)}.")
+
     # 4. Calculate actual positions on the page (in millimeters)
     # Variables:
     # * dbt/pixel positions
@@ -166,6 +182,22 @@ def analyse_frame(frame, cam_size, dbt_log, dpi, win_w, win_h,
     # Decoding algorithm according to Shiu
     dbt_positions = decode_dbt_positions(subarray, win_w, win_h, dbt_log)
     print(dbt_positions)
+
+    # If there are multiple positions find matching positions which can be used
+    # to deduce a correct reading. Although bad readings can still happen this
+    # might give you higher confidence.
+    # If there is only one position or if you find multiple matching positions
+    # of the same length it will return an empty array because at that point
+    # you can only guess between those multiple matching positions.
+    matching_positions = get_matching_positions(dbt_positions,
+                                                (subarray.shape[1],
+                                                 subarray.shape[0]),
+                                                win_w,
+                                                win_h)
+    redundancy_confidence = len(matching_positions) / len(dbt_positions)
+    print(f"matching_positions:\n{matching_positions}")
+    print(f"redundancy_confidence: {redundancy_confidence:%} with a " +
+          f"redundancy size of {len(dbt_positions)}.")
 
     # 4. Calculate actual positions on the page (in millimeters)
     # Variables:
@@ -778,6 +810,49 @@ def compute_dm(array):
     for y in range(array.shape[0] - 1):
         dm.append(array[y, ] ^ array[y+1, ])
     return np.vstack(dm)
+
+
+# TODO/FIXME: Maybe return indices (maybe all) instead of positions?
+def get_matching_positions(positions, bit_array_dims, win_w, win_h):
+    if len(positions) < 2:
+        return []
+
+    matching_positions = []
+    multiple_matching = False
+    match_found = set()
+
+    num_x_anchors = bit_array_dims[0] - win_w + 1
+    num_y_anchors = bit_array_dims[1] - win_h + 1
+
+    matching = []
+    for i, pos in enumerate(positions):
+        if pos not in matching and pos not in match_found:
+            matching = []
+            matching.append(pos)
+        else:
+            continue
+
+        for j, cmp_pos in enumerate(positions):
+            if j <= i:
+                continue
+            x_offset = j // num_x_anchors
+            y_offset = j % num_y_anchors
+            offset_pos = pos[0] + x_offset, pos[1] + y_offset
+            if offset_pos == cmp_pos:
+                matching.append(cmp_pos)
+
+        for pos in matching:
+            match_found.add(pos)
+        if len(matching) > len(matching_positions):
+            matching_positions = matching
+            multiple_matching = False
+        elif len(matching) == len(matching_positions):
+            multiple_matching = True
+
+    if multiple_matching:
+        return []
+
+    return matching_positions
 
 
 # 4. Calculate actual positions on the page (in millimeters)
