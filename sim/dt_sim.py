@@ -189,6 +189,14 @@ def analyse_frame(frame, cam_size, dbt_log, dpi, win_w, win_h,
     # If there is only one position or if you find multiple matching positions
     # of the same length it will return an empty array because at that point
     # you can only guess between those multiple matching positions.
+    matching_indices = get_matching_indices(dbt_positions,
+                                            (subarray.shape[1],
+                                             subarray.shape[0]),
+                                            win_w,
+                                            win_h)
+    # if len(matching_indices) == 3:
+    #     print("# " + repr(matching_indices))
+    print("# " + repr(matching_indices))
     matching_positions = get_matching_positions(dbt_positions,
                                                 (subarray.shape[1],
                                                  subarray.shape[0]),
@@ -810,6 +818,40 @@ def compute_dm(array):
     for y in range(array.shape[0] - 1):
         dm.append(array[y, ] ^ array[y+1, ])
     return np.vstack(dm)
+
+
+def get_matching_indices(positions, bit_array_dims, win_w, win_h):
+    if len(positions) < 2:
+        return []
+
+    matching_indices = []
+    match_found = set()
+
+    num_x_anchors = bit_array_dims[0] - win_w + 1
+    num_y_anchors = bit_array_dims[1] - win_h + 1
+
+    matching = []
+    for i, pos in enumerate(positions):
+        if i not in matching and i not in match_found:
+            matching = []
+            matching.append(i)
+        else:
+            continue
+
+        for j, cmp_pos in enumerate(positions):
+            if j <= i:
+                continue
+            x_offset = j // num_x_anchors
+            y_offset = j % num_y_anchors
+            offset_pos = pos[0] + x_offset, pos[1] + y_offset
+            if offset_pos == cmp_pos:
+                matching.append(j)
+
+        for i in matching:
+            match_found.add(i)
+        matching_indices.append(matching)
+
+    return matching_indices
 
 
 # TODO/FIXME: Maybe return indices (maybe all) instead of positions?
