@@ -27,6 +27,10 @@ def main():
     pipeline_id = "baseline"
 
     # RegEx patterns
+    # Pattern to find printer name in file name.
+    printer_pattern = r"pos_(.*?)_"
+    # Pattern to find DBT dimensions in file name.
+    dbt_dims_pattern = r"_(\d+)x(\d+)_(\d+)x(\d+)_"
     # Pattern to find dpi value in file name.
     dpi_pattern = r"(\d+)x(\d+)dpi"
     # Pattern to find pos value in file name.
@@ -50,7 +54,19 @@ def main():
     error_margins = []
     for file in sorted(files):
         print("=" * 80)
-        print(file)
+
+        printer = re.findall(printer_pattern, file)[0]
+        if len(printer) == 0:
+            raise Exception("No printer name found in filename.")
+        print(printer)
+
+        dbt_dims = re.findall(dbt_dims_pattern, file)
+        if len(dbt_dims) == 0:
+            raise Exception("No DBT dimensions found in filename.")
+        dbt_w, dbt_h, win_w, win_h = tuple([int(dim) for dim in dbt_dims[-1]])
+        r, s, m, n = dbt_h, dbt_w, win_h, win_w
+        print(r, s, m, n)
+
         dpi = re.findall(dpi_pattern, file)
         if len(dpi) == 0:
             raise Exception("No dpi value found in filename.")
@@ -59,6 +75,7 @@ def main():
         # current implementation of the bit extraction.
         if dpi == (100, 100):
             continue
+        print(dpi)
 
         pos = re.findall(pos_pattern, file)
         if len(pos) == 0:
