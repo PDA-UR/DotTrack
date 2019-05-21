@@ -161,7 +161,7 @@ def get_dbt_log(dbt_w, dbt_h, win_w, win_h):
 
 def analyse_frame(frame, cam_size, dbt_log, dpi, win_w, win_h,
                   pipeline_id):
-    start_time = time.perf_counter()
+    # start_time = time.perf_counter()
 
     # frame.show()  # DEBUG OUTPUT
     # frame = set_frame_dpi(frame, cam_size)
@@ -181,7 +181,7 @@ def analyse_frame(frame, cam_size, dbt_log, dpi, win_w, win_h,
 
     # Decoding algorithm according to Shiu
     dbt_positions = decode_dbt_positions(subarray, win_w, win_h, dbt_log)
-    print(dbt_positions)
+    # print(dbt_positions)
 
     # If there are multiple positions find matching positions which can be used
     # to deduce a correct reading. Although bad readings can still happen this
@@ -196,16 +196,16 @@ def analyse_frame(frame, cam_size, dbt_log, dpi, win_w, win_h,
                                             win_h)
     # if len(matching_indices) == 3:
     #     print("# " + repr(matching_indices))
-    print("# " + repr(matching_indices))
-    matching_positions = get_matching_positions(dbt_positions,
-                                                (subarray.shape[1],
-                                                 subarray.shape[0]),
-                                                win_w,
-                                                win_h)
-    redundancy_confidence = len(matching_positions) / len(dbt_positions)
-    print(f"matching_positions:\n{matching_positions}")
-    print(f"redundancy_confidence: {redundancy_confidence:%} with a " +
-          f"redundancy size of {len(dbt_positions)}.")
+    # print("# " + repr(matching_indices))
+    # matching_positions = get_matching_positions(dbt_positions,
+    #                                             (subarray.shape[1],
+    #                                              subarray.shape[0]),
+    #                                             win_w,
+    #                                             win_h)
+    # redundancy_confidence = len(matching_positions) / len(dbt_positions)
+    # print(f"matching_positions:\n{matching_positions}")
+    # print(f"redundancy_confidence: {redundancy_confidence:%} with a " +
+    #       f"redundancy size of {len(dbt_positions)}.")
 
     # 4. Calculate actual positions on the page (in millimeters)
     # Variables:
@@ -215,12 +215,12 @@ def analyse_frame(frame, cam_size, dbt_log, dpi, win_w, win_h,
     # TODO: Use margin from create_pdf.py script.
     margin = (5, 5)
     real_positions = calculate_real_positions(dbt_positions, dpi, margin)
-    print(real_positions)
+    # print(real_positions)
 
-    total_time = time.perf_counter() - start_time
-    print(f"Frame analysing took {total_time:.3f}s")
+    # total_time = time.perf_counter() - start_time
+    # print(f"Frame analysing took {total_time:.3f}s")
 
-    return real_positions
+    return real_positions, matching_indices
 
 
 # def set_frame_dpi(frame, cam_size):
@@ -517,7 +517,7 @@ def calc_cell_bit(cell_array, ret_err_count=False, margin=(0, 0),
 
 # 3. Decode array (and get position):
 def find_sequences_in_dbt(frame_array, dbt_fname, win_w, win_h):
-    start_time = time.perf_counter()
+    # start_time = time.perf_counter()
 
     positions = []
 
@@ -546,11 +546,11 @@ def find_sequences_in_dbt(frame_array, dbt_fname, win_w, win_h):
     #                                        dbt_array)
     # print(positions)
 
-    total_time = time.perf_counter() - start_time
-    print(f"Brute force lookup of "
-          f"{frame_array.shape[1]}x{frame_array.shape[0]} subarray in "
-          f"{dbt_array.shape[1]}x{dbt_array.shape[0]} DBT with {win_w}x{win_h}"
-          f" window size took {total_time:.3f}s")
+    # total_time = time.perf_counter() - start_time
+    # print(f"Brute force lookup of "
+    #       f"{frame_array.shape[1]}x{frame_array.shape[0]} subarray in "
+    #       f"{dbt_array.shape[1]}x{dbt_array.shape[0]} DBT with"
+    #       f" {win_w}x{win_h} window size took {total_time:.3f}s")
 
     return positions
 
@@ -605,7 +605,7 @@ def find_in_seq(win, sequence):
 
 
 def decode_dbt_positions(wins_array, win_w, win_h, dbt_log):
-    start_time = time.perf_counter()
+    # start_time = time.perf_counter()
 
     # TODO: Should I match every possible window? Or just one after the first
     # to check the position?
@@ -644,11 +644,11 @@ def decode_dbt_positions(wins_array, win_w, win_h, dbt_log):
                 positions.append((x_pos, y_pos))
 
     # dbt_array = io.imread("output-256x256-4x4.png")
-    total_time = time.perf_counter() - start_time
-    print(f"Decoding de Bruijn torus positions according to Shiu "
-          f"{wins_array.shape[1]}x{wins_array.shape[0]} subarray in "
-          f"{dbt_log[-1].s}x{dbt_log[-1].r} DBT with {win_w}x{win_h}"
-          f" window size took {total_time:.3f}s")
+    # total_time = time.perf_counter() - start_time
+    # print(f"Decoding de Bruijn torus positions according to Shiu "
+    #       f"{wins_array.shape[1]}x{wins_array.shape[0]} subarray in "
+    #       f"{dbt_log[-1].s}x{dbt_log[-1].r} DBT with {win_w}x{win_h}"
+    #       f" window size took {total_time:.3f}s")
 
     # returns dbt position(s) (not physical position)
     return positions

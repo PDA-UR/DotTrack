@@ -3,13 +3,14 @@ import glob
 import re
 import time
 import dt_sim as sim
+import pandas as pd
 
 
 def main():
     start_time = time.perf_counter()
 
     # Error margin in millimeters
-    error_margin = 5  # Seems to NOT work anymore at 175, 150 and 125 dpi
+    # error_margin = 5  # Seems to NOT work anymore at 175, 150 and 125 dpi
     # error_margin = 6  # Seems to NOT work anymore at 175, 150 and 125 dpi
     # error_margin = 7  # Seems to work at 175, 150 and 125 dpi
     # error_margin = 8  # Seems to work at 200 dpi
@@ -47,17 +48,40 @@ def main():
     # glob_pattern = "LexmarkMS510dn/8192x4096_5x5_150x150dpi/*"
     # glob_pattern = "BrotherHLL8360CDW/8192x4096_5x5_125x125dpi/*"
     # glob_pattern = "LexmarkMS510dn/8192x4096_5x5_125x125dpi/*"
+    # glob_pattern = "*/8192x4096_5x5_150x150dpi/*"
     files = glob.glob(glob_pattern, recursive=True)
 
-    num_p = 0
-    num_match = 0
-    error_margins = []
+    # num_p = 0
+    # num_match = 0
+    # error_margins = []
+    data = {"camera resolution": [],
+            "camera capture area size": [],
+            "printer": [],
+            "r (dbt_h)": [],
+            "s (dbt_w)": [],
+            "m (win_h)": [],
+            "n (win_w)": [],
+            "dpi": [],
+            "expected position": [],
+            "number of windows": [],
+            "decoded positions": [],
+            "matching position indices": []}
+    # columns = ["camera resolution", "camera capture area size",
+    #            "printer maker", "printer model", "r (dbt_h)", "s (dbt_w)",
+    #            "m (win_h)", "n (win_w)", "dpi", "expected position",
+    #            "number of windows", "decoded DBT positions",
+    #            "matching indices"]
+    # add_col = ["error margin", "page margin", "M5Stack size", "move margin",
+    #            "decoded real positions", "matching positions"]
+    # df = pd.DataFrame()
+
     for file in sorted(files):
         print("=" * 80)
 
         printer = re.findall(printer_pattern, file)[0]
         if len(printer) == 0:
             raise Exception("No printer name found in filename.")
+        data["printer"].append(printer)
         print(printer)
 
         dbt_dims = re.findall(dbt_dims_pattern, file)
@@ -65,6 +89,10 @@ def main():
             raise Exception("No DBT dimensions found in filename.")
         dbt_w, dbt_h, win_w, win_h = tuple([int(dim) for dim in dbt_dims[-1]])
         r, s, m, n = dbt_h, dbt_w, win_h, win_w
+        data["r (dbt_h)"].append(r)
+        data["s (dbt_w)"].append(s)
+        data["m (win_h)"].append(m)
+        data["n (win_w)"].append(n)
         print(r, s, m, n)
 
         dpi = re.findall(dpi_pattern, file)
@@ -75,6 +103,7 @@ def main():
         # current implementation of the bit extraction.
         if dpi == (100, 100):
             continue
+        data["dpi"].append(dpi)
         print(dpi)
 
         pos = re.findall(pos_pattern, file)
@@ -83,32 +112,44 @@ def main():
         pos = tuple([float(xy) for xy in pos[-1]])
         # Calculate estimated absolute position
         pos = pos[0] + move_margin[0], pos[1] + move_margin[1]
+        data["expected position"].append(pos)
         print(pos)
 
         frame = Image.open(file)
-        positions = sim.analyse_frame(frame,
-                                      cam_size,
-                                      dbt_log,
-                                      dpi,
-                                      win_w,
-                                      win_h,
-                                      pipeline_id)
+        positions, matching_indices = sim.analyse_frame(frame,
+                                                        cam_size,
+                                                        dbt_log,
+                                                        dpi,
+                                                        win_w,
+                                                        win_h,
+                                                        pipeline_id)
+        data["number of windows"].append(len(positions))
+        data["decoded positions"].append(positions)
+        data["matching position indices"].append(matching_indices)
+        data["camera resolution"].append(sim.CAM_RESO)
+        data["camera capture area size"].append(sim.CAM_SIZE)
 
-        for p in positions:
-            num_p += 1
-            min_x, min_y = pos[0] - error_margin, pos[1] - error_margin
-            max_x, max_y = pos[0] + error_margin, pos[1] + error_margin
-            if min_x <= p[0] <= max_x and min_y <= p[1] <= max_y:
-                print(f"{pos} & {p} was matched correctly with an error " +
-                      f"margin of {error_margin} mm.")
-                num_match += 1
-                error_margins.append((pos[0] - p[0], pos[1] - p[1]))
+    #     for p in positions:
+    #         num_p += 1
+    #         min_x, min_y = pos[0] - error_margin, pos[1] - error_margin
+    #         max_x, max_y = pos[0] + error_margin, pos[1] + error_margin
+    #         if min_x <= p[0] <= max_x and min_y <= p[1] <= max_y:
+    #             print(f"{pos} & {p} was matched correctly with an error " +
+    #                   f"margin of {error_margin} mm.")
+    #             num_match += 1
+    #             error_margins.append((pos[0] - p[0], pos[1] - p[1]))
 
-    print(num_p, num_match, num_match / num_p)
-    print(f"Total number of positions: {num_p}")
-    print(f"Total number of matching positions: {num_match}")
-    print(f"Accuracy percentage (num_match / num_p): {num_match / num_p:%}")
-    print(f"Error margins:\n{error_margins}")
+    # print(num_p, num_match, num_match / num_p)
+    # print(f"Total number of positions: {num_p}")
+    # print(f"Total number of matching positions: {num_match}")
+    # print(f"Accuracy percentage (num_match / num_p): {num_match / num_p:%}")
+    # print(f"Error margins:\n{error_margins}")
+
+    # for v, k in enumerate(data):
+    #     print(v)
+    #     print(len(v))
+    df = pd.DataFrame(data)
+    df.to_csv("eval.csv")
 
     total_time = time.perf_counter() - start_time
     print(f"Evaluation took {total_time:.3f}s")
