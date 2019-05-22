@@ -4,6 +4,7 @@ import re
 import time
 import dt_sim as sim
 import pandas as pd
+import numpy as np
 
 
 def main():
@@ -48,7 +49,7 @@ def main():
     # glob_pattern = "LexmarkMS510dn/8192x4096_5x5_150x150dpi/*"
     # glob_pattern = "BrotherHLL8360CDW/8192x4096_5x5_125x125dpi/*"
     # glob_pattern = "LexmarkMS510dn/8192x4096_5x5_125x125dpi/*"
-    # glob_pattern = "*/8192x4096_5x5_150x150dpi/*"
+    # glob_pattern = "*/8192x4096_5x5_100x100dpi/*"
     files = glob.glob(glob_pattern, recursive=True)
 
     # num_p = 0
@@ -99,10 +100,6 @@ def main():
         if len(dpi) == 0:
             raise Exception("No dpi value found in filename.")
         dpi = tuple([int(xy) for xy in dpi[-1]])
-        # Skip 100x100dpi images because they can't be analysed with our
-        # current implementation of the bit extraction.
-        if dpi == (100, 100):
-            continue
         data["dpi"].append(dpi)
         print(dpi)
 
@@ -116,17 +113,24 @@ def main():
         print(pos)
 
         frame = Image.open(file)
-        positions, matching_indices = sim.analyse_frame(frame,
-                                                        cam_size,
-                                                        dbt_log,
-                                                        dpi,
-                                                        win_w,
-                                                        win_h,
-                                                        pipeline_id)
-        data["number of windows"].append(len(positions))
+        # Skip 100x100dpi images because they can't be analysed with our
+        # current implementation of the bit extraction.
+        if dpi == (100, 100):
+            positions = np.nan
+            matching_indices = np.nan
+            data["number of windows"].append(np.nan)
+        else:
+            positions, matching_indices = sim.analyse_frame(frame,
+                                                            cam_size,
+                                                            dbt_log,
+                                                            dpi,
+                                                            win_w,
+                                                            win_h,
+                                                            pipeline_id)
+            data["number of windows"].append(len(positions))
         data["decoded positions"].append(positions)
         data["matching position indices"].append(matching_indices)
-        data["camera resolution"].append(sim.CAM_RESO)
+        data["camera resolution"].append(frame.size)
         data["camera capture area size"].append(sim.CAM_SIZE)
 
     #     for p in positions:
