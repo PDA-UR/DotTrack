@@ -5,9 +5,19 @@ import time
 import dt_sim as sim
 import pandas as pd
 import numpy as np
+from pathlib import Path
+# Evaluate python data types: https://stackoverflow.com/a/33283145
+# from ast import literal_eval
 
 
 def main():
+    csv = Path("eval.csv")
+    if not csv.exists():
+        create_csv()
+    create_plots()
+
+
+def create_csv():
     start_time = time.perf_counter()
 
     # Error margin in millimeters
@@ -153,10 +163,61 @@ def main():
     #     print(v)
     #     print(len(v))
     df = pd.DataFrame(data)
-    df.to_csv("eval.csv")
+    df.to_csv("eval.csv")  # , index=False)
 
     total_time = time.perf_counter() - start_time
     print(f"Evaluation took {total_time:.3f}s")
+
+
+def create_plots():
+    pass
+    # converters = {"decoded positions": literal_eval}  # convert_literals}
+    # # columns = ["camera resolution",
+    # #            "camera capture area size",
+    # #            "printer",
+    # #            "r (dbt_h)",
+    # #            "s (dbt_w)",
+    # #            "m (win_h)",
+    # #            "n (win_w)",
+    # #            "dpi",
+    # #            "expected position",
+    # #            "number of windows",
+    # #            "decoded positions",
+    # #            "matching position indices"]
+    # # Handle index column: https://stackoverflow.com/a/36519122
+    # raw = pd.read_csv("eval.csv", index_col=0, converters=converters)
+    # # dpis = raw["dpi"].apply(literal_eval).unique()
+    # # raw.dpi.apply(lambda x: pd.Series({"dpi_x": literal_eval(x)[0],
+    # #                                   "dpi_y": literal_eval(x)[1]}))
+    # # raw.loc[raw.dpi.apply(literal_eval) != (100, 100), "decoded positions"]
+    # # raw[raw["dpi"].apply(literal_eval).isin(dpis[1:4])]
+    # converted = raw.dropna()
+    # converted["decoded positions"] = converted["decoded positions"].apply(
+    #     literal_eval)
+    # converted["decoded positions"] = converted["decoded positions"].apply(
+    #     literal_eval)
+    # # converted["number of windows"].
+    # dec_pos = raw[raw["decoded positions"].notna()]
+    # dec_pos = dec_pos["decoded positions"].apply(literal_eval)
+    # positions = {"x": [], "y": []}
+    # # for pos in raw["decoded positions"]:
+    # #     # Check for nan: https://stackoverflow.com/a/25050179
+    # #     if not pd.isnull(pos):
+    # #         for xy in literal_eval(pos):
+    # #             positions["x"].append(xy[0])
+    # #             positions["y"].append(xy[1])
+    # for pos in dec_pos:
+    #     positions["x"].append(pos[0])
+    #     positions["y"].append(pos[1])
+    # df_pos = pd.DataFrame(positions)
+
+
+# def convert_literals(x):
+#     print(x)
+#     if pd.notna(x):
+#         return literal_eval(x)
+#     else:
+#         return x
 
 
 if __name__ == "__main__":
