@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 # Evaluate python data types: https://stackoverflow.com/a/33283145
-# from ast import literal_eval
+from ast import literal_eval
 
 
 def main():
@@ -170,54 +170,51 @@ def create_csv():
 
 
 def create_plots():
-    pass
-    # converters = {"decoded positions": literal_eval}  # convert_literals}
-    # # columns = ["camera resolution",
-    # #            "camera capture area size",
-    # #            "printer",
-    # #            "r (dbt_h)",
-    # #            "s (dbt_w)",
-    # #            "m (win_h)",
-    # #            "n (win_w)",
-    # #            "dpi",
-    # #            "expected position",
-    # #            "number of windows",
-    # #            "decoded positions",
-    # #            "matching position indices"]
-    # # Handle index column: https://stackoverflow.com/a/36519122
-    # raw = pd.read_csv("eval.csv", index_col=0, converters=converters)
-    # # dpis = raw["dpi"].apply(literal_eval).unique()
-    # # raw.dpi.apply(lambda x: pd.Series({"dpi_x": literal_eval(x)[0],
-    # #                                   "dpi_y": literal_eval(x)[1]}))
-    # # raw.loc[raw.dpi.apply(literal_eval) != (100, 100), "decoded positions"]
-    # # raw[raw["dpi"].apply(literal_eval).isin(dpis[1:4])]
-    # converted = raw.dropna()
-    # converted["decoded positions"] = converted["decoded positions"].apply(
-    #     literal_eval)
-    # converted["decoded positions"] = converted["decoded positions"].apply(
-    #     literal_eval)
-    # # converted["number of windows"].
-    # dec_pos = raw[raw["decoded positions"].notna()]
-    # dec_pos = dec_pos["decoded positions"].apply(literal_eval)
-    # positions = {"x": [], "y": []}
-    # # for pos in raw["decoded positions"]:
-    # #     # Check for nan: https://stackoverflow.com/a/25050179
-    # #     if not pd.isnull(pos):
-    # #         for xy in literal_eval(pos):
-    # #             positions["x"].append(xy[0])
-    # #             positions["y"].append(xy[1])
-    # for pos in dec_pos:
-    #     positions["x"].append(pos[0])
-    #     positions["y"].append(pos[1])
-    # df_pos = pd.DataFrame(positions)
+    # Handle index column: https://stackoverflow.com/a/36519122
+    # Column order:
+    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
+    # """
+    # To instantiate a DataFrame from data with element order preserved use
+    # pd.read_csv(data, usecols=['foo', 'bar'])[['foo', 'bar']] for columns in
+    # ['foo', 'bar'] order or pd.read_csv(data, usecols=['foo', 'bar'])[['bar',
+    # 'foo']] for ['bar', 'foo'] order.
+    # """
+    columns = ["camera resolution",
+               "camera capture area size",
+               "printer",
+               "r (dbt_h)",
+               "s (dbt_w)",
+               "m (win_h)",
+               "n (win_w)",
+               "dpi",
+               "expected position",
+               "number of windows",
+               "decoded positions",
+               "matching position indices"]
+    raw = pd.read_csv("eval.csv", index_col=0)[columns]
 
+    transform_funcs = {"camera resolution": literal_eval,
+                       "camera capture area size": literal_eval,
+                       "printer": lambda x: x,
+                       "r (dbt_h)": lambda x: x,
+                       "s (dbt_w)": lambda x: x,
+                       "m (win_h)": lambda x: x,
+                       "n (win_w)": lambda x: x,
+                       "dpi": literal_eval,
+                       "expected position": literal_eval,
+                       "number of windows": int,
+                       "decoded positions": literal_eval,
+                       "matching position indices": literal_eval}
+    transformed = raw.dropna().transform(transform_funcs)
 
-# def convert_literals(x):
-#     print(x)
-#     if pd.notna(x):
-#         return literal_eval(x)
-#     else:
-#         return x
+    positions = {"key": [], "x": [], "y": []}
+    for k in transformed["decoded positions"].keys():
+        for pos in transformed["decoded positions"][k]:
+            positions["key"].append(k)
+            positions["x"].append(pos[0])
+            positions["y"].append(pos[1])
+    df_pos = pd.DataFrame(positions)
+    print(df_pos)
 
 
 if __name__ == "__main__":
