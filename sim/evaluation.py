@@ -207,14 +207,81 @@ def create_plots():
                        "matching position indices": literal_eval}
     transformed = raw.dropna().transform(transform_funcs)
 
-    positions = {"key": [], "x": [], "y": []}
+    positions = {"key": [], "index": [], "x": [], "y": [], "matches": []}
     for k in transformed["decoded positions"].keys():
-        for pos in transformed["decoded positions"][k]:
+
+        match_list = transformed["matching position indices"][k]
+        indices = [ind for ind in match_list if len(ind) > 1]
+        # indices = []
+        # if len(match_list) > 0 and len(match_list) < transformed["number of windows"][k]:
+        #     # find indice group(s)
+        #     # print(k, match_list)
+        #     indices = [ind for ind in match_list if len(ind) > 1]
+        #     if len(indices) > 1:
+        #         # handle possible multiple match groups
+        #         pass
+        #     print(k, indices)
+
+        for index, pos in enumerate(transformed["decoded positions"][k]):
             positions["key"].append(k)
+            positions["index"].append(index)
             positions["x"].append(pos[0])
             positions["y"].append(pos[1])
+            if len(match_list) == 0:
+                positions["matches"].append(np.nan)
+            # elif len(indices) == 0:
+            #     positions["matches"].append([])
+            else:
+                m = []
+                for matches in indices:
+                    if index in matches:
+                        m = matches
+                        break
+                positions["matches"].append(m)
+
+    # print(len(positions["index"]))
+    # print(len(positions["matches"]))
     df_pos = pd.DataFrame(positions)
     print(df_pos)
+    # print(df_pos[(df_pos["index"] == 0) & (df_pos["key"] == 1799)])
+    # print(df_pos[pd.notna(df_pos["matches"]) &
+    #              df_pos["matches"].apply(lambda x: x != [])])
+
+    # Error margin in millimeters
+    # error_margin = 5
+    # Find expected position matches:
+    #     for p in positions:
+    #         num_p += 1
+    #         min_x, min_y = pos[0] - error_margin, pos[1] - error_margin
+    #         max_x, max_y = pos[0] + error_margin, pos[1] + error_margin
+    #         if min_x <= p[0] <= max_x and min_y <= p[1] <= max_y:
+    #             print(f"{pos} & {p} was matched correctly with an error " +
+    #                   f"margin of {error_margin} mm.")
+    #             num_match += 1
+    #             error_margins.append((pos[0] - p[0], pos[1] - p[1]))
+
+    # Prediction with matching indices:
+    # - All match group
+    # - Single "len>1" match group
+    #   - Correct position
+    #   - Incorrect position
+    # - Several "len>1" match group
+    #   - Every length level (from longest to shortest)
+    #     - Single group
+    #       - Correct position
+    #       - Incorrect position
+    #     - Several groups
+    #       - Correct position
+    #       - Incorrect position
+    # for k in transformed["matching position indices"].keys():
+    #     match_list = transformed["matching position indices"][k]
+    #     if len(match_list) > 0 and len(match_list) < transformed["number of windows"][k]:
+    #         # find indice group(s)
+    #         # print(k, match_list)
+    #         indices = [ind for ind in match_list if len(ind) > 1]
+    #         if len(indices) > 1:
+    #             # handle possible multiple match groups
+    #         print(k, indices)
 
 
 if __name__ == "__main__":
