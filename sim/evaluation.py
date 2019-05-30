@@ -8,6 +8,7 @@ import numpy as np
 from pathlib import Path
 # Evaluate python data types: https://stackoverflow.com/a/33283145
 from ast import literal_eval
+import matplotlib.pyplot as plt
 
 
 def main():
@@ -242,8 +243,57 @@ def create_plots():
                 positions["expected_pos"].append(False)
 
     df_pos = pd.DataFrame(positions)
-    print(df_pos)
+
+    # merge positions with main data frame
+    df = transformed.merge(df_pos, left_index=True, right_on="key")
+
+    # probability "correct"/expected position of every printer and dpi (w/o
+    # 100)
+    probs = {"printer": [], "dpi": [], "prob": []}
+    for p_label in df.printer.unique():
+        p = df[df.printer == p_label]
+        for dpi in p.dpi.unique():
+            nrows_exp = len(p[(p.dpi == dpi) & p.expected_pos])
+            nrows = len(p[(p.dpi == dpi)])
+            prob = nrows_exp / nrows
+            probs["printer"].append(p_label)
+            probs["dpi"].append(dpi)
+            probs["prob"].append(prob)
+    probs = pd.DataFrame(probs)
+    print(probs)
+    # Maybe create a plot with the probability on the y axis and the dpi from
+    # 100 to 400 on the x axis
+
+    ideal_pos = {"x": [], "y": []}
+    for p in df["expected position"].unique():
+        ideal_pos["x"].append(p[0])
+        ideal_pos["y"].append(p[1])
+    ideal_pos = pd.DataFrame(ideal_pos)
+    plt.scatter(ideal_pos["x"], ideal_pos["y"]).get_figure().show()
+    # Maybe try to "connect" ideal positions with measured x and y values.
+
+    # df[(df.dpi == (125, 125)) & (df.printer == "LexmarkMS510dn") &
+    #    df.expected_pos]
+    for p_label in ["LexmarkMS510dn"]:  # df.printer.unique():
+        p = df[df.printer == p_label]
+        for dpi in [(125, 125)]:  # p.dpi.unique():
+            f = p[(p.dpi == dpi) & p.expected_pos]
+            f_inv = p[(p.dpi == dpi) & p.expected_pos.apply(lambda x: not x)]
+            plt.scatter(f_inv["x"], f_inv["y"]).get_figure().show()
+            plt.scatter(f["x"], f["y"]).get_figure().show()
+
+    # Draw scatter plots over each other
+    # All X and Y positions
+    # plt.scatter(df_pos["x"], df_pos["y"]).get_figure().show()
+    # Only "correct" positions
+    filtered_inv = df_pos[df_pos["expected_pos"].apply(lambda x: not x)]
+    filtered = df_pos[df_pos["expected_pos"]]
+    plt.scatter(filtered_inv["x"], filtered_inv["y"]).get_figure().show()
+    plt.scatter(filtered["x"], filtered["y"]).get_figure().show()
+
     # print(df_pos[df_pos["expected_pos"]])
+    # print(df_pos[df_pos["expected_pos"] &
+    #              df_pos["matches"].apply(lambda x: x != [])])
     # print(df_pos[(df_pos["index"] == 0) & (df_pos["key"] == 1799)])
     # print(df_pos[pd.notna(df_pos["matches"]) &
     #              df_pos["matches"].apply(lambda x: x != [])])
