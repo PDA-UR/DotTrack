@@ -77,14 +77,8 @@ def stream_loop():
         first_run = False
         if analyse_frame and (thr is None or not thr.is_alive()):
             analyse_frame = False
-            thr = threading.Thread(target=sim.analyse_frame,
-                                   args=(img,
-                                         cam_size,
-                                         dbt_log,
-                                         dbt_dpi,
-                                         win_w,
-                                         win_h,
-                                         pipeline_id))
+            thr = threading.Thread(target=print_analyse_frame,
+                                   args=[img])
             thr.start()
         # Resize img
         # img = img.resize((imgsize[0] * img_rsz_mltpl,
@@ -102,6 +96,18 @@ def stream_loop():
     label.config(image=tkimg)
     root.update_idletasks()
     root.after(stream_loop_delay, stream_loop)
+
+
+def print_analyse_frame(img):
+    real_positions, matching_indices = sim.analyse_frame(img,
+                                                         cam_size,
+                                                         dbt_log,
+                                                         dbt_dpi,
+                                                         win_w,
+                                                         win_h,
+                                                         pipeline_id)
+    print(matching_indices)
+    print(real_positions)
 
 
 def main():
