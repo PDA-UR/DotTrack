@@ -6,6 +6,13 @@ from enum import Enum, auto
 from PIL import Image
 
 
+def main():
+    w, h, win_w, win_h = 8192, 4096, 5, 5
+    dbt_gen = TorusGenerator(w, h, win_w, win_h)
+    log = dbt_gen.constr_log
+    print(log)
+
+
 class TorusGenerator(object):
     """Records and saves pertinent data of de Bruijn torus generation."""
 
@@ -340,3 +347,7 @@ class GenStep(Enum):
     TRANSPOSE = auto()
     MAKE = auto()
     FINAL_SAVE = auto()
+
+
+if __name__ == "__main__":
+    main()
