@@ -18,6 +18,9 @@ tkimg = None
 # 270+ ms should be around the time it takes to capture another image.
 stream_loop_delay = 0
 
+port = "/dev/ttyUSB0"
+baudrate = 115200
+
 first_run = True
 cam_size = sim.CAM_SIZE
 dbt_w, dbt_h, win_w, win_h = sim.DBT_W, sim.DBT_H, sim.WIN_W, sim.WIN_H
@@ -113,9 +116,7 @@ def print_analyse_frame(img):
 def main():
     global ser, thr
     # Open serial port
-    # ser = serial.Serial("/dev/ttyUSB0", 2000000, timeout=1)
-    # ser = serial.Serial("/dev/ttyUSB0", 250000, timeout=1)
-    ser = serial.Serial("/dev/ttyUSB0", 115200, timeout=1)
+    ser = serial.Serial(port, baudrate, timeout=1)
 
     # Start stream loop and tkinter loop
     stream_loop()
