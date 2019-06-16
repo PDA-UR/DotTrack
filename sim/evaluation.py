@@ -76,47 +76,47 @@ def create_csv(fname="raw.csv"):
     files = glob.glob(glob_pattern, recursive=True)
 
     # dictionary for raw data
-    data = {"r (dbt_h)": [],
-            "s (dbt_w)": [],
-            "m (win_h)": [],
-            "n (win_w)": [],
+    data = {"r": [],
+            "s": [],
+            "m": [],
+            "n": [],
             "page_size": [],
             "page_margin": [],
-            "camera resolution": [],
-            "camera capture area size": [],
+            "cam_reso": [],
+            "cap_area": [],
             "m5_size": [],
             "printer": [],
             "dpi": [],
-            "number of windows": [],
-            "expected position": [],
+            "num_win": [],
+            "true_pos": [],
             "dbt_positions": [],
             "real_positions": [],
-            "matching position indices": [],
+            "matching_indices": [],
             "runtime": []}
 
     # column names to correct header order
-    columns = ["r (dbt_h)",
-               "s (dbt_w)",
-               "m (win_h)",
-               "n (win_w)",
+    columns = ["r",
+               "s",
+               "m",
+               "n",
                "page_size",
                "page_margin",
-               "camera resolution",
-               "camera capture area size",
+               "cam_reso",
+               "cap_area",
                "m5_size",
                "printer",
                "dpi",
-               "number of windows",
-               "expected position",
+               "num_win",
+               "true_pos",
                "dbt_positions",
                "real_positions",
-               "matching position indices",
+               "matching_indices",
                "runtime"]
 
-    # columns = ["camera resolution", "camera capture area size",
+    # columns = ["cam_reso", "cap_area",
     #            "printer maker", "printer model", "r (dbt_h)", "s (dbt_w)",
-    #            "m (win_h)", "n (win_w)", "dpi", "expected position",
-    #            "number of windows", "decoded DBT positions",
+    #            "m (win_h)", "n (win_w)", "dpi", "true_pos",
+    #            "num_win", "decoded DBT positions",
     #            "matching indices"]
     # add_col = ["error margin", "page margin", "M5Stack size", "move margin",
     #            "decoded real positions", "matching positions"]
@@ -139,10 +139,10 @@ def create_csv(fname="raw.csv"):
             raise Exception("No DBT dimensions found in filename.")
         dbt_w, dbt_h, win_w, win_h = tuple([int(dim) for dim in dbt_dims[-1]])
         r, s, m, n = dbt_h, dbt_w, win_h, win_w
-        data["r (dbt_h)"].append(r)
-        data["s (dbt_w)"].append(s)
-        data["m (win_h)"].append(m)
-        data["n (win_w)"].append(n)
+        data["r"].append(r)
+        data["s"].append(s)
+        data["m"].append(m)
+        data["n"].append(n)
         print(r, s, m, n)
 
         dpi = re.findall(dpi_pattern, file)
@@ -158,7 +158,7 @@ def create_csv(fname="raw.csv"):
         pos = tuple([float(xy) for xy in pos[-1]])
         # Calculate estimated absolute position
         pos = pos[0] + move_margin[0], pos[1] + move_margin[1]
-        data["expected position"].append(pos)
+        data["true_pos"].append(pos)
         print(pos)
 
         frame = Image.open(file)
@@ -170,7 +170,7 @@ def create_csv(fname="raw.csv"):
             positions = np.nan
             matching_indices = np.nan
             data["runtime"].append(np.nan)
-            data["number of windows"].append(np.nan)
+            data["num_win"].append(np.nan)
         else:
             # Performance timer
             start_time = time.perf_counter()
@@ -187,15 +187,15 @@ def create_csv(fname="raw.csv"):
             # Append results
             data["runtime"].append(total_time)
             print(f"Image analysis took {total_time:.3f}s")
-            data["number of windows"].append(len(positions))
+            data["num_win"].append(len(positions))
         data["dbt_positions"].append(dbt_positions)
         data["real_positions"].append(positions)
-        data["matching position indices"].append(matching_indices)
+        data["matching_indices"].append(matching_indices)
         # Fill static content
         data["page_size"].append(PAGE_SIZE)
         data["page_margin"].append(PAGE_MARGIN)
-        data["camera resolution"].append(frame.size)
-        data["camera capture area size"].append(sim.CAM_SIZE)
+        data["cam_reso"].append(frame.size)
+        data["cap_area"].append(sim.CAM_SIZE)
         data["m5_size"].append(M5_SIZE)
 
     #     for p in positions:
@@ -233,22 +233,22 @@ def create_plots(fname="raw.csv"):
     # """
     raw = pd.read_csv(fname)  # , index_col=0)[columns]
 
-    transform_funcs = {"r (dbt_h)": int,
-                       "s (dbt_w)": int,
-                       "m (win_h)": int,
-                       "n (win_w)": int,
+    transform_funcs = {"r": int,
+                       "s": int,
+                       "m": int,
+                       "n": int,
                        "page_size": literal_eval,
                        "page_margin": literal_eval,
-                       "camera resolution": literal_eval,
-                       "camera capture area size": literal_eval,
+                       "cam_reso": literal_eval,
+                       "cap_area": literal_eval,
                        "m5_size": literal_eval,
                        "printer": str,
                        "dpi": literal_eval,
-                       "number of windows": int,
-                       "expected position": literal_eval,
+                       "num_win": int,
+                       "true_pos": literal_eval,
                        "dbt_positions": literal_eval,
                        "real_positions": literal_eval,
-                       "matching position indices": literal_eval,
+                       "matching_indices": literal_eval,
                        "runtime": float}
     transformed = raw.dropna().transform(transform_funcs)
     # TODO: F
@@ -262,7 +262,7 @@ def create_plots(fname="raw.csv"):
     # TODO Use global value (save global value to data frame?)
     error_margin = 5
     for k in transformed["real_positions"].keys():
-        match_list = transformed["matching position indices"][k]
+        match_list = transformed["matching_indices"][k]
         indices = [ind for ind in match_list if len(ind) > 1]
 
         for index, pos in enumerate(transformed["real_positions"][k]):
@@ -283,7 +283,7 @@ def create_plots(fname="raw.csv"):
 
             positions["error_margin"].append(error_margin)
             # Find expected position matches:
-            p = transformed["expected position"][k]
+            p = transformed["true_pos"][k]
             min_x, min_y = pos[0] - error_margin, pos[1] - error_margin
             max_x, max_y = pos[0] + error_margin, pos[1] + error_margin
             if min_x <= p[0] <= max_x and min_y <= p[1] <= max_y:
@@ -314,7 +314,7 @@ def create_plots(fname="raw.csv"):
     # 100 to 400 on the x axis
 
     ideal_pos = {"x": [], "y": []}
-    for p in df["expected position"].unique():
+    for p in df["true_pos"].unique():
         ideal_pos["x"].append(p[0])
         ideal_pos["y"].append(p[1])
     ideal_pos = pd.DataFrame(ideal_pos)
