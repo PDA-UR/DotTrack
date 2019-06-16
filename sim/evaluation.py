@@ -9,18 +9,29 @@ from pathlib import Path
 # Evaluate python data types: https://stackoverflow.com/a/33283145
 from ast import literal_eval
 import matplotlib.pyplot as plt
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+
+# Page size / page format
+PAGE_SIZE = (A4[0] / mm, A4[1] / mm)
+# Page margin
+PAGE_MARGIN = (5, 5)
+# Size of M5Stack
+M5_SIZE = (54, 54)
+# Error margin in millimeters
+ERROR_MARGIN = 5
 
 
 def main():
-    csv = Path("eval.csv")
+    fname = "raw.csv"
+    csv = Path(fname)
     if not csv.exists():
-        create_csv()
-    create_plots()
+        create_csv(fname)
+    create_plots(fname)
 
 
-def create_csv():
-    start_time = time.perf_counter()
-
+# Creates raw data csv file
+def create_csv(fname="raw.csv"):
     # Error margin in millimeters
     # error_margin = 5  # Seems to NOT work anymore at 175, 150 and 125 dpi
     # error_margin = 6  # Seems to NOT work anymore at 175, 150 and 125 dpi
@@ -30,8 +41,9 @@ def create_csv():
     # error_margin = 10  # 7 and even more buffer
     # error_margin = 20  # get max
 
-    # Margin of the movement area [page margin + (M5Stack size / 2) = 32]
-    move_margin = (32, 32)
+    # Margin of the movement area (start position of image capture)
+    move_margin = (M5_SIZE[0] / 2 - PAGE_MARGIN[0],
+                   M5_SIZE[1] / 2 - PAGE_MARGIN[1])
 
     # dt_sim.py values
     dbt_w, dbt_h, win_w, win_h = sim.DBT_W, sim.DBT_H, sim.WIN_W, sim.WIN_H
@@ -63,21 +75,44 @@ def create_csv():
     # glob_pattern = "*/8192x4096_5x5_100x100dpi/*"
     files = glob.glob(glob_pattern, recursive=True)
 
-    # num_p = 0
-    # num_match = 0
-    # error_margins = []
-    data = {"camera resolution": [],
-            "camera capture area size": [],
-            "printer": [],
-            "r (dbt_h)": [],
+    # dictionary for raw data
+    data = {"r (dbt_h)": [],
             "s (dbt_w)": [],
             "m (win_h)": [],
             "n (win_w)": [],
+            "page_size": [],
+            "page_margin": [],
+            "camera resolution": [],
+            "camera capture area size": [],
+            "m5_size": [],
+            "printer": [],
             "dpi": [],
-            "expected position": [],
             "number of windows": [],
-            "decoded positions": [],
-            "matching position indices": []}
+            "expected position": [],
+            "dbt_positions": [],
+            "real_positions": [],
+            "matching position indices": [],
+            "runtime": []}
+
+    # column names to correct header order
+    columns = ["r (dbt_h)",
+               "s (dbt_w)",
+               "m (win_h)",
+               "n (win_w)",
+               "page_size",
+               "page_margin",
+               "camera resolution",
+               "camera capture area size",
+               "m5_size",
+               "printer",
+               "dpi",
+               "number of windows",
+               "expected position",
+               "dbt_positions",
+               "real_positions",
+               "matching position indices",
+               "runtime"]
+
     # columns = ["camera resolution", "camera capture area size",
     #            "printer maker", "printer model", "r (dbt_h)", "s (dbt_w)",
     #            "m (win_h)", "n (win_w)", "dpi", "expected position",
@@ -87,8 +122,11 @@ def create_csv():
     #            "decoded real positions", "matching positions"]
     # df = pd.DataFrame()
 
+    file_counter = 0
     for file in sorted(files):
+        file_counter += 1
         print("=" * 80)
+        print(f"File {file_counter} of {len(files)}")
 
         printer = re.findall(printer_pattern, file)[0]
         if len(printer) == 0:
@@ -127,22 +165,38 @@ def create_csv():
         # Skip 100x100dpi images because they can't be analysed with our
         # current implementation of the bit extraction.
         if dpi == (100, 100):
+            # Fill empty values
+            dbt_positions = np.nan
             positions = np.nan
             matching_indices = np.nan
+            data["runtime"].append(np.nan)
             data["number of windows"].append(np.nan)
         else:
-            positions, matching_indices = sim.analyse_frame(frame,
-                                                            cam_size,
-                                                            dbt_log,
-                                                            dpi,
-                                                            win_w,
-                                                            win_h,
-                                                            pipeline_id)
+            # Performance timer
+            start_time = time.perf_counter()
+            # Image analysis
+            dbt_positions, positions, matching_indices = sim.analyse_frame(
+                frame,
+                cam_size,
+                dbt_log,
+                dpi,
+                win_w,
+                win_h,
+                pipeline_id)
+            total_time = time.perf_counter() - start_time
+            # Append results
+            data["runtime"].append(total_time)
+            print(f"Image analysis took {total_time:.3f}s")
             data["number of windows"].append(len(positions))
-        data["decoded positions"].append(positions)
+        data["dbt_positions"].append(dbt_positions)
+        data["real_positions"].append(positions)
         data["matching position indices"].append(matching_indices)
+        # Fill static content
+        data["page_size"].append(PAGE_SIZE)
+        data["page_margin"].append(PAGE_MARGIN)
         data["camera resolution"].append(frame.size)
         data["camera capture area size"].append(sim.CAM_SIZE)
+        data["m5_size"].append(M5_SIZE)
 
     #     for p in positions:
     #         num_p += 1
@@ -163,14 +217,11 @@ def create_csv():
     # for v, k in enumerate(data):
     #     print(v)
     #     print(len(v))
-    df = pd.DataFrame(data)
-    df.to_csv("eval.csv")  # , index=False)
-
-    total_time = time.perf_counter() - start_time
-    print(f"Evaluation took {total_time:.3f}s")
+    df = pd.DataFrame(data)[columns]
+    df.to_csv(fname, index=False)
 
 
-def create_plots():
+def create_plots(fname="raw.csv"):
     # Handle index column: https://stackoverflow.com/a/36519122
     # Column order:
     # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
@@ -180,43 +231,41 @@ def create_plots():
     # ['foo', 'bar'] order or pd.read_csv(data, usecols=['foo', 'bar'])[['bar',
     # 'foo']] for ['bar', 'foo'] order.
     # """
-    columns = ["camera resolution",
-               "camera capture area size",
-               "printer",
-               "r (dbt_h)",
-               "s (dbt_w)",
-               "m (win_h)",
-               "n (win_w)",
-               "dpi",
-               "expected position",
-               "number of windows",
-               "decoded positions",
-               "matching position indices"]
-    raw = pd.read_csv("eval.csv", index_col=0)[columns]
+    raw = pd.read_csv(fname)  # , index_col=0)[columns]
 
-    transform_funcs = {"camera resolution": literal_eval,
+    transform_funcs = {"r (dbt_h)": int,
+                       "s (dbt_w)": int,
+                       "m (win_h)": int,
+                       "n (win_w)": int,
+                       "page_size": literal_eval,
+                       "page_margin": literal_eval,
+                       "camera resolution": literal_eval,
                        "camera capture area size": literal_eval,
-                       "printer": lambda x: x,
-                       "r (dbt_h)": lambda x: x,
-                       "s (dbt_w)": lambda x: x,
-                       "m (win_h)": lambda x: x,
-                       "n (win_w)": lambda x: x,
+                       "m5_size": literal_eval,
+                       "printer": str,
                        "dpi": literal_eval,
-                       "expected position": literal_eval,
                        "number of windows": int,
-                       "decoded positions": literal_eval,
-                       "matching position indices": literal_eval}
+                       "expected position": literal_eval,
+                       "dbt_positions": literal_eval,
+                       "real_positions": literal_eval,
+                       "matching position indices": literal_eval,
+                       "runtime": float}
     transformed = raw.dropna().transform(transform_funcs)
+    # TODO: F
+    print(transformed)
+    return
 
+    # TODO: Calc runtime mean for every submatrix
     positions = {"key": [], "index": [], "x": [], "y": [], "matches": [],
                  "error_margin": [], "expected_pos": []}
     # Error margin in millimeters
+    # TODO Use global value (save global value to data frame?)
     error_margin = 5
-    for k in transformed["decoded positions"].keys():
+    for k in transformed["real_positions"].keys():
         match_list = transformed["matching position indices"][k]
         indices = [ind for ind in match_list if len(ind) > 1]
 
-        for index, pos in enumerate(transformed["decoded positions"][k]):
+        for index, pos in enumerate(transformed["real_positions"][k]):
             positions["key"].append(k)
             positions["index"].append(index)
             positions["x"].append(pos[0])

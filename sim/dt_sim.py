@@ -220,7 +220,7 @@ def analyse_frame(frame, cam_size, dbt_log, dpi, win_w, win_h,
     # total_time = time.perf_counter() - start_time
     # print(f"Frame analysing took {total_time:.3f}s")
 
-    return real_positions, matching_indices
+    return dbt_positions, real_positions, matching_indices
 
 
 # def set_frame_dpi(frame, cam_size):

@@ -102,14 +102,16 @@ def stream_loop():
 
 
 def print_analyse_frame(img):
-    real_positions, matching_indices = sim.analyse_frame(img,
-                                                         cam_size,
-                                                         dbt_log,
-                                                         dbt_dpi,
-                                                         win_w,
-                                                         win_h,
-                                                         pipeline_id)
+    dbt_positions, real_positions, matching_indices = sim.analyse_frame(
+        img,
+        cam_size,
+        dbt_log,
+        dbt_dpi,
+        win_w,
+        win_h,
+        pipeline_id)
     print(matching_indices)
+    print(dbt_positions)
     print(real_positions)
 
 
