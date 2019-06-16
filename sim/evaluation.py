@@ -2,6 +2,7 @@ from PIL import Image
 import glob
 import re
 import time
+import math
 import dt_sim as sim
 import pandas as pd
 import numpy as np
@@ -20,14 +21,21 @@ PAGE_MARGIN = (5, 5)
 M5_SIZE = (54, 54)
 # Error margin in millimeters
 ERROR_MARGIN = 5
+# Error radius in millimeters
+ERROR_RADIUS = 5
 
 
 def main():
     fname = "raw.csv"
+    submatrix_fname = "submatrix.csv"
     csv = Path(fname)
     if not csv.exists():
         create_csv(fname)
-    create_plots(fname)
+    submatrix_csv = Path(submatrix_fname)
+    if not submatrix_csv.exists():
+        create_submatrix_csv(submatrix_fname)
+    # TODO: Create plots and calc output
+    # create_plots(fname)
 
 
 # Creates raw data csv file
@@ -219,9 +227,202 @@ def create_csv(fname="raw.csv"):
     #     print(len(v))
     df = pd.DataFrame(data)[columns]
     df.to_csv(fname, index=False)
+    # TODO: Make it create (if not present) or read (if present) and return df
+    # return df
 
 
-def create_plots(fname="raw.csv"):
+def create_submatrix_csv(submatrix_fname="submatrix.csv"):
+    # Create raw.csv if neccessary
+    fname = "raw.csv"
+    csv = Path(fname)
+    if not csv.exists():
+        create_csv(fname)
+
+    # Handle index column: https://stackoverflow.com/a/36519122
+    # Column order:
+    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
+    # """
+    # To instantiate a DataFrame from data with element order preserved use
+    # pd.read_csv(data, usecols=['foo', 'bar'])[['foo', 'bar']] for columns in
+    # ['foo', 'bar'] order or pd.read_csv(data, usecols=['foo', 'bar'])[['bar',
+    # 'foo']] for ['bar', 'foo'] order.
+    # """
+    raw = pd.read_csv(fname)  # , index_col=0)[columns]
+
+    # Transform (string) values
+    transform_funcs = {"r": int,
+                       "s": int,
+                       "m": int,
+                       "n": int,
+                       "page_size": literal_eval,
+                       "page_margin": literal_eval,
+                       "cam_reso": literal_eval,
+                       "cap_area": literal_eval,
+                       "m5_size": literal_eval,
+                       "printer": str,
+                       "dpi": literal_eval,
+                       "num_win": int,
+                       "true_pos": literal_eval,
+                       "dbt_positions": literal_eval,
+                       "real_positions": literal_eval,
+                       "matching_indices": literal_eval,
+                       "runtime": float}
+    submatrix = raw.dropna().transform(transform_funcs)
+
+    # Create merge additions
+    # Create dictionary for additions
+    merge_add = {"ia_id": [],
+                 "true_x": [],
+                 "true_y": [],
+                 "true_pos_dist": [],
+                 "index": [],
+                 "dbt_pos": [],
+                 "dbt_x": [],
+                 "dbt_y": [],
+                 "real_pos": [],
+                 "real_x": [],
+                 "real_y": [],
+                 "matches": [],
+                 "matches_len": [],
+                 "error_margin": [],
+                 "err_margin_match": [],
+                 "error_radius": [],
+                 "err_radius_match": [],
+                 "runtime_mean": []}
+
+    # Iterate over all image analysis ids (1600; 200 dropped)
+    for ia_id in submatrix["real_positions"].keys():
+        # Setup for submatrix loop
+
+        # Extract true_x and true_y
+        true_x, true_y = submatrix["true_pos"][ia_id]
+
+        # Extract matching_indices
+        matching_indices = submatrix["matching_indices"][ia_id]
+        # Extract indices that match
+        indices = [ind for ind in matching_indices if len(ind) > 1]
+
+        # Extract runtime_mean
+        runtime = submatrix["runtime"][ia_id]
+        num_win = submatrix["num_win"][ia_id]
+        runtime_mean = runtime / num_win
+
+        # Iterate over available submatrizes (adds up to 90000)
+        for index, pos in enumerate(submatrix["real_positions"][ia_id]):
+            # Add values to addition dictionary
+            # Add image analysis id
+            merge_add["ia_id"].append(ia_id)
+
+            # Add true_x, true_y
+            merge_add["true_x"].append(true_x)
+            merge_add["true_y"].append(true_y)
+
+            # Calculate and add true_pos_dist
+            # TODO: dist_x, dist_y of any use?
+            dist_x = true_x - pos[0]
+            dist_y = true_y - pos[1]
+            true_pos_dist = math.sqrt(dist_x**2 + dist_y**2)
+            merge_add["true_pos_dist"].append(true_pos_dist)
+
+            # Add submatrix index
+            merge_add["index"].append(index)
+            # Add position values
+            dbt_pos = submatrix["dbt_positions"][ia_id][index]
+            merge_add["dbt_pos"].append(dbt_pos)
+            merge_add["dbt_x"].append(dbt_pos[0])
+            merge_add["dbt_y"].append(dbt_pos[1])
+            merge_add["real_pos"].append(pos)
+            merge_add["real_x"].append(pos[0])
+            merge_add["real_y"].append(pos[1])
+
+            # Add matches list
+            if len(matching_indices) == 0:
+                # Handle 125 dpi
+                merge_add["matches"].append(np.nan)
+                merge_add["matches_len"].append(np.nan)
+            else:
+                # Extract matches
+                m = []
+                for matches in indices:
+                    if index in matches:
+                        m = matches
+                        break
+                # Add matches_len
+                merge_add["matches"].append(m)
+                merge_add["matches_len"].append(len(m))
+
+            # Add error_margin
+            merge_add["error_margin"].append(ERROR_MARGIN)
+            # Calculate and add err_margin_match
+            min_x, min_y = pos[0] - ERROR_MARGIN, pos[1] - ERROR_MARGIN
+            max_x, max_y = pos[0] + ERROR_MARGIN, pos[1] + ERROR_MARGIN
+            if min_x <= true_x <= max_x and min_y <= true_y <= max_y:
+                merge_add["err_margin_match"].append(True)
+            else:
+                merge_add["err_margin_match"].append(False)
+
+            # Add error_radius
+            merge_add["error_radius"].append(ERROR_RADIUS)
+            # Calculate and add err_radius_match
+            if true_pos_dist <= ERROR_RADIUS:
+                merge_add["err_radius_match"].append(True)
+            else:
+                merge_add["err_radius_match"].append(False)
+
+            # Add runtime_mean
+            merge_add["runtime_mean"].append(runtime_mean)
+
+    # Create data frame out of addition dictionary
+    merge_df = pd.DataFrame(merge_add)
+
+    # Fix column order
+    columns = ["r",
+               "s",
+               "m",
+               "n",
+               "page_size",
+               "page_margin",
+               "cam_reso",
+               "cap_area",
+               "m5_size",
+               "printer",
+               "dpi",
+               "num_win",
+               "ia_id",
+               "true_pos",
+               "true_x",
+               "true_y",
+               "true_pos_dist",
+               "index",
+               "dbt_positions",
+               "dbt_pos",
+               "dbt_x",
+               "dbt_y",
+               "real_positions",
+               "real_pos",
+               "real_x",
+               "real_y",
+               "matching_indices",
+               "matches",
+               "matches_len",
+               "error_margin",
+               "err_margin_match",
+               "error_radius",
+               "err_radius_match",
+               "runtime",
+               "runtime_mean"]
+
+    # Merge additions with main data frame (gobble up the old junk :D)
+    df = submatrix.merge(merge_df, left_index=True, right_on="ia_id")[columns]
+    # Save to file
+    df.to_csv(submatrix_fname, index=False)
+    # TODO: Make it create (if not present) or read (if present) and return df
+    # return df
+
+
+def create_plots(fname="raw.csv", submatrix_fname="submatrix.csv"):
+    # TODO Structure anew
+
     # Handle index column: https://stackoverflow.com/a/36519122
     # Column order:
     # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
@@ -251,13 +452,15 @@ def create_plots(fname="raw.csv"):
                        "matching_indices": literal_eval,
                        "runtime": float}
     transformed = raw.dropna().transform(transform_funcs)
-    # TODO: F
-    print(transformed)
-    return
 
     # TODO: Calc runtime mean for every submatrix
-    positions = {"key": [], "index": [], "x": [], "y": [], "matches": [],
-                 "error_margin": [], "expected_pos": []}
+    positions = {"ia_id": [],
+                 "index": [],
+                 "x": [],
+                 "y": [],
+                 "matches": [],
+                 "error_margin": [],
+                 "expected_pos": []}
     # Error margin in millimeters
     # TODO Use global value (save global value to data frame?)
     error_margin = 5
@@ -266,7 +469,7 @@ def create_plots(fname="raw.csv"):
         indices = [ind for ind in match_list if len(ind) > 1]
 
         for index, pos in enumerate(transformed["real_positions"][k]):
-            positions["key"].append(k)
+            positions["ia_id"].append(k)
             positions["index"].append(index)
             positions["x"].append(pos[0])
             positions["y"].append(pos[1])
@@ -294,7 +497,7 @@ def create_plots(fname="raw.csv"):
     df_pos = pd.DataFrame(positions)
 
     # merge positions with main data frame
-    df = transformed.merge(df_pos, left_index=True, right_on="key")
+    df = transformed.merge(df_pos, left_index=True, right_on="ia_id")
 
     # probability "correct"/expected position of every printer and dpi (w/o
     # 100)
@@ -343,7 +546,7 @@ def create_plots(fname="raw.csv"):
     # print(df_pos[df_pos["expected_pos"]])
     # print(df_pos[df_pos["expected_pos"] &
     #              df_pos["matches"].apply(lambda x: x != [])])
-    # print(df_pos[(df_pos["index"] == 0) & (df_pos["key"] == 1799)])
+    # print(df_pos[(df_pos["index"] == 0) & (df_pos["ia_id"] == 1799)])
     # print(df_pos[pd.notna(df_pos["matches"]) &
     #              df_pos["matches"].apply(lambda x: x != [])])
 
