@@ -26,16 +26,23 @@ ERROR_RADIUS = 5
 
 
 def main():
+    # Create raw.csv
     fname = "raw.csv"
-    submatrix_fname = "submatrix.csv"
     csv = Path(fname)
     if not csv.exists():
         create_csv(fname)
-    submatrix_csv = Path(submatrix_fname)
-    if not submatrix_csv.exists():
-        create_submatrix_csv(submatrix_fname)
+
+    # Create submatrix.csv (carefull should take up ~500MB)
+    # submatrix_fname = "submatrix.csv"
+    # submatrix_csv = Path(submatrix_fname)
+    # if not submatrix_csv.exists():
+    #     create_submatrix_csv(submatrix_fname)
+
     # TODO: Create plots and calc output
-    # create_plots(fname)
+    # create_plots(fname, submatrix_fname)
+
+    # Prints important data
+    # filter_data()
 
 
 # Creates raw data csv file
@@ -50,8 +57,8 @@ def create_csv(fname="raw.csv"):
     # error_margin = 20  # get max
 
     # Margin of the movement area (start position of image capture)
-    move_margin = (M5_SIZE[0] / 2 - PAGE_MARGIN[0],
-                   M5_SIZE[1] / 2 - PAGE_MARGIN[1])
+    move_margin = (M5_SIZE[0] / 2 + PAGE_MARGIN[0],
+                   M5_SIZE[1] / 2 + PAGE_MARGIN[1])
 
     # dt_sim.py values
     dbt_w, dbt_h, win_w, win_h = sim.DBT_W, sim.DBT_H, sim.WIN_W, sim.WIN_H
@@ -231,7 +238,8 @@ def create_csv(fname="raw.csv"):
     # return df
 
 
-def create_submatrix_csv(submatrix_fname="submatrix.csv"):
+# TODO: creating it dynamically from raw seems to be better??? -> Do that
+def create_submatrix_csv(submatrix_fname=None):
     # Create raw.csv if neccessary
     fname = "raw.csv"
     csv = Path(fname)
@@ -267,7 +275,8 @@ def create_submatrix_csv(submatrix_fname="submatrix.csv"):
                        "real_positions": literal_eval,
                        "matching_indices": literal_eval,
                        "runtime": float}
-    submatrix = raw.dropna().transform(transform_funcs)
+    raw = raw.dropna().transform(transform_funcs)
+    sm = raw.copy()
 
     # Create merge additions
     # Create dictionary for additions
@@ -291,24 +300,24 @@ def create_submatrix_csv(submatrix_fname="submatrix.csv"):
                  "runtime_mean": []}
 
     # Iterate over all image analysis ids (1600; 200 dropped)
-    for ia_id in submatrix["real_positions"].keys():
+    for ia_id in sm["real_positions"].keys():
         # Setup for submatrix loop
 
         # Extract true_x and true_y
-        true_x, true_y = submatrix["true_pos"][ia_id]
+        true_x, true_y = sm["true_pos"][ia_id]
 
         # Extract matching_indices
-        matching_indices = submatrix["matching_indices"][ia_id]
+        matching_indices = sm["matching_indices"][ia_id]
         # Extract indices that match
         indices = [ind for ind in matching_indices if len(ind) > 1]
 
         # Extract runtime_mean
-        runtime = submatrix["runtime"][ia_id]
-        num_win = submatrix["num_win"][ia_id]
+        runtime = sm["runtime"][ia_id]
+        num_win = sm["num_win"][ia_id]
         runtime_mean = runtime / num_win
 
         # Iterate over available submatrizes (adds up to 90000)
-        for index, pos in enumerate(submatrix["real_positions"][ia_id]):
+        for index, pos in enumerate(sm["real_positions"][ia_id]):
             # Add values to addition dictionary
             # Add image analysis id
             merge_add["ia_id"].append(ia_id)
@@ -327,7 +336,7 @@ def create_submatrix_csv(submatrix_fname="submatrix.csv"):
             # Add submatrix index
             merge_add["index"].append(index)
             # Add position values
-            dbt_pos = submatrix["dbt_positions"][ia_id][index]
+            dbt_pos = sm["dbt_positions"][ia_id][index]
             merge_add["dbt_pos"].append(dbt_pos)
             merge_add["dbt_x"].append(dbt_pos[0])
             merge_add["dbt_y"].append(dbt_pos[1])
@@ -356,10 +365,17 @@ def create_submatrix_csv(submatrix_fname="submatrix.csv"):
             # Calculate and add err_margin_match
             min_x, min_y = pos[0] - ERROR_MARGIN, pos[1] - ERROR_MARGIN
             max_x, max_y = pos[0] + ERROR_MARGIN, pos[1] + ERROR_MARGIN
+            print("="*80)
+            print(pos)
+            print(true_x, true_y)
+            print(min_x, min_y)
+            print(max_x, max_y)
             if min_x <= true_x <= max_x and min_y <= true_y <= max_y:
                 merge_add["err_margin_match"].append(True)
+                print("True")
             else:
                 merge_add["err_margin_match"].append(False)
+                print("False")
 
             # Add error_radius
             merge_add["error_radius"].append(ERROR_RADIUS)
@@ -413,91 +429,189 @@ def create_submatrix_csv(submatrix_fname="submatrix.csv"):
                "runtime_mean"]
 
     # Merge additions with main data frame (gobble up the old junk :D)
-    df = submatrix.merge(merge_df, left_index=True, right_on="ia_id")[columns]
-    # Save to file
-    df.to_csv(submatrix_fname, index=False)
-    # TODO: Make it create (if not present) or read (if present) and return df
-    # return df
+    sm = sm.merge(merge_df, left_index=True, right_on="ia_id")[columns]
+    # Save to file (if filename given)
+    if submatrix_fname is not None:
+        sm.to_csv(submatrix_fname, index=False)
+    # TODO: Make it create (if not present) or read (if present) and return sm
+    return sm, raw
+
+
+# def filter_data():
+#     # ~6s runtime
+#     sm, raw = create_submatrix_csv()
+#     return
+#     # # Performance timer
+#     # start_time = time.perf_counter()
+#     # total_time = time.perf_counter() - start_time
+#     # print(f"THIS took {total_time:.3f}s")
+
+#     # Drop 100 dpi values (no image analysis possible)
+#     # raw = raw.dropna()
+
+#     # Calculate overall_runtime_mean (Gesamtdurchschnittswert der Laufzeit)
+#     overall_runtime_mean = raw.runtime.sum() / raw.num_win.sum()
+#     print(overall_runtime_mean)
+
+#     # Filter for "good" and "bad" results
+#     good_margin = sm[sm.err_margin_match]
+#     bad_margin = sm[~sm.err_margin_match]
+#     good_radius = sm[sm.err_radius_match]
+#     bad_radius = sm[~sm.err_radius_match]
+
+#     # Probability for every dpi and split into printers
+#     # Create dictionary for creation of probability data frame
+#     probs = {"printer": [],
+#              "dpi": [],
+#              "dpi_x": [],
+#              "dpi_y": [],
+#              "nrows_margin": [],
+#              "prob_margin": [],
+#              "nrows_radius": [],
+#              "prob_radius": []}
+#     # Iterate over dpis
+#     for dpi in sm.dpi.unique():
+#         dpi_x, dpi_y = dpi
+#         # Iterate over printer labels (include both -> not filter)
+#         printer_labels = ["both"] + sm.printer.unique()
+#         for p_label in printer_labels:
+#             # TODO split in good and bad? But those are complementary so it
+#             # doesn't mather too much as long as one of those is shown.
+#             if p_label != "both":
+#                 nrows_margin = len(good_margin)
+#                 nrows_radius = len(good_radius)
+#             else:
+#                 nrows_margin = len()
+#                 p_filter = good_margin[good_margin.printer == p_label]
+#                 nrows_margin = len(good_margin[p_filter])
+#                 p_filter = good_radius[good_radius.printer == p_label]
+#                 nrows_radius = len(good_radius[p_filter])
+#                 nrows()
+#             nrows = len(p[(p.dpi == dpi)])
+#             prob = nrows_exp / nrows
+
+#             # Fill dictionary with values
+#             probs["printer"].append(p_label)
+#             probs["dpi"].append(dpi)
+#             probs["dpi_x"].append(dpi_x)
+#             probs["dpi_y"].append(dpi_y)
+#             probs["nrows_margin"].append(nrows_margin)
+#             probs["prob_margin"].append(prob_margin)
+#             probs["nrows_radius"].append(nrows_radius)
+#             probs["prob_radius"].append(prob_radius)
+
+#     # Create probability data frame
+#     probs = pd.DataFrame(probs)
+#     print(probs)
+
+#     # probs = {"printer": [], "dpi": [], "prob": []}
+#     for p_label in df.printer.unique():
+#         p = df[df.printer == p_label]
+#         for dpi in p.dpi.unique():
+#             nrows_exp = len(p[(p.dpi == dpi) & p.err_margin_match])
+#             nrows = len(p[(p.dpi == dpi)])
+#             prob = nrows_exp / nrows
+#             probs["printer"].append(p_label)
+#             probs["dpi"].append(dpi)
+#             probs["prob"].append(prob)
+#     # probs = pd.DataFrame(probs)
+#     # print(probs)
+
+#     # Values for diagrams
+#     dpis = raw.dpi.unique()
+#     # Prepend 100 dpi values
+#     dpis = [(100, 100)] + dpis.tolist()
+#     dpis_xs = [x for x, y in dpis]
+#     num_wins = raw.num_win.unique()
+#     num_wins = [0] + num_wins.tolist()
+
+#     # TODO Do NOT use variables just use plt to continously draw a figure and
+#     # then save it with savefig("fname") (there are also LaTeX-friendly
+#     # postscript formates to export to)
+#     plt.plot(dpis_xs, num_wins)
+#     plt.xlabel("Musterauflösungen (in dpi)")
+#     plt.ylabel("Anzahl verfügbarer Submatrizen")
+#     plt.savefig("fig_dpis_num_wins.pdf")
+#     # p = plt.plot(dpis, num_wins)
+#     # # p is a list of matplotlib.lines objects
+#     # p1 = plt.plot(dpis, num_wins)
+#     # # p1 is a matplotlib.lines object
+#     # p2 = plt.scatter(dpis, num_wins)
+#     # # p2 is a matplotlib.collections.PathCollection object
+#     # p1_fig = p1.get_figure()
+#     # p2_fig = p2.get_figure()
+#     # .get_figure().savefig("")
+
+#     # runtime_mean_complete = raw.runtime.
 
 
 def create_plots(fname="raw.csv", submatrix_fname="submatrix.csv"):
-    # TODO Structure anew
+    # ~6s runtime
+    sm, raw = create_submatrix_csv()
+    # Performance timer
+    start_time = time.perf_counter()
+    total_time = time.perf_counter() - start_time
+    print(f"THIS took {total_time:.3f}s")
+    # # Import raw csv
+    # raw = pd.read_csv(fname)
+    # transform_funcs = {"r": int,
+    #                    "s": int,
+    #                    "m": int,
+    #                    "n": int,
+    #                    "page_size": literal_eval,
+    #                    "page_margin": literal_eval,
+    #                    "cam_reso": literal_eval,
+    #                    "cap_area": literal_eval,
+    #                    "m5_size": literal_eval,
+    #                    "printer": str,
+    #                    "dpi": literal_eval,
+    #                    "num_win": int,
+    #                    "true_pos": literal_eval,
+    #                    "dbt_positions": literal_eval,
+    #                    "real_positions": literal_eval,
+    #                    "matching_indices": literal_eval,
+    #                    "runtime": float}
+    # raw = raw.dropna().transform(transform_funcs)
 
-    # Handle index column: https://stackoverflow.com/a/36519122
-    # Column order:
-    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
-    # """
-    # To instantiate a DataFrame from data with element order preserved use
-    # pd.read_csv(data, usecols=['foo', 'bar'])[['foo', 'bar']] for columns in
-    # ['foo', 'bar'] order or pd.read_csv(data, usecols=['foo', 'bar'])[['bar',
-    # 'foo']] for ['bar', 'foo'] order.
-    # """
-    raw = pd.read_csv(fname)  # , index_col=0)[columns]
-
-    transform_funcs = {"r": int,
-                       "s": int,
-                       "m": int,
-                       "n": int,
-                       "page_size": literal_eval,
-                       "page_margin": literal_eval,
-                       "cam_reso": literal_eval,
-                       "cap_area": literal_eval,
-                       "m5_size": literal_eval,
-                       "printer": str,
-                       "dpi": literal_eval,
-                       "num_win": int,
-                       "true_pos": literal_eval,
-                       "dbt_positions": literal_eval,
-                       "real_positions": literal_eval,
-                       "matching_indices": literal_eval,
-                       "runtime": float}
-    transformed = raw.dropna().transform(transform_funcs)
-
-    # TODO: Calc runtime mean for every submatrix
-    positions = {"ia_id": [],
-                 "index": [],
-                 "x": [],
-                 "y": [],
-                 "matches": [],
-                 "error_margin": [],
-                 "expected_pos": []}
-    # Error margin in millimeters
-    # TODO Use global value (save global value to data frame?)
-    error_margin = 5
-    for k in transformed["real_positions"].keys():
-        match_list = transformed["matching_indices"][k]
-        indices = [ind for ind in match_list if len(ind) > 1]
-
-        for index, pos in enumerate(transformed["real_positions"][k]):
-            positions["ia_id"].append(k)
-            positions["index"].append(index)
-            positions["x"].append(pos[0])
-            positions["y"].append(pos[1])
-
-            if len(match_list) == 0:
-                positions["matches"].append(np.nan)
-            else:
-                m = []
-                for matches in indices:
-                    if index in matches:
-                        m = matches
-                        break
-                positions["matches"].append(m)
-
-            positions["error_margin"].append(error_margin)
-            # Find expected position matches:
-            p = transformed["true_pos"][k]
-            min_x, min_y = pos[0] - error_margin, pos[1] - error_margin
-            max_x, max_y = pos[0] + error_margin, pos[1] + error_margin
-            if min_x <= p[0] <= max_x and min_y <= p[1] <= max_y:
-                positions["expected_pos"].append(True)
-            else:
-                positions["expected_pos"].append(False)
-
-    df_pos = pd.DataFrame(positions)
-
-    # merge positions with main data frame
-    df = transformed.merge(df_pos, left_index=True, right_on="ia_id")
+    # # Import submatrix csv
+    # submatrix = pd.read_csv(submatrix_fname)
+    # transform_funcs = {"r": int,
+    #                    "s": int,
+    #                    "m": int,
+    #                    "n": int,
+    #                    "page_size": literal_eval,
+    #                    "page_margin": literal_eval,
+    #                    "cam_reso": literal_eval,
+    #                    "cap_area": literal_eval,
+    #                    "m5_size": literal_eval,
+    #                    "printer": str,
+    #                    "dpi": literal_eval,
+    #                    "num_win": int,
+    #                    "ia_id": int,
+    #                    "true_pos": literal_eval,
+    #                    "true_x": float,
+    #                    "true_y": float,
+    #                    "true_pos_dist": float,
+    #                    "index": int,
+    #                    "dbt_positions": literal_eval,
+    #                    "dbt_pos": literal_eval,
+    #                    "dbt_x": int,
+    #                    "dbt_y": int,
+    #                    "real_positions": literal_eval,
+    #                    "real_pos": literal_eval,
+    #                    "real_x": float,
+    #                    "real_y": float,
+    #                    "matching_indices": literal_eval,
+    #                    "matches": literal_eval,
+    #                    "matches_len": float,
+    #                    "error_margin": int,
+    #                    "err_margin_match": bool,
+    #                    "error_radius": int,
+    #                    "err_radius_match": bool,
+    #                    "runtime": float,
+    #                    "runtime_mean": float}
+    # submatrix = submatrix.transform(transform_funcs)
+    df = sm
 
     # probability "correct"/expected position of every printer and dpi (w/o
     # 100)
@@ -505,7 +619,7 @@ def create_plots(fname="raw.csv", submatrix_fname="submatrix.csv"):
     for p_label in df.printer.unique():
         p = df[df.printer == p_label]
         for dpi in p.dpi.unique():
-            nrows_exp = len(p[(p.dpi == dpi) & p.expected_pos])
+            nrows_exp = len(p[(p.dpi == dpi) & p.err_margin_match])
             nrows = len(p[(p.dpi == dpi)])
             prob = nrows_exp / nrows
             probs["printer"].append(p_label)
@@ -525,12 +639,13 @@ def create_plots(fname="raw.csv", submatrix_fname="submatrix.csv"):
     # Maybe try to "connect" ideal positions with measured x and y values.
 
     # df[(df.dpi == (125, 125)) & (df.printer == "LexmarkMS510dn") &
-    #    df.expected_pos]
+    #    df.err_margin_match]
     for p_label in ["LexmarkMS510dn"]:  # df.printer.unique():
         p = df[df.printer == p_label]
         for dpi in [(125, 125)]:  # p.dpi.unique():
-            f = p[(p.dpi == dpi) & p.expected_pos]
-            f_inv = p[(p.dpi == dpi) & p.expected_pos.apply(lambda x: not x)]
+            f = p[(p.dpi == dpi) & p.err_margin_match]
+            f_inv = p[(p.dpi == dpi) &
+                      p.err_margin_match.apply(lambda x: not x)]
             plt.scatter(f_inv["x"], f_inv["y"]).get_figure().show()
             plt.scatter(f["x"], f["y"]).get_figure().show()
 
@@ -538,13 +653,13 @@ def create_plots(fname="raw.csv", submatrix_fname="submatrix.csv"):
     # All X and Y positions
     # plt.scatter(df_pos["x"], df_pos["y"]).get_figure().show()
     # Only "correct" positions
-    filtered_inv = df_pos[df_pos["expected_pos"].apply(lambda x: not x)]
-    filtered = df_pos[df_pos["expected_pos"]]
-    plt.scatter(filtered_inv["x"], filtered_inv["y"]).get_figure().show()
-    plt.scatter(filtered["x"], filtered["y"]).get_figure().show()
+    # filtered_inv = df_pos[df_pos["err_margin_match"].apply(lambda x: not x)]
+    # filtered = df_pos[df_pos["err_margin_match"]]
+    # plt.scatter(filtered_inv["x"], filtered_inv["y"]).get_figure().show()
+    # plt.scatter(filtered["x"], filtered["y"]).get_figure().show()
 
-    # print(df_pos[df_pos["expected_pos"]])
-    # print(df_pos[df_pos["expected_pos"] &
+    # print(df_pos[df_pos["err_margin_match"]])
+    # print(df_pos[df_pos["err_margin_match"] &
     #              df_pos["matches"].apply(lambda x: x != [])])
     # print(df_pos[(df_pos["index"] == 0) & (df_pos["ia_id"] == 1799)])
     # print(df_pos[pd.notna(df_pos["matches"]) &
