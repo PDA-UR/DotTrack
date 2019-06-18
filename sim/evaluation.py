@@ -460,21 +460,21 @@ def filter_data():
         print(dpi, dpi_df.runtime.sum() / dpi_df.num_win.sum())
 
     # Filter for "good" and "bad" results
-    good_margin = sm[sm.err_margin_match]
-    bad_margin = sm[~sm.err_margin_match]
+    # good_margin = sm[sm.err_margin_match]
+    # bad_margin = sm[~sm.err_margin_match]
     good_radius = sm[sm.err_radius_match]
     bad_radius = sm[~sm.err_radius_match]
 
-    # Calculate margin means (Gesamtdurchschnittswert der guten/schlechten
-    # Ergebnisse mit Quadratauswahl)
-    print("Overall good results mean (margin):")
-    print(len(good_margin))  # count
-    good_margin_mean = len(good_margin) / len(sm)  # mean
-    print(good_margin_mean)  # mean
-    print("Overall bad results mean (margin):")
-    print(len(bad_margin))  # count
-    bad_margin_mean = len(bad_margin) / len(sm)  # mean
-    print(bad_margin_mean)  # mean
+    # # Calculate margin means (Gesamtdurchschnittswert der guten/schlechten
+    # # Ergebnisse mit Quadratauswahl)
+    # print("Overall good results mean (margin):")
+    # print(len(good_margin))  # count
+    # good_margin_mean = len(good_margin) / len(sm)  # mean
+    # print(good_margin_mean)  # mean
+    # print("Overall bad results mean (margin):")
+    # print(len(bad_margin))  # count
+    # bad_margin_mean = len(bad_margin) / len(sm)  # mean
+    # print(bad_margin_mean)  # mean
 
     # Calculate radius means (Gesamtdurchschnittswert der guten/schlechten
     # Ergebnisse mit Radiusauswahl)
@@ -482,25 +482,46 @@ def filter_data():
     print(len(good_radius))  # count
     good_radius_mean = len(good_radius) / len(sm)  # mean
     print(good_radius_mean)  # mean
-    print("Overall bad results mean (radius):")
-    print(len(bad_radius), len(sm))  # count
-    bad_radius_mean = len(bad_radius) / len(sm)  # mean
-    print(bad_radius_mean)  # mean
+    # print("Overall bad results mean (radius):")
+    # print(len(bad_radius), len(sm))  # count
+    # bad_radius_mean = len(bad_radius) / len(sm)  # mean
+    # print(bad_radius_mean)  # mean
 
+    probs = {"printer": [], "dpi": [], "prob": []}
     # Calculate good result means for every dpi
-    for dpi in sm.dpi.unique():
-        # filter for dpi
-        sm_dpi = sm[sm.dpi == dpi]
+    print(f"Mean for every dpi (radius)")
+    for p_label in ["both"] + sm.printer.unique().tolist():
+        # filter for printer
+        if p_label == "both":
+            sm_p = sm
+            good_radius_p = good_radius
+        else:
+            sm_p = sm[sm.printer == p_label]
+            good_radius_p = good_radius[good_radius.printer == p_label]
 
-        print(f"Mean for {dpi} dpi (margin)")
-        good_margin_dpi = good_margin[good_margin.dpi == dpi]
-        print(len(good_margin_dpi), len(sm_dpi))  # count
-        print(len(good_margin_dpi)/len(sm_dpi))  # mean
+        for dpi in sm_p.dpi.unique():
 
-        print(f"Mean for {dpi} dpi (radius)")
-        good_radius_dpi = good_radius[good_radius.dpi == dpi]
-        print(len(good_radius_dpi), len(sm_dpi))  # count
-        print(len(good_radius_dpi)/len(sm_dpi))  # mean
+            # print(f"Mean for {dpi} dpi (margin)")
+            # good_margin_dpi = good_margin[good_margin.dpi == dpi]
+            # print(len(good_margin_dpi), len(sm_dpi))  # count
+            # print(len(good_margin_dpi)/len(sm_dpi))  # mean
+
+            # filter for dpi
+            sm_dpi = sm_p[sm_p.dpi == dpi]
+            good_radius_dpi = good_radius_p[good_radius_p.dpi == dpi]
+
+            # save prob
+            probs["dpi"].append(dpi)
+            prob = len(good_radius_dpi) / len(sm_dpi)
+            probs["prob"].append(prob)
+            probs["printer"].append(p_label)
+            # print(dpi, len(good_radius_dpi), len(sm_dpi))  # count
+            # print(len(good_radius_dpi) / len(sm_dpi))  # mean
+
+    # Create probability data frame
+    probs = pd.DataFrame(probs)
+    print(probs)
+    print(probs.to_latex())
 
     # Values for diagrams
     dpis = raw.dpi.unique()
@@ -530,91 +551,83 @@ def filter_data():
     plt.xlabel("Musterauflösungen (in dpi)")
     plt.ylabel("Anzahl Submatrizen")
     plt.savefig("fig_dpis_num_wins.pdf")
-    # p = plt.plot(dpis, num_wins)
-    # # p is a list of matplotlib.lines objects
-    # p1 = plt.plot(dpis, num_wins)
-    # # p1 is a matplotlib.lines object
-    # p2 = plt.scatter(dpis, num_wins)
-    # # p2 is a matplotlib.collections.PathCollection object
-    # p1_fig = p1.get_figure()
-    # p2_fig = p2.get_figure()
-    # .get_figure().savefig("")
+
+    return
 
     # runtime_mean_complete = raw.runtime.
 
-    # # Probability for every dpi and split into printers
-    # # Create dictionary for creation of probability data frame
-    # probs = {"printer": [],
-    #          "dpi": [],
-    #          "dpi_x": [],
-    #          "dpi_y": [],
-    #          "nrows_margin": [],
-    #          "prob_margin": [],
-    #          "nrows_radius": [],
-    #          "prob_radius": []}
+    # Probability for every dpi and split into printers
+    # Create dictionary for creation of probability data frame
+    probs = {"printer": [],
+             "dpi": [],
+             "dpi_x": [],
+             "dpi_y": [],
+             "nrows_margin": [],
+             "prob_margin": [],
+             "nrows_radius": [],
+             "prob_radius": []}
 
-    # # EIN gutes ergb das mit dem bro dru gedruckt wurde und die dpi von 150
-    # # hat
-    # # p_lables = sm.printer.unique()
+    # EIN gutes ergb das mit dem bro dru gedruckt wurde und die dpi von 150 hat
+    # p_lables = sm.printer.unique()
 
-    # # Iterate over printer labels (include both -> not filter)
-    # printer_labels = ["both"] + sm.printer.unique()
-    # for p_label in printer_labels:
-    #     # Select printers (filter them)
-    #     if p_label != "both":
-    #         p_margin = good_margin[good_margin.printer == p_label]
-    #         p_radius = good_radius[good_radius.printer == p_label]
-    #         p_sm = sm[sm.printer == p_label]
-    #     else:
-    #         p_filt_margin = good_margin
-    #         p_filt_radius = good_radius
-    #         p_sm = sm
+    # Iterate over printer labels (include both -> not filter)
+    printer_labels = ["both"] + sm.printer.unique()
+    for p_label in printer_labels:
+        # Select printers (filter them)
+        if p_label != "both":
+            p_margin = good_margin[good_margin.printer == p_label]
+            p_radius = good_radius[good_radius.printer == p_label]
+            p_sm = sm[sm.printer == p_label]
+        else:
+            p_filt_margin = good_margin
+            p_filt_radius = good_radius
+            p_sm = sm
 
-    #     # Iterate over dpis
-    #     for dpi in sm.dpi.unique():
-    #         dpi_x, dpi_y = dpi
-    #         # filter dpis
-    #         # zahl der guten
+        # Iterate over dpis
+        for dpi in sm.dpi.unique():
+            dpi_x, dpi_y = dpi
+            # filter dpis
+            # zahl der guten
 
-    # # Iterate over dpis
-    # for dpi in sm.dpi.unique():
-    #     dpi_x, dpi_y = dpi
-    #     # Iterate over printer labels (include both -> not filter)
-    #     printer_labels = ["both"] + sm.printer.unique()
-    #     for p_label in printer_labels:
-    #         # TODO split in good and bad? But those are complementary so it
-    #         # doesn't mather too much as long as one of those is shown.
-    #         if p_label != "both":
-    #             # Filter for printer
-    #             p_filt_margin = good_margin[good_margin.printer == p_label]
-    #             p_filt_radius = good_radius[good_radius.printer == p_label]
-    #             nrows_good_margin = len(good_margin)
-    #             nrows_good_radius = len(good_radius)
-    #             nrows = len(sm)
-    #         else:
-    #             nrows_margin = len()
-    #             p_filter = good_margin[good_margin.printer == p_label]
-    #             nrows_margin = len(good_margin[p_filter])
-    #             p_filter = good_radius[good_radius.printer == p_label]
-    #             nrows_radius = len(good_radius[p_filter])
-    #             nrows()
-    #         # nrows = len(p[(p.dpi == dpi)])
-    #         nrows = len(sm)
-    #         prob_margin = nrows_good_margin / nrows
+    # Iterate over dpis
+    for dpi in sm.dpi.unique():
+        dpi_x, dpi_y = dpi
+        # Iterate over printer labels (include both -> not filter)
+        printer_labels = ["both"] + sm.printer.unique()
+        for p_label in printer_labels:
+            # TODO split in good and bad? But those are complementary so it
+            # doesn't mather too much as long as one of those is shown.
+            if p_label != "both":
+                # Filter for printer
+                p_filt_margin = good_margin[good_margin.printer == p_label]
+                p_filt_radius = good_radius[good_radius.printer == p_label]
+                nrows_good_margin = len(good_margin)
+                nrows_good_radius = len(good_radius)
+                nrows = len(sm)
+            else:
+                nrows_margin = len()
+                p_filter = good_margin[good_margin.printer == p_label]
+                nrows_margin = len(good_margin[p_filter])
+                p_filter = good_radius[good_radius.printer == p_label]
+                nrows_radius = len(good_radius[p_filter])
+                nrows()
+            # nrows = len(p[(p.dpi == dpi)])
+            nrows = len(sm)
+            prob_margin = nrows_good_margin / nrows
 
-    #         # Fill dictionary with values
-    #         probs["printer"].append(p_label)
-    #         probs["dpi"].append(dpi)
-    #         probs["dpi_x"].append(dpi_x)
-    #         probs["dpi_y"].append(dpi_y)
-    #         probs["nrows_margin"].append(nrows_margin)
-    #         probs["prob_margin"].append(prob_margin)
-    #         probs["nrows_radius"].append(nrows_radius)
-    #         probs["prob_radius"].append(prob_radius)
+            # Fill dictionary with values
+            probs["printer"].append(p_label)
+            probs["dpi"].append(dpi)
+            probs["dpi_x"].append(dpi_x)
+            probs["dpi_y"].append(dpi_y)
+            probs["nrows_margin"].append(nrows_margin)
+            probs["prob_margin"].append(prob_margin)
+            probs["nrows_radius"].append(nrows_radius)
+            probs["prob_radius"].append(prob_radius)
 
-    # # Create probability data frame
-    # probs = pd.DataFrame(probs)
-    # print(probs)
+    # Create probability data frame
+    probs = pd.DataFrame(probs)
+    print(probs)
 
 
 def create_plots(fname="raw.csv", submatrix_fname="submatrix.csv"):
