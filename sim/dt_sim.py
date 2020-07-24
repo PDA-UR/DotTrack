@@ -1,4 +1,5 @@
 # import os
+import sys
 from PIL import Image, ImageFilter
 import skimage
 from skimage import io
@@ -33,7 +34,7 @@ BLACK = 0
 WHITE = 255
 
 
-def main():
+def main(anchor=(0,0)):
     # Testing:
     # generate multiple test images
     # run pipeline
@@ -55,7 +56,7 @@ def main():
     dbt_fname = dbt_log[-1].fname
 
     # 1.1. Test frame simulation:
-    cam_anchor = (0, 0)
+    cam_anchor = anchor
     # TODO/FIXME: With 5x5 DBT (999, 999) good results (1000, 1000) bad results
     # cam_anchor = (999, 999)
     # cam_anchor = (1000, 1000)
@@ -89,7 +90,7 @@ def main():
 
     # Decoding algorithm according to Shiu
     dbt_positions = decode_dbt_positions(subarray, win_w, win_h, dbt_log)
-    print(dbt_positions)
+    print("dbt_positions:", dbt_positions)
 
     # If there are multiple positions find matching positions which can be used
     # to deduce a correct reading. Although bad readings can still happen this
@@ -114,7 +115,7 @@ def main():
     # * margin (hardcoded for now; assumes (5, 5) mm)
     margin = (5, 5)
     real_positions = calculate_real_positions(dbt_positions, dpi, margin)
-    print(real_positions)
+    print("real positions:", real_positions)
 
     total_time = time.perf_counter() - start_time
     print(f"Frame analysing took {total_time:.3f}s")
@@ -914,4 +915,7 @@ def calculate_real_positions(px_positions, dpi, margin):
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) == 3:
+        main((int(sys.argv[1]), int(sys.argv[2])))
+    else:
+        main()
