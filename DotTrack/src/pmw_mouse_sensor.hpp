@@ -1,3 +1,6 @@
+#ifndef __pmw_mouse_sensor_hpp__
+#define __pmw_mouse_sensor_hpp__
+
 #include <Arduino.h>
 #include <M5Stack.h>
 #include <M5StackUpdater.h>
@@ -5,32 +8,10 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <math.h>
-#include "waldo.hpp"
-#include "select.hpp"
-#include "simulator.hpp"
 #include "image.hpp"
-//#include "muc_logo.hpp"
 #include "tools.hpp"
-
-#define SIMULATE_INPUT 0
-
-#define DEBUG_LEVEL 0
-
-// TODO: Add build defines to determine the app that should be compiled
-//#ifndef IMG_CAPTURE
-//#define IMG_CAPTURE 0
-//#endif /* ifndef IMG_CAPTURE */
-//
-//#ifndef TRIPLE_APP
-//#define TRIPLE_APP 0
-//#endif /* ifndef TRIPLE_APP */
-//
-//#ifndef GOOGLY_EYES
-//#define GOOGLY_EYES 0
-//#endif /* ifndef GOOGLY_EYES */
-
-#define IMG_CAPTURE 1
-#define EYES_DEMO 0
+#include "config.hpp"
+#include "utils.hpp"
 
 // ESP32 Pins (M5STACK)
 //#define PIN0 0 // Motion
@@ -145,6 +126,10 @@
 #define H_IMG 36
 #define IMG_SIZE 1296 // W_IMG * H_IMG --> 36 * 36 = 1296
 
+// A4 size in mm
+#define A4_WIDTH 290
+#define A4_HEIGHT 200
+
 // enum for sensor values
 #define AVG 0
 #define SHTR 3
@@ -169,78 +154,82 @@ const unsigned short rawDataLength = IMG_SIZE;
 const unsigned short motBrLength = 12;
 
 // Create sprite object (frame buffer)
-TFT_eSprite img = TFT_eSprite(&M5.Lcd);
+//TFT_eSprite img = TFT_eSprite(&M5.Lcd);
 
-// true as soon as the startup sequence has been completed
-bool initComplete = false;
-// switch between frame capture and motion mode
-bool frameCapture = false;
 // if true prints motion burst data to display
-bool printMotBrToDisplay = false;
+extern bool printMotBrToDisplay;
 // prevents apps being exited from liftOff state
-bool preventAppExit = false;
+//extern bool preventAppExit = false;
 
 // set true by the motion interrupt when new motion data is available, set false when motion data has been processed
-bool hasMoved = false;
+extern bool hasMoved;
 // false when on ground, true when lift off ground (according to Lift_Stat bit in Motion register)
-bool liftOff = false;
+extern bool liftOff;
 // LO state from previous loop
-bool prevLiftOff = false;
+extern bool prevLiftOff;
 // cumulative lift off state (switches to true if liftOffBuffer is all true and reverse)
-bool cumLiftOff = liftOff;
+extern bool cumLiftOff;
 // values between  (according to OP_Mode bit in Motion register)
-uint8_t opMode = 0;
+extern uint8_t opMode;
 // SROM_RUN value (Observation byte/register)
 // true/1 = SROM running
 // false/0 = SROM NOT running
-bool sromRun = false;
+extern bool sromRun;
 // Rest_En value
 // false = rest mode disabled
 // true = rest mode enabled [default]
-bool restEn = true;
+extern bool restEn;
 // Rpt_Mod value
 // false = X CPI == Y CPI [default]
 // true = X and Y CPI can be configured independently
-bool rptMod = false;
+extern bool rptMod;
 // CPI (counts per inch) value (-1 = disabled [see Rpt_Mod p. 39])
-int16_t cpi = DEFAULT_CPI;
+extern int16_t cpi;
 // X axis CPI (counts per inch) value (-1 = disabled [see Rpt_Mod p. 39])
-int16_t cpiX = DEFAULT_CPI;
+extern int16_t cpiX;
 // Y axis CPI (counts per inch) value (-1 = disabled [see Rpt_Mod p. 39])
-int16_t cpiY = DEFAULT_CPI;
+extern int16_t cpiY;
 // SQUAL value
-uint8_t squal = 0;
+extern uint8_t squal;
 // Number of surface features (calculated from SQUAL value)
-uint16_t numFeatures = 0;
+extern uint16_t numFeatures;
 // Raw_Data_Sum value
-uint8_t rawDataSum = 0;
+extern uint8_t rawDataSum;
 // Average Raw Data (calculated from Raw_Data_Sum value)
-uint8_t avgRawData = 0;
+extern uint8_t avgRawData;
 // Maximum_Raw_Data value
-uint8_t maxRawData = 0;
+extern uint8_t maxRawData;
 // Minimum_Raw_Data value
-uint8_t minRawData = 0;
+extern uint8_t minRawData;
 // Shutter value
-uint16_t shutter = 0;
+extern uint16_t shutter;
 
-int32_t absX = 0;
-int32_t absY = 0;
+//extern int32_t absX;
+//extern int32_t absY;
 
-uint8_t prevApp = 0;
-uint8_t app = 0;
+//extern uint8_t prevApp = 0;
+//extern uint8_t app = 0;
+
+extern double relative_x;
+extern double relative_y;
+extern float last_x, last_y;
+extern bool receiving;
+
+extern WiFiClient client;
+extern IPAddress serverIP;
 
 // INFO: volatile not needed when using polling (and not using interrupts)
 // set to true when reading motion registers (motion & delta registers) was initialized (see datasheet p. 30)
-volatile bool readingMotion = false;
+extern volatile bool readingMotion;
 
 // lift off buffer
-uint8_t liftOffBuffer[LIFT_OFF_BUF_LEN];
+extern uint8_t liftOffBuffer[LIFT_OFF_BUF_LEN];
 // Raw data image data
-uint8_t rawData[IMG_SIZE];
+extern uint8_t rawData[IMG_SIZE];
 // Raw motion burst data
-uint8_t rawMotBr[motBrLength];
+extern uint8_t rawMotBr[motBrLength];
 // movement distance since last update, [0] = x, [1] = y, expected values: around -1 to 1 (but can be more extreme)
-int16_t xyDelta[2];
+extern int16_t xyDelta[2];
 
 void writeRegister(uint8_t address, uint8_t data);
 uint8_t readRegister(uint8_t address);
@@ -249,79 +238,68 @@ void resetDevice();
 void performSROMdownload();
 void configureRegisters();
 void readConfigRegisters();
-void onMovement();
+//void onMovement();
 void captureRawImage(uint8_t* result, int resultLength);
 void drawImageToDisplay();
 void sendRawOverSerial();
 void readMotionBurst(uint8_t* result, int resultLength);
 void updateMotBrValues();
-void drawMotBrToDisplay();
-void sendMotBrOverSerial();
-void findAppPosition();
-void drawWelcomeScreen();
+//void drawMotBrToDisplay();
+//void sendMotBrOverSerial();
+//void findAppPosition();
+//void drawWelcomeScreen();
 void evalLiftOffBuffer();
 
-#define AP_SSID "DotTrack"
-#define AP_PASS "W^LjUPRN[s%,'LL6"
-#define COM_DELAY 1 // in ms
+void ConnectToWiFi();
+void ConnectToServer();
+void sendRawOverWifi();
+void drawCoordinates(float x, float y);
+void drawDirection();
+void drawRelativePosition();
 
-int32_t trackX = 0;
-int32_t trackY = 0;
-int16_t trackBearing = 0; // -1 if lift off
-// Send / receive lift off state
-bool trackLiftOff = false;
+//#define AP_SSID "DotTrack"
+//#define AP_PASS "W^LjUPRN[s%,'LL6"
+//#define COM_DELAY 1 // in ms
 
-int32_t circleX = 0;
-int32_t circleY = 0;
+//int32_t trackX = 0;
+//int32_t trackY = 0;
+//int16_t trackBearing = 0; // -1 if lift off
+//// Send / receive lift off state
+//bool trackLiftOff = false;
 
 // Length of packet buffer.
 // For two 32-bit and one 8-bit values (4 bytes * 2 + 1 byte = 9 bytes).
-const uint8_t packetBufLen = sizeof(int32_t) * 2 + sizeof(bool);
+//const uint8_t packetBufLen = sizeof(int32_t) * 2 + sizeof(bool);
 // Buffer to hold incoming/outgoing packet.
 // Holds absX, absY (each int32_t) and liftOff (bool).
-byte packetBuffer[packetBufLen];
+//extern byte packetBuffer[packetBufLen];
 
-void receiveDataUdp();
-void sendDataUdp();
-void calcBearing();
-void drawEye();
-void printWiFiStatus();
-void handleWiFiEvent(WiFiEvent_t event);
-void drawChoiceScreen();
-void drawConnectScreen();
-
-// Coords of left position
-#define POS1_X 17716;
-#define POS1_Y 0;
-// Coords of center position
-#define POS2_X 0;
-#define POS2_Y 0;
-// Coords of right position
-#define POS3_X -17716;
-#define POS3_Y 0;
-
-// Server start position
-#define START_POS_SERV_X POS3_X
-#define START_POS_SERV_Y POS3_Y
-// Client start position
-#define START_POS_CLI_X POS1_X
-#define START_POS_CLI_Y POS1_Y
-
-#define EYE_SCLERA_COLOR WHITE
-#define EYE_IRIS_COLOR BLACK
-#define EYE_PUPIL_COLOR RED
-
-#define EYE_SCLERA_RADIUS 110
-#define EYE_IRIS_RADIUS 60
-#define EYE_PUPIL_RADIUS 25
-
-// Maximum CPI value to consider tracked object to be "near"
-// Calculation: inches * cpi    or  (cm / 2.54) * cpi
-// 12500 counts are 2.5in or 6.35cm (when the CPI is 5000 [default])
-#define MAX_PROXIMITY_CPI 12500
-
-// Distance from tracked object
-double trackDist = 0.0;
+//void receiveDataUdp();
+//void sendDataUdp();
+//void calcBearing();
+//void drawEye();
+//void printWiFiStatus();
+//void handleWiFiEvent(WiFiEvent_t event);
+//void drawChoiceScreen();
+//void drawConnectScreen();
+//
+//// Coords of left position
+//#define POS1_X 17716;
+//#define POS1_Y 0;
+//// Coords of center position
+//#define POS2_X 0;
+//#define POS2_Y 0;
+//// Coords of right position
+//#define POS3_X -17716;
+//#define POS3_Y 0;
+//
+//// Maximum CPI value to consider tracked object to be "near"
+//// Calculation: inches * cpi    or  (cm / 2.54) * cpi
+//// 12500 counts are 2.5in or 6.35cm (when the CPI is 5000 [default])
+//#define MAX_PROXIMITY_CPI 12500
+//
+//// Distance from tracked object
+//double trackDist = 0.0;
 
 // Firmware "PMW3360DM_srom_0x04"
 const uint8_t firmwareData[] = {
@@ -598,3 +576,5 @@ const uint8_t firmwareData[] = {
 0xeb, 0x54, 0x2a, 0xb7, 0xcd, 0xf9, 0x70, 0x62, 0x27, 0xad, 0xd8, 0x32, 0xc7, 0x0c, 0x7b, 
 0x74, 0x4b, 0x14, 0xaa, 0xb7, 0xec, 0x3b, 0xd5, 0x28, 0xd2, 0x07, 0x6d, 0x39, 0xd1, 0x20, 
 0xc2, 0xe7, 0x4c, 0x1a, 0x97, 0x8d, 0x98, 0xb2, 0xc7, 0x0c, 0x59, 0x28, 0xf3, 0x9b };
+
+#endif
