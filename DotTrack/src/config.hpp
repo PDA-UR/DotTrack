@@ -1,2 +1,3 @@
-#define ssid "yourSSIDhere"
-#define pw "yourPasswordHere"
+#define ssid "ssid"
+#define pw "pw"
+#define HOST_IP "1.2.3.4"

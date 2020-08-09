@@ -261,10 +261,16 @@ void updateMotBrValues()
     if(motion & REG_MOTION_MOT_BIT)
     {
         hasMoved = true;
-        xyDelta[0] = (int16_t)((rawMotBr[3] << 8) | rawMotBr[2]);
-        xyDelta[1] = (int16_t)((rawMotBr[5] << 8) | rawMotBr[4]);
+        int16_t dx = (int16_t)((rawMotBr[3] << 8) | rawMotBr[2]);
+        int16_t dy = (int16_t)((rawMotBr[5] << 8) | rawMotBr[4]);
         //absX += xyDelta[0];
         //absY += xyDelta[1];
+
+        float a = (angle / 360.0) * 2 * PI;
+
+        // don't ask me about the -dy but it werks
+        xyDelta[0] = sin(a) * (float)-dy + cos(a) * (float)dx;
+        xyDelta[1] = sin(a) * (float)dx + cos(a) * (float)dy;
 
         relative_x -= xyDelta[0];
         relative_y -= xyDelta[1];

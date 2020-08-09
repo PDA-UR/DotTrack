@@ -8,6 +8,7 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <math.h>
+#include "waldo.hpp"
 #include "image.hpp"
 #include "tools.hpp"
 #include "config.hpp"
@@ -154,7 +155,7 @@ const unsigned short rawDataLength = IMG_SIZE;
 const unsigned short motBrLength = 12;
 
 // Create sprite object (frame buffer)
-//TFT_eSprite img = TFT_eSprite(&M5.Lcd);
+extern TFT_eSprite img; // = TFT_eSprite(&M5.Lcd);
 
 // if true prints motion burst data to display
 extern bool printMotBrToDisplay;
@@ -210,13 +211,14 @@ extern uint16_t shutter;
 //extern uint8_t prevApp = 0;
 //extern uint8_t app = 0;
 
+extern int angle;
 extern double relative_x;
 extern double relative_y;
 extern float last_x, last_y;
 extern bool receiving;
 
 extern WiFiClient client;
-extern IPAddress serverIP;
+//extern IPAddress serverIP;
 
 // INFO: volatile not needed when using polling (and not using interrupts)
 // set to true when reading motion registers (motion & delta registers) was initialized (see datasheet p. 30)
@@ -241,6 +243,7 @@ void readConfigRegisters();
 //void onMovement();
 void captureRawImage(uint8_t* result, int resultLength);
 void drawImageToDisplay();
+void drawImageToDisplay_old();
 void sendRawOverSerial();
 void readMotionBurst(uint8_t* result, int resultLength);
 void updateMotBrValues();
@@ -250,12 +253,17 @@ void updateMotBrValues();
 //void drawWelcomeScreen();
 void evalLiftOffBuffer();
 
+void decodeWifiAnswer();
+
 void ConnectToWiFi();
 void ConnectToServer();
 void sendRawOverWifi();
+void sendCoordinates(int x, int y);
 void drawCoordinates(float x, float y);
 void drawDirection();
+void updateRelativePosition();
 void drawRelativePosition();
+void drawEye();
 
 //#define AP_SSID "DotTrack"
 //#define AP_PASS "W^LjUPRN[s%,'LL6"

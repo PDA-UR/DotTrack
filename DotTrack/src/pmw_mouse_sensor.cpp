@@ -1,17 +1,27 @@
 #include "pmw_mouse_sensor.hpp"
 
-//unsigned long t_switch;
-//unsigned long comTimer;
+#define MODE_EYE 1
+#define MODE_RAW 0
+#define MODE_WALDO 0
 
-Timer screenUpdateTimer = Timer(100);
+Timer screenUpdateTimer = Timer(20);
+Timer coordUpdateTimer = Timer(20);
 
+extern TFT_eSprite img = TFT_eSprite(&M5.Lcd);
 double relative_x = 0.0;
 double relative_y = 0.0;
 float last_x = 0;
 float last_y = 0;
+float last_x_rel = 0;
+float last_y_rel = 0;
+int angle = 0;
 bool receiving = false;
+int eyeAngle = 0;
+int distance = 0;
 
 bool frameCapture;
+
+bool wasLiftOff = false;
 
 void setup()
 {
@@ -31,18 +41,10 @@ void setup()
     // Set Brightness of M5Stack LCD display
     M5.Lcd.setBrightness(0xff);
 
-    // Setup and use sprite object (frame buffer) to prevent flicker:
-    // Because of RAM limitations it can only have a 8bit color depth
-    //img.setColorDepth(8);
-    //img.createSprite(W_DISP, H_DISP);
-
     debug2("setup()");
 
     // setup pins
     pinMode(PIN_NCS, OUTPUT);
-    /*pinMode(PIN_MOTION, INPUT); // maybe INPUT_PULLUP is better?*/
-    /*// > The motion pin is an active low output (datasheet p.18)*/
-    /*digitalWrite(PIN_MOTION, HIGH);*/
     pinMode(PIN_SCLK, OUTPUT);
     pinMode(PIN_MISO, INPUT);
     pinMode(PIN_MOSI, OUTPUT);
@@ -85,7 +87,51 @@ void setup()
     //screenUpdateTimer = Timer(100);
     debug2("startup done");
 
+    img.setColorDepth(8);
+    img.createSprite(W_DISP, H_DISP);
+
     delay(250);
+}
+
+void decodeWifiAnswer(String str)
+{
+    float x = last_x;
+    float y = last_y;
+
+    int lastSubstringPosition = 0;
+    int counter = 0;
+
+    if(str == "failed") return;
+
+    for(int i = 0; i < str.length(); i++)
+    {
+        if(str[i] == '|' || str[i] == ';')
+        {
+            // we send values between 0 and 10000 and convert them to a 0.0 to 1.0 range
+            if(counter == 0) x = (str.substring(lastSubstringPosition, i).toInt() / 10000.0f);
+            else if(counter == 1) y = (str.substring(lastSubstringPosition, i).toInt() / 10000.0f);
+            else if(counter == 2) angle = str.substring(lastSubstringPosition, i).toInt();
+            else if(counter == 3) eyeAngle = str.substring(lastSubstringPosition, i).toInt();
+            else if(counter == 4) distance = str.substring(lastSubstringPosition, i).toInt();
+
+            lastSubstringPosition = i+1;
+            counter++;
+        }
+    }
+
+    x *= W_DISP;
+    y *= H_DISP;
+
+    if(x != last_x && y != last_y)
+    {
+        relative_x = 0;
+        relative_y = 0;
+
+        last_x_rel = x / W_DISP;
+        last_y_rel = y / H_DISP;
+    }
+    last_x = x;
+    last_y = y;
 }
 
 void loop()
@@ -101,53 +147,93 @@ void loop()
         receiving = true;
     }
 
-    float x = last_x;
-    float y = last_y;
-
     if(client.available())
     {
-        String buf = client.readStringUntil(';');
-
-        for(int i = 0; i < buf.length(); i++)
-        {
-            if(buf[i] == '|')
-            {
-                // we send values between 0 and 10000 and convert them to a 0.0 to 1.0 range
-                x = (buf.substring(0, i).toInt() / 10000.0f) * W_DISP;
-                y = (buf.substring(i+1, buf.length()).toInt() / 10000.0f) * H_DISP;
-                if(x != last_x && y != last_y)
-                {
-                    relative_x = 0;
-                    relative_y = 0;
-                }
-                last_x = x;
-                last_y = y;
-                break;
-            }
-        }
+        String buf = client.readStringUntil('\n');
+        decodeWifiAnswer(buf);
         receiving = false;
     }
 
     readMotionBurst(rawMotBr, motBrLength);
     updateMotBrValues();
+    updateRelativePosition();
+
+    if(coordUpdateTimer.tick())
+    {
+        if(last_x_rel != 0 && last_y_rel != 0)
+        {
+            sendCoordinates((int)(last_x_rel * 10000), (int)(last_y_rel * 10000));
+        }
+    }
+    
+    if(MODE_WALDO)
+    {
+        if(!liftOff)
+        {
+            if(wasLiftOff)
+            {
+                Waldo::setNewPosition((last_x / W_DISP) * 1000, (last_y / H_DISP) * 1000);
+            }
+            wasLiftOff = false;
+        }
+        else
+        {
+            wasLiftOff = true;
+        }
+    }
 
     if(screenUpdateTimer.tick())
     {
-        drawImageToDisplay();
-        drawDirection();
-        drawRelativePosition();
-
-        drawCoordinates(x, y);
+        if(MODE_RAW)
+        {
+            //drawImageToDisplay();
+            drawImageToDisplay_old();
+            //drawDirection();
+            //drawRelativePosition();
+            //drawCoordinates(last_x, last_y);
+        }
+        if(MODE_EYE)
+        {
+            drawEye();
+        }
+        if(MODE_WALDO)
+        {
+            Waldo::updateWaldo(img, xyDelta[0], xyDelta[1]);
+            //img.pushSprite(0, 0);
+        }
+        img.pushSprite(0, 0);
     }
 
-    //M5.update();
+    M5.update();
     //delay(100);
     return;
 }
 
 void drawImageToDisplay()
 {
-    M5.Lcd.fillRect(0, 0, W_DISP, H_DISP, BLACK);
+    img.fillRect(0, 0, W_DISP, H_DISP, BLACK);
+
+    // Draw raw data image data to M5Stack display
+    for(int32_t x = 0; x < W_IMG; x++)
+    {
+        for(int32_t y = 0; y < H_IMG; y++)
+        {
+            // Read pixel data (multiply by 2 because the raw data values are between 0 and 127)
+            uint8_t pixel = rawData[x*H_IMG+y] << 1;
+            // Color needs to be encoded in 5,6,5 RGB bit format (16 bit)
+            uint32_t color = (pixel >> 3) << 11 | (pixel >> 2) << 5 | (pixel >> 3);
+            // Resize image pixel to use 6x6 rectangles
+            // INFO: x needs to be inverted to correlate with the displays x-/y-coordinates
+            // fillRect(int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color)
+            img.fillRect((W_IMG-x)*PIX_RSZ + X_OFFSET, y*PIX_RSZ + Y_OFFSET, PIX_RSZ, PIX_RSZ, color);
+        }
+    }
+}
+
+void drawImageToDisplay_old()
+{
+    //M5.Lcd.fillRect(0, 0, W_DISP, H_DISP, BLACK);
+
     // Draw raw data image data to M5Stack display
     for(int32_t x = 0; x < W_IMG; x++)
     {
@@ -167,36 +253,53 @@ void drawImageToDisplay()
 
 void drawCoordinates(float x, float y)
 {
-    Serial.println("Coordinates:");
-    Serial.println(x);
-    Serial.println(y);
-    Serial.println("----------");
-    //int x = rel_x * W_DISP;
-    //int y = rel_y * H_DISP;
-    //M5.Lcd.fillRect(0, 0, W_DISP, H_DISP, WHITE);
-    M5.Lcd.fillRect(x-2, y-2, 4, 4, RED);
+    img.fillRect(x-2, y-2, 4, 4, RED);
+}
+
+void drawEye()
+{
+    float a = ((angle + eyeAngle) / 360.0) * 2 * PI;
+    int x = sin(a) * -40;
+    int y = cos(a) * -40;
+
+    uint8_t tmpColor;
+    if(distance < 60) tmpColor = 255;
+    else tmpColor = 0;
+
+    uint32_t bgColor = (tmpColor >> 3) << 11 | (tmpColor >> 2) << 5 | (tmpColor >> 3);
+
+    img.fillRect(0, 0, W_DISP, H_DISP, bgColor); // BLACK
+    img.fillCircle(160, 120, 105, BLACK);
+    img.fillCircle(160, 120, 100, WHITE);
+    img.fillCircle(160 + x, 120 + y, 60, BLACK);
 }
 
 void drawDirection()
 {
     if(!liftOff)
     {
-        //Serial.println("Direction:");
-        //Serial.println(xyDelta[0]);
-        //Serial.println(xyDelta[1]);
-        //Serial.println("----------");
-
         if(xyDelta[0] == 0 && xyDelta[1] == 0) return;
         int x = xyDelta[0] < 0 ? W_DISP - 10 : 10;
         int y = xyDelta[1] < 0 ? H_DISP - 10 : 10;
         if(xyDelta[0] == 0) x = W_DISP / 2;
         if(xyDelta[1] == 0) y = H_DISP / 2;
-        M5.Lcd.fillRect(x, y, 4, 4, GREEN);
+        img.fillRect(x, y, 4, 4, GREEN);
     }
-    //else
-    //{
-    //    Serial.println("LiftOff!");
-    //}
+}
+
+void updateRelativePosition()
+{
+    double rel_x = (relative_x / cpi) * 25.4;
+    double rel_y = (relative_y / cpi) * 25.4;
+
+    int rel_x_px = (rel_x / A4_WIDTH) * W_DISP;
+    int rel_y_px = (rel_y / A4_HEIGHT) * H_DISP;
+
+    int x = last_x + (rel_x_px / 2); // * 2
+    int y = last_y + (rel_y_px / 2);
+
+    last_x_rel = (float)x / (float)W_DISP;
+    last_y_rel = (float)y / (float)H_DISP;
 }
 
 void drawRelativePosition()
@@ -210,16 +313,5 @@ void drawRelativePosition()
     int x = last_x + (2 * rel_x_px);
     int y = last_y + (2 * rel_y_px);
 
-    Serial.println("Relative:");
-    //Serial.println(relative_x);
-    //Serial.println(relative_y);
-    //Serial.println(rel_x);
-    //Serial.println(rel_y);
-    Serial.println(rel_x_px);
-    Serial.println(rel_y_px);
-    //Serial.println(x);
-    //Serial.println(y);
-    Serial.println("----------");
-
-    M5.Lcd.fillRect(x-2, y-2, 4, 4, BLUE);
+    img.fillRect(x-2, y-2, 4, 4, BLUE);
 }
