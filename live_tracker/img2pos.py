@@ -30,7 +30,8 @@ import threading
 imgsize = [36, 36]
 img_byte_len = imgsize[0] * imgsize[1]
 
-IP = '1.2.3.4' # local IP
+#IP = '10.61.15.136' # local IP
+IP = '192.168.178.77'
 TCP_PORT = 8090
 UDP_PORT = 9090
 BUFFER_SIZE = 1
@@ -547,18 +548,18 @@ def get_coords(subframe: Image, dbt_dpi=DBT_DPI): # Pillow Image with 36x36 px
     print(f"Frame analysing took {total_time:.3f}s")
     
     # overlay
-    original = np.array(original)
-    original = cv2.cvtColor(original, cv2.COLOR_GRAY2RGB)
-    height, width = original.shape[:2]
-    overlay = cv2.resize(subarray[0],(width, height), interpolation = cv2.INTER_NEAREST)
-    overlay = cv2.cvtColor(overlay, cv2.COLOR_GRAY2RGB)
+    #original = np.array(original)
+    #original = cv2.cvtColor(original, cv2.COLOR_GRAY2RGB)
+    #height, width = original.shape[:2]
+    #overlay = cv2.resize(subarray[0],(width, height), interpolation = cv2.INTER_NEAREST)
+    #overlay = cv2.cvtColor(overlay, cv2.COLOR_GRAY2RGB)
 
-    overlay[np.where((overlay==[0,0,0]).all(axis=2))] = [0,0,255]
-    overlay[np.where((overlay==[255,255,255]).all(axis=2))] = [0,255,0]
+    #overlay[np.where((overlay==[0,0,0]).all(axis=2))] = [0,0,255]
+    #overlay[np.where((overlay==[255,255,255]).all(axis=2))] = [0,255,0]
 
-    cv2.addWeighted(original, 0.9, overlay, 0.1, 0, overlay)
+    #cv2.addWeighted(original, 0.9, overlay, 0.1, 0, overlay)
 
-    return(real_position, confidence[best_confidence_i], best_confidence_i * 90 + angle)
+    return(real_position, confidence[best_confidence_i], best_confidence_i * 90 + angle, subarray[0], anchor)
 
 
 def convert_coords(x, y):
@@ -579,6 +580,9 @@ class M5Stack:
 
     flag_kill_connect_thread = True
     connected = False
+
+    temp_img = None
+    binarized_img = None
 
     def __init__(self, number):
         self.alive = True
@@ -656,6 +660,7 @@ class M5Stack:
         data = bytes([min(b * 2, 255) for b in data])
         # Create image
         img = Image.frombytes("L", imgsize, data)
+        self.temp_img = img
 
         return img
 
@@ -676,7 +681,7 @@ class M5Stack:
                 print(self.number, "receive image failed")
                 break
             message = "failed\n"
-            (x_in_mm, y_in_mm), confidence, angle = get_coords(img)
+            (x_in_mm, y_in_mm), confidence, angle, self.binarized_img, anchor = get_coords(img)
             angle = (angle + 90) % 90
             if(confidence >= 83):
                 (coord1, coord2) = convert_coords(x_in_mm, y_in_mm)
@@ -706,6 +711,180 @@ class M5Stack:
         self.distance = math.sqrt((x-x2)**2 + (y-y2)**2)
         self.eyeAngle = math.degrees(math.atan2(x-x2, y-y2))
 
+
+# AS:
+# What if we don't binarize but accept "unsure" dots?
+# We could brute force them?
+def preprocess_test(raw, binarized):
+    size = (256, 256)
+    img = raw
+
+    ground_truth = np.array(preprocess_image(Image.fromarray(raw)))
+
+    ######################
+    # Visualize pipeline #
+    ######################
+
+    pipeline = img
+
+    #img = Image.fromarray(img)
+    #img = img.filter(ImageFilter.EDGE_ENHANCE_MORE)
+
+
+    # Normalize (0 - 255)
+    img = img.astype(np.float32)
+    minimum = img.min()
+    maximum = img.max()
+
+    img -= minimum
+    img /= maximum - minimum
+    img *= 255
+
+    img = img.astype(np.uint8)
+    #pipeline = np.concatenate((pipeline, img), axis=1)
+
+    #kernel = np.array([ [-1,0,1],
+    #                    [-1,0,1],
+    #                    [-1,0,1]])
+
+    kernel = np.array([ [-1,-1,-1],
+                        [-1,9,-1],
+                        [-1,-1,-1]])
+    img = cv2.filter2D(img, -1, kernel)
+
+    pipeline = np.concatenate((pipeline, img), axis=1)
+
+    #img = cv2.fastNlMeansDenoising(img,None,10,3,5)
+
+    ## tried some blurring!
+    #tmp = img
+    #buf = None
+
+    #for i in [3, 5, 7, 9]:
+    #    if(i == 3):
+    #        buf = cv2.medianBlur(img, i)
+    #    else:
+    #        buf = np.concatenate((buf, cv2.medianBlur(img, i)), axis = 1)
+    #buf = np.concatenate((buf, img), axis = 1)
+    #buf = cv2.resize(buf, (256 * 5, 256), interpolation=cv2.INTER_NEAREST)
+    #cv2.imshow("blur", buf)
+
+    # best bilateral filter!
+    #img = cv2.bilateralFilter(img,15,50,50)
+
+    img = cv2.medianBlur(img, 3)
+
+    pipeline = np.concatenate((pipeline, img), axis=1)
+
+    # Boolean Mask
+
+    kernel = np.ones((3,3), np.uint8) 
+    img = cv2.erode(img, kernel, iterations=1) 
+
+    #pipeline = np.concatenate((pipeline, img), axis=1)
+
+    kernel = np.ones((3,3), np.uint8) 
+    img = cv2.dilate(img, kernel, iterations=1) 
+
+    pipeline = np.concatenate((pipeline, img), axis=1)
+
+    # setze alles dunkle auf schwarz
+    mask = img < 70
+    img[mask] = 0
+    pipeline = np.concatenate((pipeline, img), axis=1)
+
+    img = cv2.adaptiveThreshold(np.array(img),255,cv2.ADAPTIVE_THRESH_MEAN_C,\
+                cv2.THRESH_BINARY,19,2)
+
+    pipeline = np.concatenate((pipeline, img), axis=1)
+
+    (x_in_mm, y_in_mm), confidence, angle, binarized, anchor = get_coords(Image.fromarray(img))
+    anchor = list(anchor)
+    anchor[0] *= (256 / 36)
+    anchor[1] *= (256 / 36)
+
+    binarized = cv2.resize(np.array(binarized), (36, 36), interpolation=cv2.INTER_NEAREST)
+    pipeline = np.concatenate((pipeline, np.array(binarized)), axis=1)
+
+    white = np.ones((36, 36), np.uint8)
+    pipeline = np.concatenate((pipeline, white), axis=1)
+
+    pipeline = cv2.resize(pipeline, (256 * 8, 256), interpolation=cv2.INTER_NEAREST)
+    pipeline = cv2.cvtColor(pipeline, cv2.COLOR_GRAY2RGB)
+    cv2.rectangle(pipeline, (256 * 7, 0), (256 * 8, 256), (150, 150, 150), -1)
+
+    # draw binarization grid
+    for x in range(0, 256, int(256/6)):
+        cv2.line(pipeline,  (int(256 * 5 + anchor[0]), int(0 + anchor[1] + x)),
+                            (int(256 * 6 + anchor[0]), int(0 + anchor[1] + x)),
+                            (255, 0, 0), 1)
+
+        cv2.line(pipeline,  (int(256 * 5 + anchor[0] + x), int(anchor[1])),
+                            (int(256 * 5 + anchor[0] + x), int(anchor[1] + 256)),
+                            (255, 0, 0), 1)
+
+    pipeline = cv2.putText(pipeline, "{}%".format(confidence), (255 * 7 + 50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0))
+
+    cv2.imshow("pipeline", pipeline)
+
+    #############
+    # Old Stuff #
+    #############
+
+    #img = img.filter(ImageFilter.MinFilter(3))
+    #pipeline = np.concatenate((pipeline, np.array(img)), axis=1)
+    #img = img.filter(ImageFilter.MaxFilter(3))
+    #pipeline = np.concatenate((pipeline, np.array(img)), axis=1)
+
+    #img = cv2.adaptiveThreshold(np.array(img),255,cv2.ADAPTIVE_THRESH_MEAN_C,\
+    #            cv2.THRESH_BINARY,19,2)
+    #pipeline = np.concatenate((pipeline, np.array(img)), axis=1)
+
+    #(x_in_mm, y_in_mm), confidence, angle, binarized, anchor = get_coords(np.array(img))
+    #binarized = cv2.resize(np.array(binarized), (36, 36), interpolation=cv2.INTER_NEAREST)
+    #pipeline = np.concatenate((pipeline, np.array(binarized)), axis=1)
+
+    #pipeline = cv2.resize(pipeline, (256 * 6, 256), interpolation=cv2.INTER_NEAREST)
+    #pipeline = cv2.putText(preview, "{}".format(confidence), (10, 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (200, 0, 50))
+    #cv2.imshow("pipeline", pipeline)
+    
+    ############################
+    # Test bilateral filtering #
+    ############################
+
+    #bilat = None
+
+    #for d in [3, 7, 11]:
+    #    row = None
+    #    for s in [25, 50, 75]:
+    #        tmp = cv2.bilateralFilter(img, d, s, s)
+
+    #        if row is None: 
+    #            row = tmp
+    #        else:
+    #            row = np.concatenate((row, tmp))
+    #    if bilat is None:
+    #        bilat = row
+    #    else:
+    #        bilat = np.concatenate((bilat, row), axis=1)
+    #            
+    #bilat = cv2.resize(bilat, (768, 768), interpolation=cv2.INTER_NEAREST)
+    #cv2.imshow("bilat", bilat)
+
+    #############
+    # Old stuff #
+    #############
+
+    #raw = cv2.resize(raw, size, interpolation = cv2.INTER_NEAREST)
+    #binarized = cv2.resize(binarized, size, interpolation = cv2.INTER_NEAREST)
+    ##img = cv2.resize(img, size, interpolation = cv2.INTER_NEAREST)
+    #ground_truth = cv2.resize(ground_truth, size, interpolation = cv2.INTER_NEAREST)
+
+    #out = np.concatenate((binarized, raw, ground_truth), axis=1)
+    ##bilat = np.concatenate((bilat1, bilat2, bilat3), axis=1)
+    ##out = np.concatenate((out, bilat))
+    #cv2.imshow("output", out)
+
 if __name__ == "__main__":
     m5stacks = []
     m5stacks.append(M5Stack(0))
@@ -733,6 +912,18 @@ if __name__ == "__main__":
                 pass
             preview = cv2.putText(preview, "{}, {}".format(x, y), (10, (m5.number+1) * 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (200, 0, 50))
             #cv2.rectangle(preview, (x-5, y-5), (x+5, y+5), (255, 0, 0))
+
+            try:
+                preprocess_test(np.array(m5.temp_img), np.array(m5.binarized_img))
+
+                #resized = np.array(m5.temp_img)
+                #resized = cv2.resize(np.array(m5.temp_img),None,fx=16, fy=16, interpolation = cv2.INTER_NEAREST)
+                #resized_bin = cv2.resize(np.array(m5.binarized_img),None,fx=64, fy=64, interpolation = cv2.INTER_NEAREST)
+                #cv2.imshow("test", np.array(m5.temp_img) # TEST
+                #cv2.imshow("binarized", resized_bin) # TEST
+            except Exception as e:
+                #print(e)
+                pass
 
         cv2.imshow("preview", preview)
         

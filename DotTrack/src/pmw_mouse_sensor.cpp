@@ -1,8 +1,9 @@
 #include "pmw_mouse_sensor.hpp"
 
-#define MODE_EYE 1
+#define MODE_EYE 0
 #define MODE_RAW 0
 #define MODE_WALDO 0
+#define MODE_STREAM 1 // don't send coordinates, otherwise like raw mode
 
 Timer screenUpdateTimer = Timer(20);
 Timer coordUpdateTimer = Timer(20);
@@ -95,6 +96,8 @@ void setup()
 
 void decodeWifiAnswer(String str)
 {
+    if(MODE_STREAM) return;
+
     float x = last_x;
     float y = last_y;
 
@@ -154,15 +157,18 @@ void loop()
         receiving = false;
     }
 
-    readMotionBurst(rawMotBr, motBrLength);
-    updateMotBrValues();
-    updateRelativePosition();
-
-    if(coordUpdateTimer.tick())
+    if(!MODE_STREAM)
     {
-        if(last_x_rel != 0 && last_y_rel != 0)
+        readMotionBurst(rawMotBr, motBrLength);
+        updateMotBrValues();
+        updateRelativePosition();
+
+        if(coordUpdateTimer.tick())
         {
-            sendCoordinates((int)(last_x_rel * 10000), (int)(last_y_rel * 10000));
+            if(last_x_rel != 0 && last_y_rel != 0)
+            {
+                sendCoordinates((int)(last_x_rel * 10000), (int)(last_y_rel * 10000));
+            }
         }
     }
     
@@ -184,10 +190,10 @@ void loop()
 
     if(screenUpdateTimer.tick())
     {
-        if(MODE_RAW)
+        if(MODE_RAW || MODE_STREAM)
         {
-            //drawImageToDisplay();
-            drawImageToDisplay_old();
+            drawImageToDisplay();
+            //drawImageToDisplay_old();
             //drawDirection();
             //drawRelativePosition();
             //drawCoordinates(last_x, last_y);
