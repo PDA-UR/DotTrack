@@ -143,6 +143,11 @@
 // M5Stack Display: 320x240
 #define W_DISP 320
 #define H_DISP 240
+
+// maximum resolution for 16 bit color depth
+#define W_WINDOW 230
+#define H_WINDOW 230
+
 // Resize factor for every image pixel to maximize display size
 #define PIX_RSZ 6 // H_DISP / H_IMG --> 240 / 36 = 6
 // Offsets to center image on the display

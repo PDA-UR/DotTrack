@@ -1,9 +1,9 @@
 #include "pmw_mouse_sensor.hpp"
 
 #define MODE_EYE 0
-#define MODE_RAW 0
+#define MODE_RAW 1
 #define MODE_WALDO 0
-#define MODE_STREAM 1 // don't send coordinates, otherwise like raw mode
+#define MODE_STREAM 0 // don't send coordinates, otherwise like raw mode
 
 Timer screenUpdateTimer = Timer(20);
 Timer coordUpdateTimer = Timer(20);
@@ -82,14 +82,22 @@ void setup()
     // Reads configurations from registers
     readConfigRegisters();
 
+    // we can decide between using the whole screen OR 16 bit colors
+    // therefore we use 8 bit for waldo and googly eyes
+    // and 16 bit crop for raw image
+    if(!MODE_RAW && !MODE_STREAM){
+        img.setColorDepth(8);
+        img.createSprite(W_DISP, H_DISP);
+    }
+    else
+    {
+        img.createSprite(W_WINDOW, H_WINDOW);
+    }
+
     ConnectToWiFi();
     ConnectToServer();
 
-    //screenUpdateTimer = Timer(100);
     debug2("startup done");
-
-    img.setColorDepth(8);
-    img.createSprite(W_DISP, H_DISP);
 
     delay(250);
 }
@@ -147,6 +155,7 @@ void loop()
     {
         captureRawImage(rawData, rawDataLength);
         sendRawOverWifi();
+        sendRawOverSerial();
         receiving = true;
     }
 
@@ -193,21 +202,20 @@ void loop()
         if(MODE_RAW || MODE_STREAM)
         {
             drawImageToDisplay();
-            //drawImageToDisplay_old();
-            //drawDirection();
-            //drawRelativePosition();
-            //drawCoordinates(last_x, last_y);
+            // as we are in 16 bit mode, we only have a section of the screen available
+            // so we at least center the raw image
+            img.pushSprite(X_OFFSET, Y_OFFSET);
         }
         if(MODE_EYE)
         {
             drawEye();
+            img.pushSprite(0, 0);
         }
         if(MODE_WALDO)
         {
             Waldo::updateWaldo(img, xyDelta[0], xyDelta[1]);
-            //img.pushSprite(0, 0);
+            img.pushSprite(0, 0);
         }
-        img.pushSprite(0, 0);
     }
 
     M5.update();
@@ -231,11 +239,14 @@ void drawImageToDisplay()
             // Resize image pixel to use 6x6 rectangles
             // INFO: x needs to be inverted to correlate with the displays x-/y-coordinates
             // fillRect(int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color)
-            img.fillRect((W_IMG-x)*PIX_RSZ + X_OFFSET, y*PIX_RSZ + Y_OFFSET, PIX_RSZ, PIX_RSZ, color);
+            img.fillRect((W_IMG-x)*PIX_RSZ, y*PIX_RSZ, PIX_RSZ, PIX_RSZ, color);
         }
     }
 }
 
+// draws directly to the LCD
+// we can have 16 bit / full screen in this mode
+// but the image flickers because there's no buffering
 void drawImageToDisplay_old()
 {
     //M5.Lcd.fillRect(0, 0, W_DISP, H_DISP, BLACK);

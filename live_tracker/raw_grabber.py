@@ -23,9 +23,8 @@ import threading
 imgsize = [36, 36]
 img_byte_len = imgsize[0] * imgsize[1]
 
-# connect to sensor.uni-regensburg.de wifi
-IP = '10.61.15.136' # local IP, change this
-TCP_PORT = 8091
+IP = '1.2.3.4' # local IP, change this
+TCP_PORT = 8090
 BUFFER_SIZE = 1
 
 connected = False
@@ -76,6 +75,7 @@ def get_image(conn):
 
 def main():
     sock_image, conn = connect()
+    counter = 0
 
     while(True):
         if not connected:
@@ -95,6 +95,10 @@ def main():
         key = cv2.waitKey(1)
         if(key == ord('q')):
             break
+        if(key == ord('p')):
+            cv2.imwrite('output/{}_0-0_0.png'.format(counter), img)
+            counter += 1
+            print("{} written!".format(counter))
 
         #time.sleep(0.1)
     sock_image.close()
