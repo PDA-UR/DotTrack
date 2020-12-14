@@ -15,6 +15,12 @@ bool initialized = false;
 
 auto IMAGE_SIZE = sizeof(wimmel_pixel_map);
 
+void setNewPosition(int16_t x, int16_t y)
+{
+    x_pos = x;
+    y_pos = y;
+}
+
 void updateWaldo(TFT_eSprite img, int32_t x, int32_t y)
 {
   initWaldo();
