@@ -5,7 +5,7 @@
 # 
 # (C) 2018 - 2019 Dennis Schüsselbauer (original code)  
 # (C) 2020 Raphael Wimmer (porting, cleanup)
-# (C) 2020 Andreas Schmid (extending, cleanup)
+# (C) 2021 Andreas Schmid (extending, cleanup)
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 #from IPython.display import display
@@ -26,16 +26,17 @@ import socket
 import struct
 import imutils
 import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from dottrack import get_coords
 
+m5stacks = []
 m5count = 0
 
-imgsize = [36, 36]
+imgsize = [36, 36] # resolution of the sensor/camera
 img_byte_len = imgsize[0] * imgsize[1]
 
-#IP = '1.2.3.4' # replace this the IP of the machine where this program runs
 IP = '0.0.0.0' # replace this the IP of the machine where this program runs
-#IP = '10.61.15.136'
+CONNECTION_HANDLER_PORT = 8089
 TCP_PORT = 8090
 UDP_PORT = 9090
 BUFFER_SIZE = 1
@@ -54,7 +55,20 @@ receivingCoords = True
 
 CAT_MODE = False
 
-LINE_MODE = True
+LINE_MODE = False
+
+class ConnectionHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        global m5count
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(bytes(f'{TCP_PORT + m5count},{UDP_PORT + m5count}', 'utf-8'))
+        m5stacks.append(M5Stack(m5count))
+        m5count = m5count + 1
+
+def ConnectionHandlerThread(server):
+    server.serve_forever()
 
 # coordinates (in mm) are transformed to a relative postion
 # and multiplied by 10000 so it can be sent to the microcontroller as int
@@ -72,8 +86,9 @@ def convert_coords(x, y):
     return (new_x, new_y)
 
 # object representation of a tangible
-# handles all netcode and image processing
+# handles networking and image processing
 class M5Stack:
+    liftOff = True
     coords = (0, 0) # current coordinates in pixels
     absolute_coords = (0, 0) # coordinates of last successful decoded pattern in pixels
     angle = 0 # rotation of the tangible in degrees (currently only 0, 90, 180, 270)
@@ -124,11 +139,13 @@ class M5Stack:
     def connect(self):
         global m5count
         self.sock_image = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock_image.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock_image.bind((IP, self.TCP_PORT))
         self.sock_image.listen(1)
         self.conn, self.addr = self.sock_image.accept()
 
         self.sock_coords = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP-Socket to receive Coordinates
+        self.sock_coords.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock_coords.bind((IP, self.UDP_PORT))
 
         self.connected = True
@@ -137,8 +154,9 @@ class M5Stack:
 
     # receive coordinates from the tangible
     # they are converted to pixel coordinates and saved to self.coords
+    # last value is liftOff, a boolean indicating whether the device is on a surface
     # messages look like this:
-    # x:1234|y:1234;
+    # x:1234|y:1234|l:0;
     def receiveCoords(self):
         print(self.number, "receiveCoords started")
         while(self.alive == True):
@@ -149,7 +167,8 @@ class M5Stack:
                 coord_buffer, addr = self.sock_coords.recvfrom(1024)
                 tmp = str(coord_buffer).split('|')
                 x = (int(tmp[0][4:]) / 10000) * SCREEN_W_PX
-                y = (int(tmp[1][2:-2]) / 10000) * SCREEN_H_PX
+                y = (int(tmp[1][2:]) / 10000) * SCREEN_H_PX
+                self.liftOff = bool(int(tmp[2][2:-2]))
                 #if(int(x) != int(self.coords[0]) or int(y) != int(self.coords[1])):
                 #print(get_distance(x, self.coords[0], y, self.coords[1]))
                 if(get_distance(x, self.coords[0], y, self.coords[1]) > 5):
@@ -269,6 +288,7 @@ class M5Stack:
 class MFakeStack(M5Stack):
 
     def __init__(self, number):
+        self.liftOff = False
         self.alive = True
         self.number = number
         self.x_speed = 0
@@ -350,12 +370,11 @@ if __name__ == "__main__":
     mode = SHOW_LIVE_PREVIEW
 
     # register two tangibles
-    m5stacks = []
     #m5stacks.append(MFakeStack(0))
     #m5stacks.append(MFakeStack(1))
     #m5stacs.append(MFakeStack(2))
-    m5stacks.append(M5Stack(0))
-    m5stacks.append(M5Stack(1))
+    #m5stacks.append(M5Stack(0))
+    #m5stacks.append(M5Stack(1))
     #m5stacks.append(M5Stack(2))
 
     #m5stacks.append(MFakeStack(0))
@@ -379,13 +398,19 @@ if __name__ == "__main__":
     img_m5 = img_m5.resize((m5_w, m5_h))
     img_m5_ghost = img_m5_ghost.resize((m5_w, m5_h))
 
+    connectionHandler = HTTPServer(('0.0.0.0', CONNECTION_HANDLER_PORT), ConnectionHandler)
+    connectionHandlerThread = threading.Thread(target=ConnectionHandlerThread, args=(connectionHandler,))
+    connectionHandlerThread.start()
+
     # main loop
     while True:
         # set relative positions for googly eye demo
         #m5stacks[2].setRelativePosition((0,0))
         #m5stacks[1].setRelativePosition((0,0))
-        m5stacks[0].setRelativePosition(m5stacks[1].getPosition())
-        m5stacks[1].setRelativePosition(m5stacks[0].getPosition())
+        #m5stacks[0].setRelativePosition(m5stacks[1].getPosition())
+        #m5stacks[1].setRelativePosition(m5stacks[0].getPosition())
+        for m5 in m5stacks:
+            m5.setRelativePosition((0,0))
 
         # background
         preview = Image.new('RGB', (SCREEN_W_PX, SCREEN_H_PX), (200, 200, 200, 255))
@@ -521,7 +546,7 @@ if __name__ == "__main__":
                 # draw raw image on the virtual M5Stack's Display
                 try:
                     pattern = Image.fromarray(m5.raw_img).convert('RGBA')
-                    #img_m5_temp.paste(pattern, (12, 8), pattern)
+                    img_m5_temp.paste(pattern, (12, 8), pattern)
                 except:
                     print("could not load image")
                     pass
@@ -636,8 +661,11 @@ if __name__ == "__main__":
         elif(key == ord('l')):
             LINE_MODE = not LINE_MODE
         elif(key == ord('x')):
-            m5stacs.append(MFakeStack(2))
+            m5stacks.append(MFakeStack(2))
             m5count += 1
+
+    connectionHandler.server_close()
+    connectionHandlerThread.join()
 
     for m5 in m5stacks:
         m5.die()

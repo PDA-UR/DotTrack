@@ -260,10 +260,11 @@ void evalLiftOffBuffer();
 
 void decodeWifiAnswer();
 
+void GetPorts();
 void ConnectToWiFi();
 void ConnectToServer();
 void sendRawOverWifi();
-void sendCoordinates(int x, int y);
+void sendCoordinates(int x, int y, bool liftOff);
 void drawCoordinates(float x, float y);
 void drawDirection();
 void updateRelativePosition();
