@@ -27,7 +27,8 @@ num_ppx = (DBT_DPI*cam_size_inch[0],
            DBT_DPI*cam_size_inch[1])
 px_ppx_ratio = (imgsize[0]/num_ppx[0], imgsize[1]/num_ppx[1])
 
-margin = (-27.5, -26)
+#margin = (-27.5, -26)
+margin = (0, 0)
 
 top_shift = -1
 left_shift = -1

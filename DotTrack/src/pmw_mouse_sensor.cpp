@@ -1,9 +1,9 @@
 #include "pmw_mouse_sensor.hpp"
 
 #define MODE_EYE 0
-#define MODE_RAW 1
+#define MODE_RAW 0
 #define MODE_WALDO 0
-#define MODE_STREAM 0 // don't send coordinates, otherwise like raw mode
+#define MODE_STREAM 1 // don't send coordinates, otherwise like raw mode
 
 Timer screenUpdateTimer = Timer(20);
 Timer coordUpdateTimer = Timer(20);

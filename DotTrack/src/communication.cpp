@@ -1,7 +1,7 @@
 #include "pmw_mouse_sensor.hpp"
 
-int PORT_IMAGE = 8091;
-int PORT_COORD = 9091;
+int PORT_IMAGE = 8090;
+int PORT_COORD = 9090;
 
 WiFiClient client;
 WiFiUDP udp;
@@ -52,6 +52,11 @@ void ConnectToServer()
         //PORT_IMAGE++;
         //PORT_COORD++;
         delay(1000);
+        
+        // AS: TEMPORARY CODE!
+        // makes m5stack work even without a successful server connection
+        client.connect(HOST_IP, PORT_IMAGE);
+        break;
     }
 
     udp.begin(PORT_COORD);
