@@ -8,15 +8,8 @@
 # (C) 2021 Andreas Schmid (extending, cleanup)
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
-#from IPython.display import display
-import skimage
-from skimage import io
-from skimage.filters import threshold_sauvola
 import numpy as np
 import time
-from torus import Torus
-from generate_dbt import TorusGenerator
-from collections import Counter
 import sys
 import math
 import re
@@ -37,17 +30,14 @@ img_byte_len = imgsize[0] * imgsize[1]
 CROP_W_MM = 1390
 CROP_H_MM = 707
 
-#SCREEN_W_PX = 580 * 2
-#SCREEN_H_PX = 400 * 2
-
 SCREEN_W_PX = 1920
 SCREEN_H_PX = 1080
 
-receivingCoords = True
+IMAGE_MODE = False    # display image in the background
+GEOMETRY_MODE = False # show geometry demo with distance and pythagoras
 
-IMAGE_MODE = False
-
-GEOMETRY_MODE = False
+m5stacks = [] # list of all tangibles
+m5count = 0   # total number of tangibles
 
 # replace this the IP of the machine where this program runs
 # or leave at 0.0.0.0 to accept all connections
@@ -56,9 +46,6 @@ CONNECTION_HANDLER_PORT = 8089
 TCP_PORT = 8090
 UDP_PORT = 9090
 BUFFER_SIZE = 1
-
-m5stacks = []
-m5count = 0
 
 # little HTTP server to dynamically manage connecting tangibles
 # they send an HTTP GET request and are provided a TCP and UDP port
@@ -98,6 +85,7 @@ class M5Stack:
     coords = (0, 0) # current coordinates in pixels
     absolute_coords = (0, 0) # coordinates of last successful decoded pattern in pixels
     angle = 0 # rotation of the tangible in degrees (currently only 0, 90, 180, 270)
+    distance = 0
 
     # duplicate of coords
     # used as a backup if determining the position of the tangible is not successful
@@ -296,6 +284,7 @@ class M5Stack:
         #return (self.coords[0] != self.lastX or self.coords[1] != self.lastY)
         return self.has_moved
 
+# used to test demo applications without connecting tangibles
 class MFakeStack(M5Stack):
 
     def __init__(self, number):
@@ -439,9 +428,11 @@ if __name__ == '__main__':
             m5count += 1
 
     connectionHandler.server_close()
+    connectionHandler.shutdown()
     connectionHandlerThread.join()
 
     for m5 in m5stacks:
         m5.die()
+
     time.sleep(1)
     sys.exit()
