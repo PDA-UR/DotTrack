@@ -1,3 +1,4 @@
+#include "pmw3360.hpp"
 #include "pmw_mouse_sensor.hpp"
 
 bool hasMoved = false;
