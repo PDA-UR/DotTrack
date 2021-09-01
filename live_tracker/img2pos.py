@@ -28,18 +28,10 @@ import imutils
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from dottrack import get_coords
-
-m5stacks = []
-m5count = 0
+from demos import *
 
 imgsize = [36, 36] # resolution of the sensor/camera
 img_byte_len = imgsize[0] * imgsize[1]
-
-IP = '0.0.0.0' # replace this the IP of the machine where this program runs
-CONNECTION_HANDLER_PORT = 8089
-TCP_PORT = 8090
-UDP_PORT = 9090
-BUFFER_SIZE = 1
 
 # size of the printed DBT in millimeters
 CROP_W_MM = 1390
@@ -53,10 +45,24 @@ SCREEN_H_PX = 1080
 
 receivingCoords = True
 
-CAT_MODE = False
+IMAGE_MODE = False
 
-LINE_MODE = False
+GEOMETRY_MODE = False
 
+# replace this the IP of the machine where this program runs
+# or leave at 0.0.0.0 to accept all connections
+IP = '0.0.0.0' 
+CONNECTION_HANDLER_PORT = 8089
+TCP_PORT = 8090
+UDP_PORT = 9090
+BUFFER_SIZE = 1
+
+m5stacks = []
+m5count = 0
+
+# little HTTP server to dynamically manage connecting tangibles
+# they send an HTTP GET request and are provided a TCP and UDP port
+# which they can use to connect with the actual application
 class ConnectionHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         global m5count
@@ -75,7 +81,7 @@ def ConnectionHandlerThread(server):
 # example for tangible in the center:
 # x == CROP_W_MM / 2 => 50% == 0.5 => 0.5 * 10000 = 5000
 def convert_coords(x, y):
-    if(CAT_MODE == False):
+    if(IMAGE_MODE == False):
         new_x = ((x / CROP_W_MM) * 10000)
         new_y = ((y / CROP_H_MM) * 10000)
     else:
@@ -88,7 +94,7 @@ def convert_coords(x, y):
 # object representation of a tangible
 # handles networking and image processing
 class M5Stack:
-    liftOff = True
+    liftOff = True # False if on a surface, True if lift off
     coords = (0, 0) # current coordinates in pixels
     absolute_coords = (0, 0) # coordinates of last successful decoded pattern in pixels
     angle = 0 # rotation of the tangible in degrees (currently only 0, 90, 180, 270)
@@ -138,18 +144,20 @@ class M5Stack:
     # nothing special to see here
     def connect(self):
         global m5count
+        # TCP socket to receive sensor images
         self.sock_image = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock_image.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock_image.bind((IP, self.TCP_PORT))
         self.sock_image.listen(1)
         self.conn, self.addr = self.sock_image.accept()
 
-        self.sock_coords = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP-Socket to receive Coordinates
+        # UDP socket to receive coordinates
+        self.sock_coords = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) 
         self.sock_coords.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock_coords.bind((IP, self.UDP_PORT))
 
         self.connected = True
-        m5count += 1
+        #m5count += 1 # already happens in ConnectionHandler
         print(self.number, "connected")
 
     # receive coordinates from the tangible
@@ -161,16 +169,19 @@ class M5Stack:
         print(self.number, "receiveCoords started")
         while(self.alive == True):
             if(self.connected == False):
+                # wait for connection
                 time.sleep(0.1)
                 continue
             if(self.sock_coords.recv != None):
                 coord_buffer, addr = self.sock_coords.recvfrom(1024)
+                # coordinates and liftoff are sent as a string
+                # fields are separated with pipe | symbols
                 tmp = str(coord_buffer).split('|')
+
                 x = (int(tmp[0][4:]) / 10000) * SCREEN_W_PX
                 y = (int(tmp[1][2:]) / 10000) * SCREEN_H_PX
                 self.liftOff = bool(int(tmp[2][2:-2]))
-                #if(int(x) != int(self.coords[0]) or int(y) != int(self.coords[1])):
-                #print(get_distance(x, self.coords[0], y, self.coords[1]))
+
                 if(get_distance(x, self.coords[0], y, self.coords[1]) > 5):
                     self.has_moved = True
                 self.coords = (x, y)
@@ -229,14 +240,14 @@ class M5Stack:
             # try to receive a new sensor image
             img = self.get_image()
             if(img is None):
-                print(self.number, "receive image failed")
+                print(self.number, 'receive image failed')
                 break
-            message = "failed\n"
+            message = 'failed\n'
 
             # decode position of the sensor image
             (x_in_mm, y_in_mm), confidence, angle, self.binarized_img, anchor = get_coords(img)
             # adjust rotation (sensor looks sideways)
-            if not CAT_MODE:
+            if not IMAGE_MODE:
                 angle = (angle + 270) % 360
             else:
                 angle = (angle) % 360
@@ -263,7 +274,7 @@ class M5Stack:
 
     # close all connections
     def die(self):
-        print(self.number, "dying...")
+        print(self.number, 'dying...')
         self.sock_image.close()
         self.alive = False
         self.receiveCoordThread.join()
@@ -328,75 +339,18 @@ class MFakeStack(M5Stack):
             time.sleep(0.1)
 
     def die(self):
-        print(self.number, "dying...")
+        print(self.number, 'dying...')
         self.alive = False
-
-def get_distance(x1, x2, y1, y2):
-    return math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
-
-def get_center(x1, x2, y1, y2):
-    xdist = abs(x1 - x2) / 2
-    ydist = abs(y1 - y2) / 2
-    return (min(x1, x2) + xdist, min(y1, y2) + ydist)
-
-def get_angle(x1, x2, y1, y2):
-    dx = x2 - x1
-    dy = y2 - y1
-    angle = math.atan2(dy, dx)
-    deg = np.rad2deg(angle)
-    #if deg < 0:
-    #    deg += 360
-    return deg
-
-def get_angle_between(a1, a2):
-    a1 = np.deg2rad(a1)
-    a2 = np.deg2rad(a2)
-    angle = math.atan2(math.sin(a1 - a2), math.cos(a1 - a2))
-    deg = np.rad2deg(angle)
-    return deg
-
 
 # Debug view application
 # uses PIL to compose the preview and OpenCV to display it
-if __name__ == "__main__":
+if __name__ == '__main__':
     SHOW_LIVE_PREVIEW = 0
     SHOW_SENSOR_IMAGE = 1
     SHOW_CUPBOARD_DEMO = 2
-    SHOW_ONLY_ABSOLUTE = 3
-
-    SENSOR_IMAGE_WIDTH = 1000
-    SENSOR_IMAGE_HEIGHT = 1000
+    SHOW_RELATIVE_POSITION = True
 
     mode = SHOW_LIVE_PREVIEW
-
-    # register two tangibles
-    #m5stacks.append(MFakeStack(0))
-    #m5stacks.append(MFakeStack(1))
-    #m5stacs.append(MFakeStack(2))
-    #m5stacks.append(M5Stack(0))
-    #m5stacks.append(M5Stack(1))
-    #m5stacks.append(M5Stack(2))
-
-    #m5stacks.append(MFakeStack(0))
-    #m5stacks.append(MFakeStack(1))
-
-    #m5stacks.append(MFakeStack(0))
-
-    # size of displayed M5Stacks in pixels
-    m5_w = 60
-    m5_h = 60
-
-    # import things
-    #font = ImageFont.truetype('Pillow/Tests/fonts/FreeMonoBold.ttf', 40)
-    #font = ImageFont.truetype('/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf', 40)
-    #font = ImageFont.load_default()
-    font = ImageFont.truetype('FreeMonoBold.ttf', 40)
-
-    img_m5 = Image.open("m5stack.png").convert('RGBA')
-    img_m5_ghost = Image.open("m5stack_ghost.png").convert('RGBA')
-
-    img_m5 = img_m5.resize((m5_w, m5_h))
-    img_m5_ghost = img_m5_ghost.resize((m5_w, m5_h))
 
     connectionHandler = HTTPServer(('0.0.0.0', CONNECTION_HANDLER_PORT), ConnectionHandler)
     connectionHandlerThread = threading.Thread(target=ConnectionHandlerThread, args=(connectionHandler,))
@@ -404,13 +358,27 @@ if __name__ == "__main__":
 
     # main loop
     while True:
-        # set relative positions for googly eye demo
-        #m5stacks[2].setRelativePosition((0,0))
-        #m5stacks[1].setRelativePosition((0,0))
-        #m5stacks[0].setRelativePosition(m5stacks[1].getPosition())
-        #m5stacks[1].setRelativePosition(m5stacks[0].getPosition())
+        num_m5 = 0
+        m5_active = []
+
+        # create a list of tangibles on the pattern
         for m5 in m5stacks:
-            m5.setRelativePosition((0,0))
+            if not m5.alive:
+                m5.die()
+                continue
+            if not m5.liftOff:
+                num_m5 += 1
+                m5_active.append(m5)
+        
+        # set relative positions for googly eyes demo
+        # two m5stacks look at each other
+        # for more than two, it is cyclic:
+        # 1 -> 2; 2 -> 3; 3 -> 1
+        if(num_m5 > 1):
+            for i in range(num_m5):
+                m5 = m5_active[i]
+                m5_relative = m5_active[i - 1]
+                m5.setRelativePosition(m5_relative.getPosition())
 
         # background
         preview = Image.new('RGB', (SCREEN_W_PX, SCREEN_H_PX), (200, 200, 200, 255))
@@ -422,221 +390,27 @@ if __name__ == "__main__":
 
         if(mode == SHOW_LIVE_PREVIEW):
             # draw grid
+            if not IMAGE_MODE:
+                draw_grid(draw)
 
-            if not CAT_MODE:
-                num_lines_x = 8
-                for i in range(num_lines_x):
-                    line_x = int(SCREEN_W_PX / num_lines_x) * i
-                    draw.line([line_x, 0, line_x, SCREEN_H_PX], fill=128)
-                draw.line([0, int(SCREEN_H_PX * 0.33), SCREEN_W_PX, int(SCREEN_H_PX * 0.33)], fill=128)
-                draw.line([0, int(SCREEN_H_PX * 0.66), SCREEN_W_PX, int(SCREEN_H_PX * 0.66)], fill=128)
-
-            if LINE_MODE:
+            if GEOMETRY_MODE:
                 try:
-                    (x1, y1) = m5stacks[0].getPosition()
-                    if(m5count == 2):
-                        (x2, y2) = m5stacks[1].getPosition()
-                        distance = int(get_distance(x1, x2, y1, y2)) / 10.0
-                        text_position = get_center(x1, x2, y1, y2)
-                        # measure distance
-                        if x2 != 0:
-                            draw.line([x1, y1, x2, y2], fill=128, width=5)
-                            drawText.text((text_position[0] + 10, text_position[1] + 10), "{} cm".format(distance), font=font, fill=text_color)
-                    elif(m5count == 3):
+                    if(num_m5 == 2):
+                        draw_geometry_distance(draw, drawText, m5_active)
+                    elif(num_m5 == 3):
                         # show pythagoras
-                        (x2, y2) = m5stacks[1].getPosition()
-                        (x3, y3) = m5stacks[2].getPosition()
-                        if x3 != 0 and x2 != 0:
-                            arc_size = 50
-                            a1 = int(get_angle(x1, x2, y1, y2))
-                            a2 = int(get_angle(x1, x3, y1, y3))
+                        draw_geometry_pythagoras(draw, drawText, m5_active)
 
-                            b2 = int(get_angle(x2, x1, y2, y1))
-                            b1 = int(get_angle(x2, x3, y2, y3))
-
-                            c2 = int(get_angle(x3, x1, y3, y1))
-                            c1 = int(get_angle(x3, x2, y3, y2))
-
-                            theta1 = abs(a2 - a1)
-                            theta2 = abs(b2 - b1)
-                            theta3 = abs(c2 - c1)
-                            #theta1 = int(abs(get_angle_between(a1, a2)))
-
-                            #theta1 = a2 - a1
-                            #theta1 = abs((theta1 + 180) % 360 - 180)
-
-                            #print(a1, a2, theta1)
-
-
-
-                            #theta2 = abs(b2 - b1)
-                            #theta3 = 180 - (theta1 + theta2)
-
-                            draw.polygon([(x1, y1), (x2, y2), (x3, y3)], fill=(255, 255, 255))
-
-                            text_position = get_center(x1, x2, y1, y2)
-                            distance = int(get_distance(x1, x2, y1, y2)) / 10.0
-                            drawText.text((text_position[0] + 10, text_position[1] + 10), "{}cm".format(distance), font=font, fill=text_color)
-
-                            text_position = get_center(x2, x3, y2, y3)
-                            distance = int(get_distance(x2, x3, y2, y3)) / 10.0
-                            drawText.text((text_position[0] + 10, text_position[1] + 10), "{}cm".format(distance), font=font, fill=text_color)
-
-                            text_position = get_center(x1, x3, y1, y3)
-                            distance = int(get_distance(x1, x3, y1, y3)) / 10.0
-                            drawText.text((text_position[0] + 10, text_position[1] + 10), "{}cm".format(distance), font=font, fill=text_color)
-
-                            #draw.arc([x1 - arc_size, y1 - arc_size, x1 + arc_size, y1 + arc_size], min(a1, a2), max(a1, a2), fill=128, width=5)
-
-                            if(abs(min(a1, a2) - min(a1, a2) + theta1) < 180):
-                                draw.arc([x1 - arc_size, y1 - arc_size, x1 + arc_size, y1 + arc_size], min(a1, a2), min(a1, a2) + theta1, fill=128, width=5)
-                            else:
-                                draw.arc([x1 - arc_size, y1 - arc_size, x1 + arc_size, y1 + arc_size], max(a1, a2), min(a1, a2), fill=128, width=5)
-                                theta1 = 360 - abs(max(a1, a2) - min(a1, a2))
-
-                            if(abs(min(b1, b2) - min(b1, b2) + theta2) < 180):
-                                draw.arc([x2 - arc_size, y2 - arc_size, x2 + arc_size, y2 + arc_size], min(b1, b2), min(b1, b2) + theta2, fill=128, width=5)
-                            else:
-                                draw.arc([x2 - arc_size, y2 - arc_size, x2 + arc_size, y2 + arc_size], max(b1, b2), min(b1, b2), fill=128, width=5)
-                                theta2 = 360 - abs(max(b1, b2) - min(b1, b2))
-
-                            if(abs(min(c1, c2) - min(c1, c2) + theta3) < 180):
-                                draw.arc([x3 - arc_size, y3 - arc_size, x3 + arc_size, y3 + arc_size], min(c1, c2), min(c1, c2) + theta3, fill=128, width=5)
-                            else:
-                                draw.arc([x3 - arc_size, y3 - arc_size, x3 + arc_size, y3 + arc_size], max(c1, c2), min(c1, c2), fill=128, width=5)
-                                theta3 = 360 - abs(max(c1, c2) - min(c1, c2))
-
-                            drawText.text((x1 + 10, y1 + 30), "{}°".format(theta1), font=font, fill=text_color)
-                            drawText.text((x2 + 10, y2 + 30), "{}°".format(theta2), font=font, fill=text_color)
-                            drawText.text((x3 + 10, y3 + 30), "{}°".format(theta3), font=font, fill=text_color)
-
-                            #if(a1 - a2 < 0):
-                            #    draw.arc([x1 - arc_size, y1 - arc_size, x1 + arc_size, y1 + arc_size], a2, a2 + theta1, fill=128, width=5)
-                            #else:
-                            #    draw.arc([x1 - arc_size, y1 - arc_size, x1 + arc_size, y1 + arc_size], a1, a1 + theta1, fill=128, width=5)
-
-
-                            #draw.arc([x2 - arc_size, y2 - arc_size, x2 + arc_size, y2 + arc_size], min(b1, b2), min(b1, b2) + theta2, fill=128, width=5)
-
-                            #draw.arc([x3 - arc_size, y3 - arc_size, x3 + arc_size, y3 + arc_size], min(a2 + 180, a3 + 180), max(a2 + 180, a3 + 180), fill=128, width=5)
-
-                            draw.line([x1, y1, x2, y2], fill=128, width=5)
-                            draw.line([x2, y2, x3, y3], fill=128, width=5)
-                            draw.line([x1, y1, x3, y3], fill=128, width=5)
                 except Exception as e:
                     print(e)
-                    print("LINE_MODE: could not draw lines - too few M5Stacks?")
-
-
+                    print("GEOMETRY_MODE: could not draw lines - too few M5Stacks?")
 
             # draw M5Stacks
-            for m5 in m5stacks:
-                if(m5.alive == False):
-                    m5.die()
-                    continue
-
-                (x, y) = m5.getPosition() # in pixels
-                x = round(x, 2)
-                y = round(y, 2)
-
-                (abs_x, abs_y) = m5.absolute_coords # in pixels
-
-                img_m5_temp = img_m5.copy()
-
-                # draw raw image on the virtual M5Stack's Display
-                try:
-                    pattern = Image.fromarray(m5.raw_img).convert('RGBA')
-                    img_m5_temp.paste(pattern, (12, 8), pattern)
-                except:
-                    print("could not load image")
-                    pass
-
-                # adjust rotation
-                img_m5_temp = img_m5_temp.rotate(360 - m5.last_angle)
-
-                # draw text with coordinates
-                text_color = (50, 0, 200, 255)
-                if(m5.hasMoved() and not CAT_MODE):
-                    text_color = (200, 0, 50, 255)
-                    preview.paste(img_m5_ghost, (int(abs_x - (m5_w / 2)), int(abs_y - (m5_h / 2))), img_m5)
-                drawText.text((10, (m5.number+1) * 50), "{}, {}".format(x, y), font=font, fill=text_color)
-                preview.paste(img_m5_temp, (int(x - (m5_w / 2)), int(y - (m5_h / 2))), img_m5)
-
-
-            preview.paste(text, (0, 0), text)
-        elif(mode == SHOW_ONLY_ABSOLUTE):
-
-            if not CAT_MODE:
-                # draw grid
-                num_lines_x = 8
-                for i in range(num_lines_x):
-                    line_x = int(SCREEN_W_PX / num_lines_x) * i
-                    draw.line([line_x, 0, line_x, SCREEN_H_PX], fill=128)
-                draw.line([0, int(SCREEN_H_PX * 0.33), SCREEN_W_PX, int(SCREEN_H_PX * 0.33)], fill=128)
-                draw.line([0, int(SCREEN_H_PX * 0.66), SCREEN_W_PX, int(SCREEN_H_PX * 0.66)], fill=128)
-
-
-            # draw M5Stacks
-            for m5 in m5stacks:
-                if(m5.alive == False):
-                    m5.die()
-                    continue
-
-                (x, y) = m5.getPosition() # in pixels
-                x = round(x, 2)
-                y = round(y, 2)
-
-                (abs_x, abs_y) = m5.absolute_coords # in pixels
-
-                img_m5_temp = img_m5.copy()
-
-                # draw raw image on the virtual M5Stack's Display
-                try:
-                    pattern = Image.fromarray(m5.raw_img).convert('RGBA')
-                    img_m5_temp.paste(pattern, (12, 8), pattern)
-                except:
-                    pass
-
-                # adjust rotation
-                img_m5_temp = img_m5_temp.rotate(360 - m5.last_angle)
-
-                # draw text with coordinates
-                text_color = (50, 0, 200, 255)
-                preview.paste(img_m5_temp, (int(abs_x - (m5_w / 2)), int(abs_y - (m5_h / 2))), img_m5)
-                drawText.text((10, (m5.number+1) * 50), "{}, {}".format(x, y), font=font, fill=text_color)
-                #preview.paste(img_m5_temp, (int(x - (m5_w / 2)), int(y - (m5_h / 2))), img_m5)
-
-
-            preview.paste(text, (0, 0), text)
+            draw_m5stacks(preview, text, draw, drawText, m5_active, show_relative=SHOW_RELATIVE_POSITION)
         elif(mode == SHOW_SENSOR_IMAGE):
-            m5 = m5stacks[0]
-            pattern = Image.fromarray(m5.raw_img).convert('RGBA')
-            pattern = pattern.resize((SENSOR_IMAGE_WIDTH, SENSOR_IMAGE_HEIGHT), Image.NEAREST)
-            preview.paste(pattern, (int(SCREEN_W_PX / 2 - SENSOR_IMAGE_WIDTH / 2), int(SCREEN_H_PX / 2 - SENSOR_IMAGE_HEIGHT / 2)), pattern)
+            show_sensor_image(preview, draw, m5_active[0])
         elif(mode == SHOW_CUPBOARD_DEMO):
-            m5 = m5stacks[0]
-
-            for i in range(3):
-                if( m5.getPosition()[0] > i * (SCREEN_W_PX / 3) and
-                    m5.getPosition()[0] < (i + 1) * (SCREEN_W_PX / 3)):
-                    color = (255, 0, 0)
-                else:
-                    color = (50, 50, 50)
-
-                left = int(SCREEN_W_PX * 0.1)
-                right = int(SCREEN_W_PX * 0.9)
-                top = int(SCREEN_H_PX * 0.1) + i * (SCREEN_H_PX / 4)
-                bottom = top + (SCREEN_H_PX / 4)
-
-                draw.rectangle([left, 
-                                top,
-                                right,
-                                bottom],
-                                fill=color,
-                                outline=(0, 0, 0),
-                                width=5)
-
-
+            show_cupboard_demo(draw, m5_active[0])
 
         # display the image with OpenCV as PIL can't do real time things
         out = cv2.cvtColor(np.array(preview), cv2.COLOR_BGR2RGB)
@@ -651,17 +425,17 @@ if __name__ == "__main__":
         elif(key == ord('a')):
             mode = SHOW_LIVE_PREVIEW
         elif(key == ord('w')):
-            mode = SHOW_ONLY_ABSOLUTE
+            SHOW_RELATIVE_POSITION = not SHOW_RELATIVE_POSITION
         elif(key == ord('s')):
             mode = SHOW_SENSOR_IMAGE
         elif(key == ord('d')):
             mode = SHOW_CUPBOARD_DEMO
         elif(key == ord('c')):
-            CAT_MODE = not CAT_MODE
+            IMAGE_MODE = not IMAGE_MODE
         elif(key == ord('l')):
-            LINE_MODE = not LINE_MODE
+            GEOMETRY_MODE = not GEOMETRY_MODE
         elif(key == ord('x')):
-            m5stacks.append(MFakeStack(2))
+            m5stacks.append(MFakeStack(m5count))
             m5count += 1
 
     connectionHandler.server_close()
