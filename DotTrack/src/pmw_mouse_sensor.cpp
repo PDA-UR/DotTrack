@@ -95,6 +95,7 @@ void setup()
     }
 
     ConnectToWiFi();
+    GetPorts();
     ConnectToServer();
 
     debug2("startup done");
@@ -176,7 +177,7 @@ void loop()
         {
             if(last_x_rel != 0 && last_y_rel != 0)
             {
-                sendCoordinates((int)(last_x_rel * 10000), (int)(last_y_rel * 10000));
+                sendCoordinates((int)(last_x_rel * 10000), (int)(last_y_rel * 10000), liftOff);
             }
         }
     }

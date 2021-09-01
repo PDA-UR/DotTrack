@@ -2,7 +2,7 @@
 #define __utils__
 
 #include <M5Stack.h>
-#define DEBUG_LEVEL 0
+#define DEBUG_LEVEL 2
 
 void debug(String message);
 void debug2(String message);

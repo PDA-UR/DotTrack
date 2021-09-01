@@ -239,3 +239,5 @@ output-*
 frame-*
 
 .swp
+
+DotTrack/src/config.hpp
