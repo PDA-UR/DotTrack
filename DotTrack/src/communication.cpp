@@ -1,6 +1,7 @@
 #include "pmw_mouse_sensor.hpp"
 #include <HTTPClient.h>
 
+// default values, will be reset by GetPorts()
 int PORT_IMAGE = 8090;
 int PORT_COORD = 9090;
 
@@ -73,14 +74,7 @@ void ConnectToServer()
     {
         debug2("connection failed");
 
-        //PORT_IMAGE++;
-        //PORT_COORD++;
         delay(1000);
-        
-        // AS: TEMPORARY CODE!
-        // makes m5stack work even without a successful server connection
-        client.connect(HOST_IP, PORT_IMAGE);
-        break;
     }
 
     udp.begin(PORT_COORD);
