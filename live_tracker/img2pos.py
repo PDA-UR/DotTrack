@@ -86,6 +86,7 @@ class M5Stack:
     absolute_coords = (0, 0) # coordinates of last successful decoded pattern in pixels
     angle = 0 # rotation of the tangible in degrees (currently only 0, 90, 180, 270)
     distance = 0
+    power = 0
 
     # duplicate of coords
     # used as a backup if determining the position of the tangible is not successful
@@ -168,7 +169,8 @@ class M5Stack:
 
                 x = (int(tmp[0][4:]) / 10000) * SCREEN_W_PX
                 y = (int(tmp[1][2:]) / 10000) * SCREEN_H_PX
-                self.liftOff = bool(int(tmp[2][2:-2]))
+                self.liftOff = bool(int(tmp[2][2:]))
+                self.power = int(tmp[3][2:-2])
 
                 if(get_distance(x, self.coords[0], y, self.coords[1]) > 5):
                     self.has_moved = True
@@ -181,7 +183,11 @@ class M5Stack:
         buf = b''
 
         while True:
-            received = self.conn.recv(BUFFER_SIZE)
+            try:
+                received = self.conn.recv(BUFFER_SIZE)
+            except ConnectionResetError:
+                self.die()
+
             if received == b'':
                 print(self.number, "connection broken")
                 return None
@@ -289,6 +295,7 @@ class MFakeStack(M5Stack):
 
     def __init__(self, number):
         self.liftOff = False
+        self.power = 0
         self.alive = True
         self.number = number
         self.x_speed = 0
@@ -397,9 +404,11 @@ if __name__ == '__main__':
             # draw M5Stacks
             draw_m5stacks(preview, text, draw, drawText, m5_active, show_relative=SHOW_RELATIVE_POSITION)
         elif(mode == SHOW_SENSOR_IMAGE):
-            show_sensor_image(preview, draw, m5_active[0])
+            if(num_m5 > 0):
+                show_sensor_image(preview, draw, m5_active[0])
         elif(mode == SHOW_CUPBOARD_DEMO):
-            show_cupboard_demo(draw, m5_active[0])
+            if(num_m5 > 0):
+                show_cupboard_demo(draw, m5_active[0])
 
         # display the image with OpenCV as PIL can't do real time things
         out = cv2.cvtColor(np.array(preview), cv2.COLOR_BGR2RGB)

@@ -12,6 +12,7 @@ m5_h = 60
 
 # import things
 font = ImageFont.truetype('FreeMonoBold.ttf', 40)
+font_battery = ImageFont.truetype('FreeMonoBold.ttf', 16)
 
 img_m5 = Image.open("m5stack.png").convert('RGBA')
 img_m5_ghost = Image.open("m5stack_ghost.png").convert('RGBA')
@@ -149,6 +150,7 @@ def draw_m5stacks(preview, text, draw, drawText, m5stacks, show_relative=True):
             preview.paste(img_m5_ghost, (int(abs_x - (m5_w / 2)), int(abs_y - (m5_h / 2))), img_m5)
         drawText.text((10, (m5.number+1) * 50), "{}, {}".format(x, y), font=font, fill=text_color)
         preview.paste(img_m5_temp, (int(x - (m5_w / 2)), int(y - (m5_h / 2))), img_m5)
+        drawText.text((x - 20, y + 35), '{}'.format(m5.power), font=font_battery, fill=TEXT_COLOR_RED)
 
     preview.paste(text, (0, 0), text)
 

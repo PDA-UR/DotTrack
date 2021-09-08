@@ -159,7 +159,7 @@ void GetPorts();
 void ConnectToWiFi();
 void ConnectToServer();
 void sendRawOverWifi();
-void sendCoordinates(int x, int y, bool liftOff);
+void sendCoordinates(int x, int y, bool liftOff, uint8_t power);
 void drawCoordinates(float x, float y);
 void drawDirection();
 void updateRelativePosition();

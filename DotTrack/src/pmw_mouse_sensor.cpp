@@ -175,9 +175,10 @@ void loop()
 
         if(coordUpdateTimer.tick())
         {
+            uint8_t power = M5.Power.getBatteryLevel();
             if(last_x_rel != 0 && last_y_rel != 0)
             {
-                sendCoordinates((int)(last_x_rel * 10000), (int)(last_y_rel * 10000), liftOff);
+                sendCoordinates((int)(last_x_rel * 10000), (int)(last_y_rel * 10000), liftOff, power);
             }
         }
     }
