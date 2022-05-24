@@ -80,6 +80,7 @@ class M5Stack:
     liftOff = True # False if on a surface, True if lift off
     coords = (0, 0) # current coordinates in pixels
     absolute_coords = (0, 0) # coordinates of last successful decoded pattern in pixels
+    last_coords = (0, 0)
     angle = 0 # rotation of the tangible in degrees (currently only 0, 90, 180, 270)
     distance = 0
     power = 0
@@ -103,6 +104,8 @@ class M5Stack:
     binarized_img = None # binarized version of last raw sensor image (6x6 1 bit np.array)
 
     has_moved = False # was there an update of relative position since the last absolute position?
+
+    was_lift_off = False
 
     # register a new tangible
     # passed number is used to identify the device and generate unique ports
@@ -278,7 +281,14 @@ class M5Stack:
                 message = '{}|{}|{}|{}|{};\n'.format(coord1, coord2, angle, self.eyeAngle, self.distance)
                 self.lastX = coord1
                 self.lastY = coord2
+                self.last_coords = self.absolute_coords
                 self.absolute_coords = (int((x_in_mm / CROP_W_MM) * SCREEN_W_PX), int((y_in_mm / CROP_H_MM) * SCREEN_H_PX))
+                if not self.was_lift_off:
+                    if get_distance(self.absolute_coords[0], self.absolute_coords[1], self.last_coords[0], self.last_coords[1]) > 50:
+                        self.absolute_coords = self.last_coords
+
+                self.was_lift_off = False
+
                 self.last_angle = angle
                 self.has_moved = False
                 #self.coords = self.absolute_coords # AS maybe needed?
