@@ -22,6 +22,8 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from dottrack import get_coords
 from demos import *
+from config import SCREEN_W_PX, SCREEN_H_PX, IMAGE_MODE, GEOMETRY_MODE
+from angle_detector import calculate_angle, angular_distance
 
 imgsize = [36, 36] # resolution of the sensor/camera
 img_byte_len = imgsize[0] * imgsize[1]
@@ -29,12 +31,6 @@ img_byte_len = imgsize[0] * imgsize[1]
 # size of the printed DBT in millimeters
 CROP_W_MM = 1390
 CROP_H_MM = 707
-
-SCREEN_W_PX = 1920
-SCREEN_H_PX = 1080
-
-IMAGE_MODE = False    # display image in the background
-GEOMETRY_MODE = False # show geometry demo with distance and pythagoras
 
 m5stacks = [] # list of all tangibles
 m5count = 0   # total number of tangibles
@@ -84,8 +80,11 @@ class M5Stack:
     liftOff = True # False if on a surface, True if lift off
     coords = (0, 0) # current coordinates in pixels
     absolute_coords = (0, 0) # coordinates of last successful decoded pattern in pixels
+    last_coords = (0, 0)
     angle = 0 # rotation of the tangible in degrees (currently only 0, 90, 180, 270)
     distance = 0
+    power = 0
+    orientation = 0
 
     # duplicate of coords
     # used as a backup if determining the position of the tangible is not successful
@@ -93,6 +92,7 @@ class M5Stack:
     lastX = 0
     lastY = 0
     last_angle = 0
+    orientation_list = []
 
     eyeAngle = 0 # view rotation of the eye for googly eyes demo
 
@@ -104,6 +104,8 @@ class M5Stack:
     binarized_img = None # binarized version of last raw sensor image (6x6 1 bit np.array)
 
     has_moved = False # was there an update of relative position since the last absolute position?
+
+    was_lift_off = False
 
     # register a new tangible
     # passed number is used to identify the device and generate unique ports
@@ -168,7 +170,14 @@ class M5Stack:
 
                 x = (int(tmp[0][4:]) / 10000) * SCREEN_W_PX
                 y = (int(tmp[1][2:]) / 10000) * SCREEN_H_PX
-                self.liftOff = bool(int(tmp[2][2:-2]))
+                self.liftOff = bool(int(tmp[2][2:]))
+                #print(self.liftOff)
+                self.power = int(tmp[3][2:])
+                gyro = int(tmp[4][2:-2]) / 10000.0
+
+                if self.liftOff:
+                    self.orientation_list = []
+                    self.was_lift_off = True
 
                 if(get_distance(x, self.coords[0], y, self.coords[1]) > 5):
                     self.has_moved = True
@@ -181,7 +190,12 @@ class M5Stack:
         buf = b''
 
         while True:
-            received = self.conn.recv(BUFFER_SIZE)
+            try:
+                received = self.conn.recv(BUFFER_SIZE)
+            except ConnectionResetError:
+                print("ConnectionResetError")
+                self.die()
+
             if received == b'':
                 print(self.number, "connection broken")
                 return None
@@ -232,13 +246,33 @@ class M5Stack:
                 break
             message = 'failed\n'
 
+            self.last_orientation = self.orientation
+
+            self.orientation = int(calculate_angle(img))
+
+            #self.orientation_list.append(self.orientation)
+            #if len(self.orientation_list) > 3:
+            #    self.orientation_list = self.orientation_list[1:]
+            #self.orientation = np.median(self.orientation_list)
+
+            self.last_angle = (self.last_angle - self.last_orientation + self.orientation) % 360
             # decode position of the sensor image
-            (x_in_mm, y_in_mm), confidence, angle, self.binarized_img, anchor = get_coords(img)
+            (x_in_mm, y_in_mm), confidence, angle, self.binarized_img, anchor = get_coords(img, self.orientation)
             # adjust rotation (sensor looks sideways)
             if not IMAGE_MODE:
                 angle = (angle + 270) % 360
             else:
                 angle = (angle) % 360
+
+            #if not self.was_lift_off:
+            #    if angular_distance(angle, self.last_angle, 360) > 90:
+            #        if angle > self.last_angle:
+            #            angle -= 90
+            #        else:
+            #            angle += 90
+            #angle = angle % 360
+
+
             if(confidence >= 83): # position successfully decoded
                 (coord1, coord2) = convert_coords(x_in_mm, y_in_mm)
 
@@ -247,7 +281,14 @@ class M5Stack:
                 message = '{}|{}|{}|{}|{};\n'.format(coord1, coord2, angle, self.eyeAngle, self.distance)
                 self.lastX = coord1
                 self.lastY = coord2
+                self.last_coords = self.absolute_coords
                 self.absolute_coords = (int((x_in_mm / CROP_W_MM) * SCREEN_W_PX), int((y_in_mm / CROP_H_MM) * SCREEN_H_PX))
+                if not self.was_lift_off:
+                    if get_distance(self.absolute_coords[0], self.absolute_coords[1], self.last_coords[0], self.last_coords[1]) > 50:
+                        self.absolute_coords = self.last_coords
+
+                self.was_lift_off = False
+
                 self.last_angle = angle
                 self.has_moved = False
                 #self.coords = self.absolute_coords # AS maybe needed?
@@ -289,6 +330,7 @@ class MFakeStack(M5Stack):
 
     def __init__(self, number):
         self.liftOff = False
+        self.power = 0
         self.alive = True
         self.number = number
         self.x_speed = 0
@@ -337,6 +379,7 @@ if __name__ == '__main__':
     SHOW_LIVE_PREVIEW = 0
     SHOW_SENSOR_IMAGE = 1
     SHOW_CUPBOARD_DEMO = 2
+    SHOW_ANGLE = 3
     SHOW_RELATIVE_POSITION = True
 
     mode = SHOW_LIVE_PREVIEW
@@ -397,9 +440,14 @@ if __name__ == '__main__':
             # draw M5Stacks
             draw_m5stacks(preview, text, draw, drawText, m5_active, show_relative=SHOW_RELATIVE_POSITION)
         elif(mode == SHOW_SENSOR_IMAGE):
-            show_sensor_image(preview, draw, m5_active[0])
+            if(num_m5 > 0):
+                show_sensor_image(preview, draw, m5_active[0])
         elif(mode == SHOW_CUPBOARD_DEMO):
-            show_cupboard_demo(draw, m5_active[0])
+            if(num_m5 > 0):
+                show_cupboard_demo(draw, m5_active[0])
+        elif(mode == SHOW_ANGLE):
+            if(num_m5 > 0):
+                show_angle(draw, drawText, text, preview, m5_active[0])
 
         # display the image with OpenCV as PIL can't do real time things
         out = cv2.cvtColor(np.array(preview), cv2.COLOR_BGR2RGB)
@@ -415,6 +463,8 @@ if __name__ == '__main__':
             mode = SHOW_LIVE_PREVIEW
         elif(key == ord('w')):
             SHOW_RELATIVE_POSITION = not SHOW_RELATIVE_POSITION
+        elif(key == ord('e')):
+            mode = SHOW_ANGLE
         elif(key == ord('s')):
             mode = SHOW_SENSOR_IMAGE
         elif(key == ord('d')):

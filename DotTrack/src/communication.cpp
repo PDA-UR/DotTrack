@@ -100,10 +100,10 @@ void sendRawOverSerial()
     Serial.write(0xFE);
 }
 
-void sendCoordinates(int x, int y, bool liftOff)
+void sendCoordinates(int x, int y, bool liftOff, uint8_t power, int gyro)
 {
     char buffer[50];
-    sprintf(buffer, "x:%d|y:%d|l:%d;", x, y, liftOff);
+    sprintf(buffer, "x:%d|y:%d|l:%d|p:%d|g:%d;", x, y, liftOff, power, gyro);
     int len;
     uint8_t buffer_uint[50];
     for(int i = 0; i < 50; i++)

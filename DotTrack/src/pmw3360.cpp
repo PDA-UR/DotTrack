@@ -318,23 +318,39 @@ void updateMotBrValues()
 
 void evalLiftOffBuffer()
 {
-    bool temp, tempOld;
+    //bool temp, tempOld;
+    //for(auto i = 0; i < LIFT_OFF_BUF_LEN; i++)
+    //{
+    //    temp = liftOffBuffer[i];
+    //    if(i != 0)
+    //    {
+    //        if(temp != tempOld)
+    //        {
+    //            break;
+    //        }
+    //        else if(i == LIFT_OFF_BUF_LEN - 1)
+    //        {
+    //            cumLiftOff = temp;
+    //        }
+    //    }
+    //    tempOld = temp;
+    //}
+    //int count[2];
+
     for(auto i = 0; i < LIFT_OFF_BUF_LEN; i++)
     {
-        temp = liftOffBuffer[i];
-        if(i != 0)
+        //count[liftOffBuffer[i]]++;
+        if(liftOffBuffer[i] == 1)
         {
-            if(temp != tempOld)
-            {
-                break;
-            }
-            else if(i == LIFT_OFF_BUF_LEN - 1)
-            {
-                cumLiftOff = temp;
-            }
+            cumLiftOff = 1;
+            return;
         }
-        tempOld = temp;
     }
+
+    cumLiftOff = 0;
+
+    //if(count[0] > count[1]) return 0;
+    //else return 1;
 }
 
 void performSROMdownload()

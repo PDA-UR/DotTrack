@@ -1,7 +1,8 @@
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 import math
 import numpy as np
-from img2pos import SCREEN_W_PX, SCREEN_H_PX, IMAGE_MODE, GEOMETRY_MODE
+from config import SCREEN_W_PX, SCREEN_H_PX, IMAGE_MODE, GEOMETRY_MODE
+from angle_detector import calculate_angle
 
 TEXT_COLOR_RED = (50, 0, 200, 255)
 TEXT_COLOR_BLUE = (200, 0, 50, 255)
@@ -12,6 +13,8 @@ m5_h = 60
 
 # import things
 font = ImageFont.truetype('FreeMonoBold.ttf', 40)
+font_angle = ImageFont.truetype('FreeMonoBold.ttf', 250)
+font_battery = ImageFont.truetype('FreeMonoBold.ttf', 16)
 
 img_m5 = Image.open("m5stack.png").convert('RGBA')
 img_m5_ghost = Image.open("m5stack_ghost.png").convert('RGBA')
@@ -140,7 +143,8 @@ def draw_m5stacks(preview, text, draw, drawText, m5stacks, show_relative=True):
             pass
 
         # adjust rotation
-        img_m5_temp = img_m5_temp.rotate(360 - m5.last_angle)
+        img_m5_temp = img_m5_temp.rotate(360 - (m5.last_angle), expand=True)
+        #img_m5 = img_m5.rotate(360 - (m5.last_angle), expand=True)
 
         # draw text with coordinates
         text_color = TEXT_COLOR_RED
@@ -148,7 +152,10 @@ def draw_m5stacks(preview, text, draw, drawText, m5stacks, show_relative=True):
             text_color = TEXT_COLOR_BLUE
             preview.paste(img_m5_ghost, (int(abs_x - (m5_w / 2)), int(abs_y - (m5_h / 2))), img_m5)
         drawText.text((10, (m5.number+1) * 50), "{}, {}".format(x, y), font=font, fill=text_color)
-        preview.paste(img_m5_temp, (int(x - (m5_w / 2)), int(y - (m5_h / 2))), img_m5)
+        preview.paste(img_m5_temp, (int(x - (img_m5_temp.size[0] / 2)), int(y - (img_m5_temp.size[1] / 2))), img_m5_temp)
+
+        # show battery status
+        drawText.text((x - 20, y + 35), '{}'.format(m5.power), font=font_battery, fill=TEXT_COLOR_RED)
 
     preview.paste(text, (0, 0), text)
 
@@ -172,6 +179,12 @@ def show_cupboard_demo(draw, m5):
                         fill=color,
                         outline=(0, 0, 0),
                         width=5)
+
+def show_angle(draw, drawText, text, preview, m5):
+    text_color = TEXT_COLOR_RED
+    angle = m5.last_angle# + m5.orientation  #calculate_angle(m5.raw_img)
+    drawText.text((700, 400), "{}°".format(angle), font=font_angle, fill=text_color)
+    preview.paste(text, (0, 0), text)
 
 def show_sensor_image(preview, draw, m5):
     SENSOR_IMAGE_WIDTH = 1000

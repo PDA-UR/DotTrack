@@ -1,6 +1,9 @@
 #ifndef __pmw_mouse_sensor_hpp__
 #define __pmw_mouse_sensor_hpp__
 
+// for IMU
+#define M5STACK_MPU6886
+
 #include <Arduino.h>
 #include <M5Stack.h>
 #include <M5StackUpdater.h>
@@ -159,8 +162,9 @@ void GetPorts();
 void ConnectToWiFi();
 void ConnectToServer();
 void sendRawOverWifi();
-void sendCoordinates(int x, int y, bool liftOff);
+void sendCoordinates(int x, int y, bool liftOff, uint8_t power, int gyro);
 void drawCoordinates(float x, float y);
+void drawAngle(int angle);
 void drawDirection();
 void updateRelativePosition();
 void drawRelativePosition();
