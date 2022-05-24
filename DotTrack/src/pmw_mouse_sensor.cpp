@@ -1,7 +1,8 @@
 #include "pmw_mouse_sensor.hpp"
 
-#define MODE_EYE 0
-#define MODE_RAW 1
+#define MODE_EYE 1
+#define MODE_RAW 0
+#define MODE_ANGLE 0
 #define MODE_WALDO 0
 #define MODE_STREAM 0 // don't send coordinates, otherwise like raw mode
 
@@ -24,6 +25,10 @@ bool frameCapture;
 
 bool wasLiftOff = false;
 
+float gyroX = 0.0F;
+float gyroY = 0.0F;
+float gyroZ = 0.0F;
+
 void setup()
 {
     // Initialize the M5Stack object
@@ -33,6 +38,9 @@ void setup()
 
     // Needed for M5Stack-SD-Updater
     Wire.begin();
+
+    // initialize IMU
+    M5.IMU.Init();
 
     // Turn off/disconnect speaker
     // Source: https://twitter.com/Kongduino/status/980466157701423104
@@ -156,7 +164,7 @@ void loop()
     {
         captureRawImage(rawData, rawDataLength);
         sendRawOverWifi();
-        sendRawOverSerial();
+        //sendRawOverSerial();
         receiving = true;
     }
 
@@ -173,12 +181,14 @@ void loop()
         updateMotBrValues();
         updateRelativePosition();
 
+        M5.IMU.getGyroData(&gyroX,&gyroY,&gyroZ);
+
         if(coordUpdateTimer.tick())
         {
             uint8_t power = M5.Power.getBatteryLevel();
             if(last_x_rel != 0 && last_y_rel != 0)
             {
-                sendCoordinates((int)(last_x_rel * 10000), (int)(last_y_rel * 10000), liftOff, power);
+                sendCoordinates((int)(last_x_rel * 10000), (int)(last_y_rel * 10000), cumLiftOff, power, (int)(gyroZ * 10000));
             }
         }
     }
@@ -218,6 +228,11 @@ void loop()
             Waldo::updateWaldo(img, xyDelta[0], xyDelta[1]);
             img.pushSprite(0, 0);
         }
+        if(MODE_ANGLE)
+        {
+            drawAngle(angle);
+            img.pushSprite(30, 0);
+        }
     }
 
     M5.update();
@@ -244,6 +259,14 @@ void drawImageToDisplay()
             img.fillRect((W_IMG-x)*PIX_RSZ, y*PIX_RSZ, PIX_RSZ, PIX_RSZ, color);
         }
     }
+}
+
+void drawAngle(int angle)
+{
+    img.fillRect(0, 0, W_DISP, H_DISP, BLACK);
+    String angle_string = String(angle) + " deg";
+    img.setTextDatum(MC_DATUM);
+    img.drawString(angle_string, 200, 120, 8);
 }
 
 // draws directly to the LCD
