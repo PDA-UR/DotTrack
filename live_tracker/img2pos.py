@@ -22,6 +22,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from dottrack import get_coords
 from demos import *
+from angle_detector import calculate_angle, angular_distance
 
 imgsize = [36, 36] # resolution of the sensor/camera
 img_byte_len = imgsize[0] * imgsize[1]
@@ -87,6 +88,7 @@ class M5Stack:
     angle = 0 # rotation of the tangible in degrees (currently only 0, 90, 180, 270)
     distance = 0
     power = 0
+    orientation = 0
 
     # duplicate of coords
     # used as a backup if determining the position of the tangible is not successful
@@ -94,6 +96,7 @@ class M5Stack:
     lastX = 0
     lastY = 0
     last_angle = 0
+    orientation_list = []
 
     eyeAngle = 0 # view rotation of the eye for googly eyes demo
 
@@ -170,7 +173,13 @@ class M5Stack:
                 x = (int(tmp[0][4:]) / 10000) * SCREEN_W_PX
                 y = (int(tmp[1][2:]) / 10000) * SCREEN_H_PX
                 self.liftOff = bool(int(tmp[2][2:]))
-                self.power = int(tmp[3][2:-2])
+                #print(self.liftOff)
+                self.power = int(tmp[3][2:])
+                gyro = int(tmp[4][2:-2]) / 10000.0
+
+                if self.liftOff:
+                    self.orientation_list = []
+                    self.was_lift_off = True
 
                 if(get_distance(x, self.coords[0], y, self.coords[1]) > 5):
                     self.has_moved = True
@@ -186,6 +195,7 @@ class M5Stack:
             try:
                 received = self.conn.recv(BUFFER_SIZE)
             except ConnectionResetError:
+                print("ConnectionResetError")
                 self.die()
 
             if received == b'':
@@ -238,13 +248,33 @@ class M5Stack:
                 break
             message = 'failed\n'
 
+            self.last_orientation = self.orientation
+
+            self.orientation = int(calculate_angle(img))
+
+            #self.orientation_list.append(self.orientation)
+            #if len(self.orientation_list) > 3:
+            #    self.orientation_list = self.orientation_list[1:]
+            #self.orientation = np.median(self.orientation_list)
+
+            self.last_angle = (self.last_angle - self.last_orientation + self.orientation) % 360
             # decode position of the sensor image
-            (x_in_mm, y_in_mm), confidence, angle, self.binarized_img, anchor = get_coords(img)
+            (x_in_mm, y_in_mm), confidence, angle, self.binarized_img, anchor = get_coords(img, self.orientation)
             # adjust rotation (sensor looks sideways)
             if not IMAGE_MODE:
                 angle = (angle + 270) % 360
             else:
                 angle = (angle) % 360
+
+            #if not self.was_lift_off:
+            #    if angular_distance(angle, self.last_angle, 360) > 90:
+            #        if angle > self.last_angle:
+            #            angle -= 90
+            #        else:
+            #            angle += 90
+            #angle = angle % 360
+
+
             if(confidence >= 83): # position successfully decoded
                 (coord1, coord2) = convert_coords(x_in_mm, y_in_mm)
 

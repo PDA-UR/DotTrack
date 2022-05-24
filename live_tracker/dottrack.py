@@ -14,6 +14,7 @@ from generate_dbt import TorusGenerator
 from collections import Counter
 import cv2
 from decode_dbt import decode_dbt_positions
+#from angle_detector import calculate_angle
 
 imgsize = [36, 36]
 
@@ -34,6 +35,13 @@ top_shift = -1
 left_shift = -1
 
 pipeline = ["denoise_foil", "adaptive", "rescale"]
+
+# https://stackoverflow.com/questions/9041681/opencv-python-rotate-image-by-x-degrees-around-specific-point
+def rotate_image(image, angle):
+  image_center = tuple(np.array(image.shape[1::-1]) / 2)
+  rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+  result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
+  return result
 
 def extract_bitarray(img_array, pipeline_id):
     bit_array = np.zeros((int(num_ppx[1]), int(num_ppx[0])), dtype="uint8")
@@ -181,10 +189,12 @@ def calculate_confidence_diagonals(dbt_positions):
     position = most_common[0][0]
     return confidence, position
 
-def get_coords(subframe, pipeline_id=pipeline): # Pillow Image with 36x36 px
+def get_coords(subframe, orientation, pipeline_id=pipeline): # Pillow Image with 36x36 px
     dbt_gen = TorusGenerator(DBT_W, DBT_H, WIN_W, WIN_H)
     dbt_log = dbt_gen.constr_log
     dbt_fname = dbt_log[-1].fname
+
+    #orientation = calculate_angle(subframe)
 
     original = subframe
 
@@ -204,6 +214,11 @@ def get_coords(subframe, pipeline_id=pipeline): # Pillow Image with 36x36 px
 
     # preprocess the normalized image and binarize it
     subframe = preprocess_image(normalized, pipeline_id)
+
+    # hangle orientation
+    subframe_bordered = cv2.copyMakeBorder(subframe, 10, 10, 10, 10, cv2.BORDER_REPLICATE, None)
+    subframe_rotated = rotate_image(subframe_bordered, -orientation)
+    subframe = subframe_rotated[10:-10, 10:-10]
 
     # convert it down to a 6 by 6 pixel array
     bit_array, anchor, angle2 = extract_bitarray(subframe, pipeline_id)
@@ -284,6 +299,8 @@ def get_coords(subframe, pipeline_id=pipeline): # Pillow Image with 36x36 px
     rotation = best_confidence_i * 90
 
     real_position = calculate_real_positions([position])[0]
+
+    rotation = (rotation + orientation) % 360
 
     total_time = time.perf_counter() - start_time
 
