@@ -1,7 +1,7 @@
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 import math
 import numpy as np
-from img2pos import SCREEN_W_PX, SCREEN_H_PX, IMAGE_MODE, GEOMETRY_MODE
+from config import SCREEN_W_PX, SCREEN_H_PX, IMAGE_MODE, GEOMETRY_MODE
 
 TEXT_COLOR_RED = (50, 0, 200, 255)
 TEXT_COLOR_BLUE = (200, 0, 50, 255)

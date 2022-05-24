@@ -22,6 +22,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from dottrack import get_coords
 from demos import *
+from config import SCREEN_W_PX, SCREEN_H_PX, IMAGE_MODE, GEOMETRY_MODE
 from angle_detector import calculate_angle, angular_distance
 
 imgsize = [36, 36] # resolution of the sensor/camera
@@ -30,12 +31,6 @@ img_byte_len = imgsize[0] * imgsize[1]
 # size of the printed DBT in millimeters
 CROP_W_MM = 1390
 CROP_H_MM = 707
-
-SCREEN_W_PX = 1920
-SCREEN_H_PX = 1080
-
-IMAGE_MODE = False    # display image in the background
-GEOMETRY_MODE = False # show geometry demo with distance and pythagoras
 
 m5stacks = [] # list of all tangibles
 m5count = 0   # total number of tangibles
