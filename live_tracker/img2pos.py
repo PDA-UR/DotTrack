@@ -369,6 +369,7 @@ if __name__ == '__main__':
     SHOW_LIVE_PREVIEW = 0
     SHOW_SENSOR_IMAGE = 1
     SHOW_CUPBOARD_DEMO = 2
+    SHOW_ANGLE = 3
     SHOW_RELATIVE_POSITION = True
 
     mode = SHOW_LIVE_PREVIEW
@@ -434,6 +435,9 @@ if __name__ == '__main__':
         elif(mode == SHOW_CUPBOARD_DEMO):
             if(num_m5 > 0):
                 show_cupboard_demo(draw, m5_active[0])
+        elif(mode == SHOW_ANGLE):
+            if(num_m5 > 0):
+                show_angle(draw, drawText, text, preview, m5_active[0])
 
         # display the image with OpenCV as PIL can't do real time things
         out = cv2.cvtColor(np.array(preview), cv2.COLOR_BGR2RGB)
@@ -449,6 +453,8 @@ if __name__ == '__main__':
             mode = SHOW_LIVE_PREVIEW
         elif(key == ord('w')):
             SHOW_RELATIVE_POSITION = not SHOW_RELATIVE_POSITION
+        elif(key == ord('e')):
+            mode = SHOW_ANGLE
         elif(key == ord('s')):
             mode = SHOW_SENSOR_IMAGE
         elif(key == ord('d')):
