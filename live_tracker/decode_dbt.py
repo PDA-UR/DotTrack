@@ -5,11 +5,21 @@
 # 
 # (C) 2018 - 2019 Dennis Schüsselbauer (original code)  
 # (C) 2020 Raphael Wimmer (porting, cleanup)
-# (C) 2020 Andreas Schmid (cleanup)
+# (C) 2020 - 2022 Andreas Schmid (cleanup, optimization)
 
 from skimage import io
 from torus import Torus
 import numpy as np
+import time
+
+# pre-load images of the DBT to save time during runtime
+dbt_cache = dict()
+dbt_cache['4x3'] = io.imread('output-16x256_4x3.png')
+dbt_cache['4x4'] = io.imread('output-256x256_4x4.png')
+dbt_cache['5x4'] = io.imread('output-256x4096_5x4.png')
+dbt_cache['3x3'] = io.imread('output-32x16_3x3.png')
+dbt_cache['3x2'] = io.imread('output-4x16_3x2.png')
+dbt_cache['5x5'] = io.imread('output-8192x4096_5x5.png')
 
 # TODO: redundant with dottrack.py
 WIN_W, WIN_H = 5, 5  # De Bruijn torus window width & height.
@@ -22,6 +32,7 @@ def decode_dbt_positions(wins_array, dbt_log):
     if x_range < 1 or y_range < 1:
         raise ValueError("Windows array too small for requested window.")
 
+    # iterate over all windows in the image and decode their positions
     for x in range(x_range):
         for y in range(y_range):
             win = wins_array[y:y+WIN_H, x:x+WIN_W]
@@ -31,9 +42,26 @@ def decode_dbt_positions(wins_array, dbt_log):
                 x_pos -= x
                 y_pos -= y
                 positions.append((x_pos, y_pos))
-            #else:
-            #    return None
     return positions
+
+# Found in this thread:
+# https://stackoverflow.com/a/16044630
+# Not sure about license:
+# https://www.algorithmist.com/index.php/Modular_inverse
+# Implemented according to Wikipedias pseudocode:
+# https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Modular_integers
+def inverse(a, n):
+    t, newt = 0, 1
+    r, newr = n, a
+    while newr != 0:
+        quotient = r // newr
+        t, newt = newt, t - quotient * newt
+        r, newr = newr, r - quotient * newr
+    if r > 1:
+        raise ValueError(f"a ({a}) is not invertible")
+    if t < 0:
+        t = t + n
+    return t
 
 # Decoding algorithm according to Shiu ("Decoding de Bruijn arrays as
 # constructed by Fan et al.")
@@ -76,8 +104,6 @@ def decode_dbt_pos(win, log):  # , src_dbt=None):
     # m, n = win.shape
     # m -= 1
     log_entry = log[-2]
-    # #placeholder_print(win)
-    # #placeholder_print(log_entry)
     src_dbt = None
     r, s, m, n = log_entry.dimensions
     # if log[-1].transposed:
@@ -87,44 +113,36 @@ def decode_dbt_pos(win, log):  # , src_dbt=None):
     dbs_seed = dbs_seed[1:]
     dbs_seed = dbs_seed + dbs_seed[:n-1]
     dbs_seed = np.array(dbs_seed) * WHITE
-    ##placeholder_print(f"DBS seed: {dbs_seed}")
 
     # Step 1: Compute: {dm}")
     dm = compute_dm(win)
-    # #placeholder_print(f"dm:\n{dm}")
 
     # Step 2: Find the location of D(M) in A. Get i, j.
-    # if src_dbt is not None:
     if len(log) == 2:
-        # #placeholder_print("BRUTE FORCE LOOKUP:")
         # Brute force lookup if it is the last two log entry.
-        src_dbt = io.imread(log_entry.fname)
+        src_dbt = dbt_cache['3x2']
         j, i = find_in_array(dm, src_dbt)
-        # #placeholder_print(f"BRUTE FORCE LOOKUP ENDED: {j}, {i}")
     else:
         # TODO: do recursion
-        # #placeholder_print(f"RECURSION {len(log)}:")
         if log_entry.transposed:
-            # #placeholder_print("Transposed!")
             i, j = decode_dbt_pos(dm.transpose(), log[:-1])
         else:
-            # #placeholder_print("NOT transposed!")
             j, i = decode_dbt_pos(dm, log[:-1])
-        # #placeholder_print(f"RECURSION {len(log)} ENDED:")
-    # #placeholder_print(f"win:\n{win}")
-    # #placeholder_print(f"r: {r}, s: {s}, m: {m}, n: {n}")
-    # #placeholder_print(f"i: {i}, j: {j}")
 
     # Step 3: Calculate -a>.
     if src_dbt is None:
-        src_dbt = io.imread(log_entry.fname)
+        idx = log_entry.fname.split('.')[0].split('_')[1]
+        src_dbt = dbt_cache[idx]
+
     a_vec = np.zeros(win[0, ].shape, dtype=np.uint8)
     a_vec |= win[0, ]
-    for i_tmp in range(i):
-        a_vec ^= src_dbt[i_tmp, j:j+n]
+
+    dbt_slice = src_dbt[:i, j:j+n]
+
+    b = np.bitwise_xor.reduce(dbt_slice)
+    a_vec ^= b
+
     zero_vec = np.zeros(a_vec.shape, dtype=np.uint8)
-    # #placeholder_print(f"a_vec:\n{a_vec}")
-    # #placeholder_print(f"dbs_seed:\n{dbs_seed}")
 
     # Step 4:
     #       if -a> == -0>:
@@ -138,29 +156,9 @@ def decode_dbt_pos(win, log):  # , src_dbt=None):
         if not 1 <= g <= 2**n - 1:
             raise ValueError(f"The g variable ({g}) is not in the right " +
                              f"value range.")
-        # #placeholder_print(f"g: {g}")
 
         # Step 5: Solve congruence equation: g+(2**n-1)*x === j (mod s),
         # 0<=x<=s–1.
-
-        # Found in this thread:
-        # https://stackoverflow.com/a/16044630
-        # Not sure about license:
-        # https://www.algorithmist.com/index.php/Modular_inverse
-        # Implemented according to Wikipedias pseudocode:
-        # https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Modular_integers
-        def inverse(a, n):
-            t, newt = 0, 1
-            r, newr = n, a
-            while newr != 0:
-                quotient = r // newr
-                t, newt = newt, t - quotient * newt
-                r, newr = newr, r - quotient * newr
-            if r > 1:
-                raise ValueError(f"a ({a}) is not invertible")
-            if t < 0:
-                t = t + n
-            return t
 
         x_tmp = inverse((2**n - 1), s)
         if x_tmp is None:
@@ -174,15 +172,12 @@ def decode_dbt_pos(win, log):  # , src_dbt=None):
         if not 0 <= x_tmp <= s-1:
             raise ValueError(f"The x_tmp variable ({x_tmp}) is not in the " +
                              f"right value range.")
-        # #placeholder_print(f"x_tmp: {x_tmp}")
 
         # Step 6: Calculate k: k = s + g + (2**n - 1) * x
         k = (s + g + (2**n - 1) * x_tmp) - 1
-    # #placeholder_print(f"k: {k}")
 
     # Step 7: The top left hand corner of M is the (i,k)-th entry of A1.
     x, y = k, i
-    # #placeholder_print(f"x: {x}, y: {y}")
 
     # if log[-1].transposed:
     #     x, y = y, x
@@ -190,14 +185,10 @@ def decode_dbt_pos(win, log):  # , src_dbt=None):
     return x, y
 
 def compute_dm(array):
-    dm = []
-    for y in range(array.shape[0] - 1):
-        dm.append(array[y, ] ^ array[y+1, ])
+    dm = [array[y, ] ^ array[y+1, ] for y in range(array.shape[0] - 1)]
     return np.vstack(dm)
 
 def find_in_array(win, array):
-    # #placeholder_print(f"find_in_array:\nwin:\n{win},\narray.shape(extended): " +
-    #       f"{array.shape}")
     x_range = array.shape[1] - win.shape[1] + 1
     y_range = array.shape[0] - win.shape[0] + 1
 
@@ -218,6 +209,7 @@ def find_in_array(win, array):
             subarray = array[y:y+win.shape[0], x:x+win.shape[1]]
             if (win == subarray).all():
                 return x, y
+
     return -1, -1
 
 def find_in_seq(win, sequence):
@@ -228,4 +220,3 @@ def find_in_seq(win, sequence):
             pos = i
             break
     return pos
-
